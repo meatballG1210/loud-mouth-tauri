@@ -23,6 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { z } from "zod";
+import { useAuth } from "@/components/SupabaseAuthProvider";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,6 +37,7 @@ export default function ForgotPassword() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { resetPassword } = useAuth();
 
   const form = useForm<ForgotPasswordData>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -44,22 +46,28 @@ export default function ForgotPassword() {
     },
   });
 
-  const onSubmit = async (_: ForgotPasswordData) => {
+  const onSubmit = async (data: ForgotPasswordData) => {
     setIsLoading(true);
     try {
-      // Mock forgot password request - in real app this would send email
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
-
-      setIsSubmitted(true);
-
-      toast({
-        title: t("passwordResetSent"),
-        description: t("checkEmailForInstructions"),
-      });
+      const { error } = await resetPassword(data.email);
+      
+      if (error) {
+        toast({
+          title: t("passwordResetFailed") || "Failed to send reset email",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setIsSubmitted(true);
+        toast({
+          title: t("passwordResetSent") || "Reset email sent",
+          description: t("checkEmailForInstructions") || "Please check your email for the password reset link.",
+        });
+      }
     } catch (error: any) {
       toast({
-        title: t("passwordResetFailed"),
-        description: error.message || t("passwordResetError"),
+        title: t("passwordResetFailed") || "Failed to send reset email",
+        description: error.message || t("passwordResetError") || "An error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -77,8 +85,8 @@ export default function ForgotPassword() {
         <div className="flex-1 flex items-center justify-center p-6">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="w-8 h-8 text-green-600" />
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-8 h-8 text-white" />
               </div>
               <CardTitle className="text-2xl font-bold">
                 {t("emailSent")}
@@ -94,6 +102,21 @@ export default function ForgotPassword() {
                   <li>• {t("waitFewMinutes")}</li>
                   <li>• {t("tryDifferentEmail")}</li>
                 </ul>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm mb-4">
+                <p className="font-medium text-yellow-900 mb-1">Using Tauri App?</p>
+                <p className="text-yellow-700 text-xs mb-2">
+                  If the reset link opens in your browser instead of the app, copy the code from the URL and use it here:
+                </p>
+                <Button
+                  onClick={() => setLocation("/reset-password-code")}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  Enter Reset Code Manually
+                </Button>
               </div>
 
               <div className="space-y-3">
@@ -126,8 +149,8 @@ export default function ForgotPassword() {
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-blue-600" />
+            <div className="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold">
               {t("forgotPassword")}
@@ -186,15 +209,6 @@ export default function ForgotPassword() {
               </Button>
             </div>
 
-            {/* Demo notice */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-              <p className="font-medium text-yellow-900 mb-1">
-                {t("demoNotice")}
-              </p>
-              <p className="text-yellow-700 text-xs">
-                {t("demoPasswordResetNotice")}
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

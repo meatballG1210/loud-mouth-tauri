@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/SupabaseAuthProvider";
 import { useVideos } from "@/hooks/use-videos";
 
 const languages = [
@@ -200,7 +200,7 @@ export default function Settings() {
     defaultValues: {
       firstName: "",
       lastName: "",
-      username: user?.username || "",
+      username: "",
       email: user?.email || "",
       avatar: "",
       newPassword: "",
@@ -214,7 +214,7 @@ export default function Settings() {
       profileForm.reset({
         firstName: "", // Demo user - would come from user data in real app
         lastName: "", // Demo user - would come from user data in real app
-        username: user.username,
+        username: "",
         email: user.email,
         avatar: "",
         newPassword: "",
@@ -452,8 +452,8 @@ export default function Settings() {
                               />
                             ) : (
                               <span className="text-white text-2xl font-bold">
-                                {user
-                                  ? user.username.charAt(0).toUpperCase()
+                                {user?.email
+                                  ? user.email.charAt(0).toUpperCase()
                                   : "U"}
                               </span>
                             )}

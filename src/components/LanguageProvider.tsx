@@ -10,9 +10,13 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   const [renderKey, setRenderKey] = useState(0);
 
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('ui-language');
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
-      setLanguage(savedLanguage as Language);
+    try {
+      const savedLanguage = localStorage.getItem('ui-language');
+      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
+        setLanguage(savedLanguage as Language);
+      }
+    } catch (error) {
+      console.error('Error loading language preference:', error);
     }
   }, []);
 

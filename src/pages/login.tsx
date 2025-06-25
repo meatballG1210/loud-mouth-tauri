@@ -22,14 +22,21 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import {
-  loginSchema,
-  registerSchema,
-  type LoginData,
-  type RegisterData,
-} from "@/types/schema";
-import { apiRequestJson } from "@/lib/queryClient";
-import { useAuth } from "@/components/AuthProvider";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const registerSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+type LoginData = z.infer<typeof loginSchema>;
+type RegisterData = z.infer<typeof registerSchema>;
+import { useAuth } from "@/components/SupabaseAuthProvider";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -38,12 +45,12 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { login } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   const loginForm = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -51,7 +58,6 @@ export default function Login() {
   const registerForm = useForm<RegisterData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
       email: "",
       password: "",
     },
@@ -60,25 +66,20 @@ export default function Login() {
   const onLoginSubmit = async (data: LoginData) => {
     setIsLoading(true);
     try {
-      const response = await apiRequestJson({
-        url: "/api/auth/login",
-        method: "POST",
-        body: data,
-      });
-
-      if (response.token) {
-        // Use the AuthProvider's login method to update state
-        login(response.token, response.user);
-
+      const { error } = await signIn(data.email, data.password);
+      
+      if (error) {
+        toast({
+          title: t("loginFailed"),
+          description: error.message || t("invalidCredentials"),
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: t("loginSuccessful"),
-          description: t("welcomeBack").replace(
-            "{username}",
-            response.user.username,
-          ),
+          description: t("welcomeBack"),
         });
-
-        // The AuthProvider will automatically redirect to home when authenticated
+        setLocation("/");
       }
     } catch (error: any) {
       toast({
@@ -94,22 +95,19 @@ export default function Login() {
   const onRegisterSubmit = async (data: RegisterData) => {
     setIsLoading(true);
     try {
-      const response = await apiRequestJson({
-        url: "/api/auth/register",
-        method: "POST",
-        body: data,
-      });
-
-      if (response.token) {
-        // Use the AuthProvider's login method to update state
-        login(response.token, response.user);
-
+      const { error } = await signUp(data.email, data.password);
+      
+      if (error) {
+        toast({
+          title: t("registrationFailed"),
+          description: error.message || t("registrationError"),
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: t("registrationSuccessful"),
-          description: t("accountCreated"),
+          description: "Please check your email to confirm your account.",
         });
-
-        // The AuthProvider will automatically redirect to home when authenticated
       }
     } catch (error: any) {
       toast({
@@ -140,19 +138,27 @@ export default function Login() {
 
           <CardContent className="space-y-6">
             {isLogin ? (
-              <Form {...loginForm}>
+              <Form {...loginForm} key="login-form">
                 <form
                   onSubmit={loginForm.handleSubmit(onLoginSubmit)}
                   className="space-y-4"
                 >
                   <FormField
                     control={loginForm.control}
-                    name="username"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("username")}</FormLabel>
+                        <FormLabel>{t("email")}</FormLabel>
                         <FormControl>
-                          <Input placeholder={t("enterUsername")} {...field} />
+                          <Input 
+                            type="email"
+                            placeholder={t("enterEmail")} 
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -170,7 +176,11 @@ export default function Login() {
                             <Input
                               type={showPassword ? "text" : "password"}
                               placeholder={t("enterPassword")}
-                              {...field}
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                             <Button
                               type="button"
@@ -219,25 +229,11 @@ export default function Login() {
                 </form>
               </Form>
             ) : (
-              <Form {...registerForm}>
+              <Form {...registerForm} key="register-form">
                 <form
                   onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
                   className="space-y-4"
                 >
-                  <FormField
-                    control={registerForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("username")}</FormLabel>
-                        <FormControl>
-                          <Input placeholder={t("enterUsername")} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     control={registerForm.control}
                     name="email"
@@ -245,10 +241,14 @@ export default function Login() {
                       <FormItem>
                         <FormLabel>{t("email")}</FormLabel>
                         <FormControl>
-                          <Input
+                          <Input 
                             type="email"
-                            placeholder={t("enterEmail")}
-                            {...field}
+                            placeholder={t("enterEmail")} 
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
                           />
                         </FormControl>
                         <FormMessage />
@@ -267,7 +267,11 @@ export default function Login() {
                             <Input
                               type={showPassword ? "text" : "password"}
                               placeholder={t("enterPassword")}
-                              {...field}
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                             <Button
                               type="button"
@@ -311,8 +315,9 @@ export default function Login() {
                 variant="link"
                 onClick={() => {
                   setIsLogin(!isLogin);
-                  loginForm.reset();
-                  registerForm.reset();
+                  // Reset forms with their default values
+                  loginForm.reset({ email: "", password: "" });
+                  registerForm.reset({ email: "", password: "" });
                 }}
                 className="text-sm"
               >
@@ -320,22 +325,6 @@ export default function Login() {
               </Button>
             </div>
 
-            {/* Demo credentials notice */}
-            {isLogin && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-                <p className="font-medium text-blue-900 mb-1">
-                  {t("demoCredentials")}
-                </p>
-                <p className="text-blue-700">
-                  {t("username")}:{" "}
-                  <code className="bg-blue-100 px-1 rounded">demo</code>
-                </p>
-                <p className="text-blue-700">
-                  {t("password")}:{" "}
-                  <code className="bg-blue-100 px-1 rounded">password123</code>
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

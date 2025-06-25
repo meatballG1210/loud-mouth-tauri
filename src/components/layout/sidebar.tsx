@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { VideoLibraryStats } from "@/types/video";
 import { useLanguage } from "@/lib/i18n";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/SupabaseAuthProvider";
 
 interface SidebarProps {
   stats: VideoLibraryStats;
@@ -32,7 +32,7 @@ export function Sidebar({
   onUploadVideo,
 }: SidebarProps) {
   const { t } = useLanguage();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   // Use localStorage to persist sidebar state
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -49,8 +49,8 @@ export function Sidebar({
     setIsCollapsed(!isCollapsed);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
   };
 
   return (
@@ -62,13 +62,13 @@ export function Sidebar({
         <div className="p-4 flex items-center space-x-3">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-white text-sm font-bold">
-              {user ? user.username.charAt(0).toUpperCase() : "U"}
+              {user?.email ? user.email.charAt(0).toUpperCase() : "U"}
             </span>
           </div>
           {!isCollapsed && user && (
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-semibold text-gray-900 truncate">
-                {user.username}
+                {user.email}
               </h1>
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>

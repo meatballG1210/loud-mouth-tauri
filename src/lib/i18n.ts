@@ -630,5 +630,15 @@ export function useLanguage() {
 }
 
 export function getNestedTranslation(obj: any, path: string): string {
-  return path.split('.').reduce((current, key) => current?.[key], obj) || path;
+  if (!path || typeof path !== 'string') {
+    console.error('Invalid translation path:', path);
+    return '';
+  }
+  
+  try {
+    return path.split('.').reduce((current, key) => current?.[key], obj) || path;
+  } catch (error) {
+    console.error('Error getting translation:', error, 'path:', path);
+    return path || '';
+  }
 }

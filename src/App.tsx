@@ -1,13 +1,15 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { LanguageProvider } from "@/components/LanguageProvider";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { SupabaseAuthProvider, useAuth } from "@/components/SupabaseAuthProvider";
 import Login from "@/pages/login";
 import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
+import ResetPasswordCode from "@/pages/reset-password-code";
 import Home from "@/pages/home";
 import VideoPlayer from "@/pages/video-player";
 import UploadForm from "@/pages/upload-form";
@@ -21,8 +23,12 @@ import ErrorPage from "@/pages/error";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [pathname] = useLocation();
 
-  if (isLoading) {
+  // Allow reset-password routes to be accessible even when not authenticated
+  const isResetPasswordRoute = pathname === '/reset-password' || pathname === '/reset-password-code';
+
+  if (isLoading && !isResetPasswordRoute) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -33,11 +39,13 @@ function Router() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isResetPasswordRoute) {
     return (
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/reset-password-code" component={ResetPasswordCode} />
         <Route path="/" component={Login} />
         <Route component={Login} />
       </Switch>
@@ -66,14 +74,14 @@ function App() {
     <ErrorBoundary>
       <LanguageProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
+          <SupabaseAuthProvider>
             <TooltipProvider>
               <Toaster />
               <div className="border-t border-gray-200">
                 <Router />
               </div>
             </TooltipProvider>
-          </AuthProvider>
+          </SupabaseAuthProvider>
         </QueryClientProvider>
       </LanguageProvider>
     </ErrorBoundary>
