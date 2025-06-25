@@ -1,0 +1,668 @@
+/* macOS System Colors */
+:root {
+    /* macOS System Colors Light */
+    --macos-system-red: rgb(255, 59, 48);
+    --macos-system-orange: rgb(255, 149, 0);
+    --macos-system-yellow: rgb(255, 204, 0);
+    --macos-system-green: rgb(52, 199, 89);
+    --macos-system-mint: rgb(0, 245, 234);
+    --macos-system-teal: rgb(48, 176, 199);
+    --macos-system-cyan: rgb(50, 173, 230);
+    --macos-system-blue: rgb(0, 122, 255);
+    --macos-system-indigo: rgb(88, 86, 214);
+    --macos-system-purple: rgb(175, 82, 222);
+    --macos-system-pink: rgb(255, 45, 85);
+    --macos-system-brown: rgb(162, 132, 94);
+
+    /* macOS Interface Colors Light */
+    --macos-label-primary: rgb(0, 0, 0);
+    --macos-label-secondary: rgba(60, 60, 67, 0.6);
+    --macos-label-tertiary: rgba(60, 60, 67, 0.3);
+    --macos-label-quaternary: rgba(60, 60, 67, 0.18);
+
+    --macos-fill-primary: rgba(120, 120, 128, 0.2);
+    --macos-fill-secondary: rgba(120, 120, 128, 0.16);
+    --macos-fill-tertiary: rgba(118, 118, 128, 0.12);
+    --macos-fill-quaternary: rgba(116, 116, 128, 0.08);
+
+    --macos-separator: rgba(60, 60, 67, 0.29);
+    --macos-separator-opaque: rgb(198, 198, 200);
+
+    /* macOS Background Colors Light */
+    --macos-bg-primary: rgb(255, 255, 255);
+    --macos-bg-secondary: rgb(246, 246, 246);
+    --macos-bg-tertiary: rgb(255, 255, 255);
+
+    --macos-grouped-bg-primary: rgb(242, 242, 247);
+    --macos-grouped-bg-secondary: rgb(255, 255, 255);
+    --macos-grouped-bg-tertiary: rgb(242, 242, 247);
+
+    /* Window Controls */
+    --macos-window-bg: rgba(246, 246, 246, 0.8);
+    --macos-titlebar-bg: rgba(246, 246, 246, 0.6);
+
+    /* Shadows */
+    --macos-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --macos-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --macos-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --macos-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* macOS Button Styles */
+.macos-button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 200ms;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+    border: 1px solid var(--macos-border);
+    box-shadow: var(--macos-shadow);
+}
+
+.macos-button:hover {
+    background: linear-gradient(180deg, #f5f5f5 0%, #e5e5e5 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--macos-shadow-lg);
+}
+
+.macos-button:active {
+    transform: translateY(0);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.macos-button-primary {
+    background: linear-gradient(
+        180deg,
+        var(--macos-blue) 0%,
+        var(--macos-blue-hover) 100%
+    );
+    color: white;
+    border: 1px solid var(--macos-blue-hover);
+}
+
+.macos-button-primary:hover {
+    background: linear-gradient(
+        180deg,
+        var(--macos-blue-hover) 0%,
+        #004499 100%
+    );
+}
+
+/* macOS Card Styles */
+.macos-card {
+    background-color: white;
+    border-radius: 0.75rem;
+    border: 1px solid var(--macos-border);
+    box-shadow: var(--macos-shadow);
+}
+
+.macos-card:hover {
+    box-shadow: var(--macos-shadow-lg);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* macOS Sidebar */
+.macos-sidebar {
+    background: var(--macos-sidebar-bg);
+    border-right: 1px solid var(--macos-border);
+}
+
+.macos-sidebar-shadow {
+    box-shadow: inset -1px 0 0 var(--macos-border);
+}
+
+/* macOS Input Styles */
+.macos-input {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--macos-border);
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.macos-input:focus {
+    outline: none;
+    border-color: var(--macos-blue);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+/* macOS Transition */
+.transition-macos {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* macOS Window Controls */
+.macos-window-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+}
+
+.macos-control-button {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+.macos-control-close {
+    background: #ff5f57;
+}
+
+.macos-control-minimize {
+    background: #ffbd2e;
+}
+
+.macos-control-maximize {
+    background: #28ca42;
+}
+
+/* macOS Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* macOS Typography */
+.macos-title {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.macos-body {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 400;
+}
+
+/* macOS Progress Bar */
+.macos-progress {
+    height: 4px;
+    background: var(--macos-gray-200);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.macos-progress-fill {
+    height: 100%;
+    background: var(--macos-blue);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* macOS Modal */
+.macos-modal-backdrop {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.macos-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--macos-border);
+}
+
+/* macOS Selection */
+::selection {
+    background: rgba(0, 122, 255, 0.2);
+}
+
+/* Remove focus outline for mouse users */
+.js-focus-visible :focus:not(.focus-visible) {
+    outline: none;
+}
+
+:root {
+    --background: hsl(0, 0%, 100%);
+    --foreground: hsl(0, 0%, 0%);
+    --muted: hsl(210, 40%, 96%);
+    --muted-foreground: hsl(215, 16%, 47%);
+    --popover: hsl(0, 0%, 100%);
+    --popover-foreground: hsl(0, 0%, 0%);
+    --card: hsl(0, 0%, 100%);
+    --card-foreground: hsl(0, 0%, 0%);
+    --border: hsl(214, 32%, 91%);
+    --input: hsl(214, 32%, 91%);
+    --primary: hsl(207, 100%, 50%);
+    --primary-foreground: hsl(210, 40%, 98%);
+    --secondary: hsl(210, 40%, 96%);
+    --secondary-foreground: hsl(222, 84%, 5%);
+    --accent: hsl(210, 40%, 96%);
+    --accent-foreground: hsl(222, 84%, 5%);
+    --destructive: hsl(0, 84%, 60%);
+    --destructive-foreground: hsl(210, 40%, 98%);
+    --ring: hsl(222, 84%, 5%);
+    --radius: 0.5rem;
+
+    /* Unified Blue System */
+    --blue-50: #eff6ff;
+    --blue-100: #dbeafe;
+    --blue-200: #bfdbfe;
+    --blue-300: #93c5fd;
+    --blue-400: #60a5fa;
+    --blue-500: #3b82f6;
+    --blue-600: #2563eb;
+    --blue-700: #1d4ed8;
+    --blue-800: #1e40af;
+    --blue-900: #1e3a8a;
+
+    /* macOS specific colors */
+    --macos-blue: var(--blue-500);
+    --macos-blue-hover: var(--blue-600);
+    --macos-blue-active: var(--blue-700);
+    --macos-gray: hsl(240, 2%, 56%);
+    --macos-bg: hsl(0, 0%, 100%);
+    --macos-surface: hsl(210, 20%, 96%);
+    --macos-sidebar: hsl(0, 0%, 96%);
+    --macos-border: hsl(214, 16%, 89%);
+    --macos-text: hsl(0, 0%, 0%);
+    --macos-text-secondary: hsl(240, 4%, 23%);
+    --macos-red: var(--macos-system-red);
+    --macos-green: var(--macos-system-green);
+    --macos-orange: var(--macos-system-orange);
+}
+
+.dark {
+    --background: var(--macos-bg-primary);
+    --foreground: var(--macos-label-primary);
+    --muted: var(--macos-fill-primary);
+    --muted-foreground: var(--macos-label-secondary);
+    --popover: var(--macos-bg-secondary);
+    --popover-foreground: var(--macos-label-primary);
+    --card: var(--macos-bg-secondary);
+    --card-foreground: var(--macos-label-primary);
+    --border: var(--macos-separator);
+    --input: var(--macos-separator);
+    --primary: var(--macos-system-blue);
+    --primary-foreground: rgb(255, 255, 255);
+    --secondary: var(--macos-fill-primary);
+    --secondary-foreground: var(--macos-label-primary);
+    --accent: var(--macos-fill-primary);
+    --accent-foreground: var(--macos-label-primary);
+    --destructive: var(--macos-system-red);
+    --destructive-foreground: rgb(255, 255, 255);
+    --ring: var(--macos-system-blue);
+
+    /* macOS Dark Mode Colors */
+    --macos-label-primary: rgb(255, 255, 255);
+    --macos-label-secondary: rgba(235, 235, 245, 0.6);
+    --macos-label-tertiary: rgba(235, 235, 245, 0.3);
+    --macos-label-quaternary: rgba(235, 235, 245, 0.18);
+
+    --macos-fill-primary: rgba(120, 120, 128, 0.36);
+    --macos-fill-secondary: rgba(120, 120, 128, 0.32);
+    --macos-fill-tertiary: rgba(118, 118, 128, 0.28);
+    --macos-fill-quaternary: rgba(116, 116, 128, 0.24);
+
+    --macos-separator: rgba(84, 84, 88, 0.65);
+    --macos-separator-opaque: rgb(56, 56, 58);
+
+    --macos-bg-primary: rgb(0, 0, 0);
+    --macos-bg-secondary: rgb(28, 28, 30);
+    --macos-bg-tertiary: rgb(44, 44, 46);
+
+    --macos-grouped-bg-primary: rgb(0, 0, 0);
+    --macos-grouped-bg-secondary: rgb(28, 28, 30);
+    --macos-grouped-bg-tertiary: rgb(44, 44, 46);
+
+    --macos-window-bg: rgba(30, 30, 30, 0.8);
+    --macos-titlebar-bg: rgba(40, 40, 40, 0.6);
+
+    --macos-system-blue: rgb(10, 132, 255);
+    --macos-system-green: rgb(48, 209, 88);
+    --macos-system-red: rgb(255, 69, 58);
+    --macos-system-orange: rgb(255, 159, 10);
+    --macos-system-yellow: rgb(255, 214, 10);
+}
+
+@layer base {
+    * {
+        border-color: var(--border);
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+        font-family:
+            -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+            "Helvetica Neue", sans-serif;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Custom macOS-style scrollbars */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* macOS Typography Classes */
+.macos-title-1 {
+    font-size: 2.125rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.022em;
+    color: var(--macos-label-primary);
+}
+
+.macos-title-2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--macos-label-primary);
+}
+
+.macos-title-3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    color: var(--macos-label-primary);
+}
+
+.macos-headline {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: var(--macos-label-primary);
+}
+
+.macos-body {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    color: var(--macos-label-primary);
+}
+
+.macos-callout {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+    color: var(--macos-label-primary);
+}
+
+.macos-subhead {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: -0.003em;
+    color: var(--macos-label-secondary);
+}
+
+.macos-footnote {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: -0.001em;
+    color: var(--macos-label-secondary);
+}
+
+.macos-caption-1 {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+    color: var(--macos-label-secondary);
+}
+
+.macos-caption-2 {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0.015em;
+    color: var(--macos-label-tertiary);
+}
+
+/* macOS Window Structure */
+.macos-window {
+    background: var(--macos-window-bg);
+    backdrop-filter: blur(20px);
+    border-radius: 12px;
+    box-shadow: var(--macos-shadow-xl);
+    overflow: hidden;
+}
+
+.macos-titlebar {
+    height: 52px;
+    background: var(--macos-titlebar-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--macos-separator);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    position: relative;
+}
+
+.macos-titlebar-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.macos-titlebar-control {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.macos-titlebar-control:hover {
+    opacity: 0.8;
+}
+
+.macos-titlebar-control.close {
+    background: #ff5f57;
+}
+
+.macos-titlebar-control.minimize {
+    background: #ffbd2e;
+}
+
+.macos-titlebar-control.maximize {
+    background: #28ca42;
+}
+
+.macos-titlebar-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 500;
+    pointer-events: none;
+}
+
+/* macOS Sidebar */
+.macos-sidebar {
+    background: var(--macos-bg-secondary);
+    border-right: 1px solid var(--macos-separator);
+    width: 280px;
+    min-width: 280px;
+}
+
+.macos-sidebar-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--macos-separator);
+}
+
+.macos-sidebar-content {
+    padding: 12px;
+    height: calc(100vh - 52px - 64px);
+    overflow-y: auto;
+}
+
+.macos-sidebar-section {
+    margin-bottom: 24px;
+}
+
+.macos-sidebar-section-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--macos-label-secondary);
+    margin-bottom: 8px;
+    padding: 0 12px;
+}
+
+.macos-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--macos-label-primary);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    margin-bottom: 2px;
+}
+
+.macos-sidebar-item:hover {
+    background: var(--macos-fill-tertiary);
+}
+
+.macos-sidebar-item.active {
+    background: var(--macos-system-blue);
+    color: white;
+}
+
+.macos-sidebar-item .icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+}
+
+.macos-sidebar-item.active .icon {
+    opacity: 1;
+}
+
+@layer utilities {
+    .window-chrome {
+        -webkit-app-region: drag;
+    }
+
+    .window-chrome button {
+        -webkit-app-region: no-drag;
+    }
+
+    .transition-macos {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .macos-shadow {
+        box-shadow: var(--macos-shadow-sm);
+    }
+
+    .macos-shadow-hover {
+        box-shadow: var(--macos-shadow-md);
+    }
+
+    .macos-sidebar-shadow {
+        box-shadow: inset -1px 0 0 var(--macos-separator);
+    }
+
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Custom slider styles for video controls */
+    .slider {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .slider::-webkit-slider-track {
+        background: #374151;
+        height: 4px;
+        border-radius: 2px;
+    }
+
+    .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+        background: #2563eb;
+        transform: scale(1.1);
+    }
+
+    /* Volume slider */
+    .volume-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+        height: 4px;
+    }
+
+    .volume-slider::-webkit-slider-track {
+        background: #374151;
+        height: 4px;
+        border-radius: 2px;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 10px;
+        width: 10px;
+        border-radius: 50%;
+        background: #9ca3af;
+        cursor: pointer;
+        border: 1px solid #ffffff;
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+        background: #6b7280;
+    }
+}

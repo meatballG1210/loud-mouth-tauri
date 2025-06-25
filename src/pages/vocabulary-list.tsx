@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { BookOpen, Play, Star, Search, ChevronDown, ChevronRight } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
+import {
+  BookOpen,
+  Play,
+  Star,
+  Search,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useVideos } from "@/hooks/use-videos";
@@ -14,7 +20,9 @@ export default function VocabularyList() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "lastReviewed">("word");
+  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "lastReviewed">(
+    "word",
+  );
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [activeSection, setActiveSection] = useState("vocabulary");
   const [expandedVideos, setExpandedVideos] = useState<Set<string>>(new Set());
@@ -42,7 +50,10 @@ export default function VocabularyList() {
         const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
         return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
       case "lastReviewed":
-        return new Date(b.lastReviewed).getTime() - new Date(a.lastReviewed).getTime();
+        return (
+          new Date(b.lastReviewed).getTime() -
+          new Date(a.lastReviewed).getTime()
+        );
       default:
         return 0;
     }
@@ -116,8 +127,6 @@ export default function VocabularyList() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
-      <WindowTitleBar />
-
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
@@ -149,20 +158,26 @@ export default function VocabularyList() {
             {/* Stats Cards */}
             <div className="flex space-x-4">
               <div className="bg-blue-50 rounded-lg px-4 py-2">
-                <div className="text-2xl font-bold text-blue-600">{stats.totalWords}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats.totalWords}
+                </div>
                 <div className="text-xs text-blue-500">{t("totalWords")}</div>
               </div>
               <div className="bg-orange-50 rounded-lg px-4 py-2">
                 <div className="text-2xl font-bold text-orange-600">
                   {stats.wordsToReview}
                 </div>
-                <div className="text-xs text-orange-500">{t("wordsToReview")}</div>
+                <div className="text-xs text-orange-500">
+                  {t("wordsToReview")}
+                </div>
               </div>
               <div className="bg-green-50 rounded-lg px-4 py-2">
                 <div className="text-2xl font-bold text-green-600">
                   {stats.masteredWords}
                 </div>
-                <div className="text-xs text-green-500">{t("masteredWords")}</div>
+                <div className="text-xs text-green-500">
+                  {t("masteredWords")}
+                </div>
               </div>
             </div>
           </div>
@@ -287,114 +302,120 @@ export default function VocabularyList() {
                   )}
                 </div>
               ) : (
-                Object.entries(vocabularyByVideo).map(([videoId, videoData]) => {
-                  const isExpanded = expandedVideos.has(videoId);
-                  const previewWords = videoData.words.slice(0, 3);
-                  const hasMoreWords = videoData.words.length > 3;
+                Object.entries(vocabularyByVideo).map(
+                  ([videoId, videoData]) => {
+                    const isExpanded = expandedVideos.has(videoId);
+                    const previewWords = videoData.words.slice(0, 3);
+                    const hasMoreWords = videoData.words.length > 3;
 
-                  return (
-                    <div
-                      key={videoId}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
-                    >
-                      {/* Video Header - Always Visible */}
-                      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-                        <div className="flex items-center space-x-3 flex-1">
-                          <Play className="w-5 h-5 text-gray-600" />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-gray-900 truncate">
-                              {videoData.videoTitle}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {videoData.words.length} vocabulary word
-                              {videoData.words.length !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {hasMoreWords && (
-                            <button
-                              onClick={() => toggleVideoExpansion(videoId)}
-                              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                              title={isExpanded ? "Show less" : "Show more"}
-                            >
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-gray-600" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-600" />
-                              )}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleViewWords(videoId)}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium"
-                          >
-                            View All
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Compact Word Preview */}
-                      <div className="px-6 py-4">
-                        {/* Column Headers */}
-                        <div className="flex items-center justify-between px-2 py-1 mb-2 text-xs text-gray-500 font-medium border-b border-gray-100">
-                          <div className="flex-1">Word & Translation</div>
-                          <div className="flex items-center space-x-4 flex-shrink-0">
-                            <span>Difficulty</span>
-                            <span>Reviews</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          {(isExpanded ? videoData.words : previewWords).map((word) => (
-                            <div
-                              key={word.id}
-                              className="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
-                              onClick={() => handlePlayVideo(videoId, word.timestamp)}
-                            >
-                              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-medium text-gray-900 truncate">
-                                      {word.word}
-                                    </span>
-                                    {word.isStarred && (
-                                      <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-600 truncate">
-                                    {word.translation}
-                                  </p>
-                                </div>
-                                <div className="flex items-center space-x-4 flex-shrink-0">
-                                  <span
-                                    className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(word.difficulty)}`}
-                                  >
-                                    {word.difficulty}
-                                  </span>
-                                  <span className="text-xs text-gray-500 w-8 text-center">
-                                    {word.reviewCount}
-                                  </span>
-                                </div>
-                              </div>
+                    return (
+                      <div
+                        key={videoId}
+                        className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                      >
+                        {/* Video Header - Always Visible */}
+                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                          <div className="flex items-center space-x-3 flex-1">
+                            <Play className="w-5 h-5 text-gray-600" />
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 truncate">
+                                {videoData.videoTitle}
+                              </h3>
+                              <p className="text-sm text-gray-500">
+                                {videoData.words.length} vocabulary word
+                                {videoData.words.length !== 1 ? "s" : ""}
+                              </p>
                             </div>
-                          ))}
-                        </div>
-
-                        {!isExpanded && hasMoreWords && (
-                          <div className="mt-3 text-center">
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {hasMoreWords && (
+                              <button
+                                onClick={() => toggleVideoExpansion(videoId)}
+                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                title={isExpanded ? "Show less" : "Show more"}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                                )}
+                              </button>
+                            )}
                             <button
-                              onClick={() => toggleVideoExpansion(videoId)}
-                              className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                              onClick={() => handleViewWords(videoId)}
+                              className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium"
                             >
-                              Show {videoData.words.length - 3} more words
+                              View All
                             </button>
                           </div>
-                        )}
+                        </div>
+
+                        {/* Compact Word Preview */}
+                        <div className="px-6 py-4">
+                          {/* Column Headers */}
+                          <div className="flex items-center justify-between px-2 py-1 mb-2 text-xs text-gray-500 font-medium border-b border-gray-100">
+                            <div className="flex-1">Word & Translation</div>
+                            <div className="flex items-center space-x-4 flex-shrink-0">
+                              <span>Difficulty</span>
+                              <span>Reviews</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {(isExpanded ? videoData.words : previewWords).map(
+                              (word) => (
+                                <div
+                                  key={word.id}
+                                  className="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                                  onClick={() =>
+                                    handlePlayVideo(videoId, word.timestamp)
+                                  }
+                                >
+                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="font-medium text-gray-900 truncate">
+                                          {word.word}
+                                        </span>
+                                        {word.isStarred && (
+                                          <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-600 truncate">
+                                        {word.translation}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center space-x-4 flex-shrink-0">
+                                      <span
+                                        className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(word.difficulty)}`}
+                                      >
+                                        {word.difficulty}
+                                      </span>
+                                      <span className="text-xs text-gray-500 w-8 text-center">
+                                        {word.reviewCount}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+
+                          {!isExpanded && hasMoreWords && (
+                            <div className="mt-3 text-center">
+                              <button
+                                onClick={() => toggleVideoExpansion(videoId)}
+                                className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                              >
+                                Show {videoData.words.length - 3} more words
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  },
+                )
               )}
             </div>
           </div>

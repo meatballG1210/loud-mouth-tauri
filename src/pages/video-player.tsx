@@ -9,7 +9,6 @@ import {
   RotateCcw,
   RotateCw,
 } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { useVideos } from "@/hooks/use-videos";
 import { Video } from "@/types/video";
 
@@ -23,11 +22,41 @@ interface SubtitleLine {
 
 // Mock subtitle data
 const mockSubtitles: SubtitleLine[] = [
-  { id: "1", start: 0, end: 3, text: "Gloria, they're 6 and 8.", language: "english" },
-  { id: "2", start: 3, end: 6, text: "Let's take it down a notch.", language: "english" },
-  { id: "3", start: 6, end: 9, text: "We're very different.", language: "english" },
-  { id: "4", start: 9, end: 12, text: "Jay's from the city.", language: "english" },
-  { id: "5", start: 12, end: 15, text: "He has a big business.", language: "english" },
+  {
+    id: "1",
+    start: 0,
+    end: 3,
+    text: "Gloria, they're 6 and 8.",
+    language: "english",
+  },
+  {
+    id: "2",
+    start: 3,
+    end: 6,
+    text: "Let's take it down a notch.",
+    language: "english",
+  },
+  {
+    id: "3",
+    start: 6,
+    end: 9,
+    text: "We're very different.",
+    language: "english",
+  },
+  {
+    id: "4",
+    start: 9,
+    end: 12,
+    text: "Jay's from the city.",
+    language: "english",
+  },
+  {
+    id: "5",
+    start: 12,
+    end: 15,
+    text: "He has a big business.",
+    language: "english",
+  },
   {
     id: "6",
     start: 15,
@@ -49,10 +78,28 @@ const mockSubtitles: SubtitleLine[] = [
     text: "It's the number one village in all Colombia for all the-",
     language: "english",
   },
-  { id: "9", start: 25, end: 27, text: "What's the word?", language: "english" },
+  {
+    id: "9",
+    start: 25,
+    end: 27,
+    text: "What's the word?",
+    language: "english",
+  },
   { id: "10", start: 27, end: 29, text: "Murders.", language: "english" },
-  { id: "11", start: 29, end: 32, text: "Yes. The murders.", language: "english" },
-  { id: "12", start: 32, end: 35, text: "Manny, stop him!", language: "english" },
+  {
+    id: "11",
+    start: 29,
+    end: 32,
+    text: "Yes. The murders.",
+    language: "english",
+  },
+  {
+    id: "12",
+    start: 32,
+    end: 35,
+    text: "Manny, stop him!",
+    language: "english",
+  },
 ];
 
 const mockChineseSubtitles: SubtitleLine[] = [
@@ -66,9 +113,27 @@ const mockChineseSubtitles: SubtitleLine[] = [
   { id: "2", start: 3, end: 6, text: "让我们冷静一点。", language: "chinese" },
   { id: "3", start: 6, end: 9, text: "我们很不一样。", language: "chinese" },
   { id: "4", start: 9, end: 12, text: "杰伊来自城市。", language: "chinese" },
-  { id: "5", start: 12, end: 15, text: "他有一个大企业。", language: "chinese" },
-  { id: "6", start: 15, end: 18, text: "我来自一个小村庄。", language: "chinese" },
-  { id: "7", start: 18, end: 21, text: "很穷但非常非常美丽。", language: "chinese" },
+  {
+    id: "5",
+    start: 12,
+    end: 15,
+    text: "他有一个大企业。",
+    language: "chinese",
+  },
+  {
+    id: "6",
+    start: 15,
+    end: 18,
+    text: "我来自一个小村庄。",
+    language: "chinese",
+  },
+  {
+    id: "7",
+    start: 18,
+    end: 21,
+    text: "很穷但非常非常美丽。",
+    language: "chinese",
+  },
   {
     id: "8",
     start: 21,
@@ -92,12 +157,14 @@ export default function VideoPlayer() {
   const [duration] = useState(1367); // 22:47 in seconds
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
-  const [activeLanguage, setActiveLanguage] = useState<"english" | "chinese" | "off">(
-    "english",
-  );
+  const [activeLanguage, setActiveLanguage] = useState<
+    "english" | "chinese" | "off"
+  >("english");
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
-  const [selectionTimer, setSelectionTimer] = useState<NodeJS.Timeout | null>(null);
+  const [selectionTimer, setSelectionTimer] = useState<NodeJS.Timeout | null>(
+    null,
+  );
   const [showLookupPopup, setShowLookupPopup] = useState(false);
   const [lookupPosition, setLookupPosition] = useState({ x: 0, y: 0 });
 
@@ -137,8 +204,11 @@ export default function VideoPlayer() {
 
   const getCurrentSubtitle = () => {
     if (activeLanguage === "off") return null;
-    const subtitles = activeLanguage === "english" ? mockSubtitles : mockChineseSubtitles;
-    return subtitles.find((sub) => currentTime >= sub.start && currentTime < sub.end);
+    const subtitles =
+      activeLanguage === "english" ? mockSubtitles : mockChineseSubtitles;
+    return subtitles.find(
+      (sub) => currentTime >= sub.start && currentTime < sub.end,
+    );
   };
 
   const handleWordClick = (word: string, event: React.MouseEvent) => {
@@ -224,7 +294,6 @@ export default function VideoPlayer() {
     // Show loading state while videos are loading or video not found yet
     return (
       <div className="flex flex-col h-screen bg-white">
-        <WindowTitleBar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -239,8 +308,6 @@ export default function VideoPlayer() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar />
-
       <div className="flex flex-1 overflow-hidden">
         {/* Main Video Area */}
         <div className="flex-1 flex flex-col">
@@ -385,7 +452,9 @@ export default function VideoPlayer() {
                   <span className="text-xs text-gray-500">Speed:</span>
                   <select
                     value={playbackSpeed}
-                    onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      setPlaybackSpeed(parseFloat(e.target.value))
+                    }
                     className="text-xs bg-gray-100 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={0.25}>0.25x</option>
@@ -449,7 +518,9 @@ export default function VideoPlayer() {
           }}
         >
           <div className="flex justify-between items-start mb-3">
-            <h3 className="font-bold text-lg text-gray-900">{mockLookupData.word}</h3>
+            <h3 className="font-bold text-lg text-gray-900">
+              {mockLookupData.word}
+            </h3>
             <button
               onClick={closeLookupPopup}
               className="text-gray-400 hover:text-gray-600 ml-2"
@@ -468,7 +539,9 @@ export default function VideoPlayer() {
             {mockLookupData.partOfSpeech}
           </div>
 
-          <div className="text-sm text-gray-800 mb-3">{mockLookupData.definition}</div>
+          <div className="text-sm text-gray-800 mb-3">
+            {mockLookupData.definition}
+          </div>
 
           <div className="text-sm text-gray-600 mb-3">
             <strong>中文:</strong> {mockLookupData.translation}

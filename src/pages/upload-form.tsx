@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Upload, File, CheckCircle, AlertCircle } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
 
@@ -99,8 +98,6 @@ export default function UploadForm() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           stats={stats}
@@ -119,8 +116,8 @@ export default function UploadForm() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Upload Video</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Upload your MP4 video file. The system will automatically extract
-                bilingual subtitles if available.
+                Upload your MP4 video file. The system will automatically
+                extract bilingual subtitles if available.
               </p>
             </div>
           </div>
@@ -151,7 +148,8 @@ export default function UploadForm() {
                         Upload Complete!
                       </h3>
                       <p className="text-green-700">
-                        Your video has been successfully uploaded and is being processed.
+                        Your video has been successfully uploaded and is being
+                        processed.
                       </p>
                       <p className="text-sm text-green-600 mt-2">
                         Redirecting to video library...
@@ -173,7 +171,9 @@ export default function UploadForm() {
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
-                      <p className="text-sm text-gray-600">{uploadProgress}% complete</p>
+                      <p className="text-sm text-gray-600">
+                        {uploadProgress}% complete
+                      </p>
                     </div>
                   </div>
                 ) : selectedFile ? (
@@ -185,7 +185,9 @@ export default function UploadForm() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         File Selected
                       </h3>
-                      <p className="text-gray-600 font-medium">{selectedFile.name}</p>
+                      <p className="text-gray-600 font-medium">
+                        {selectedFile.name}
+                      </p>
                       <p className="text-sm text-gray-500">
                         {formatFileSize(selectedFile.size)}
                       </p>
@@ -234,7 +236,9 @@ export default function UploadForm() {
                   <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
                     <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
                     <div>
-                      <h4 className="font-medium text-gray-900">MP4 H.264 Encoding</h4>
+                      <h4 className="font-medium text-gray-900">
+                        MP4 H.264 Encoding
+                      </h4>
                       <p className="text-sm text-gray-600">
                         Optimized for high-quality video playback
                       </p>
@@ -256,7 +260,9 @@ export default function UploadForm() {
                   <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
                     <div className="w-2 h-2 bg-purple-600 rounded-full mt-2"></div>
                     <div>
-                      <h4 className="font-medium text-gray-900">Bilingual Support</h4>
+                      <h4 className="font-medium text-gray-900">
+                        Bilingual Support
+                      </h4>
                       <p className="text-sm text-gray-600">
                         Support for both English and Chinese subtitle tracks
                       </p>
@@ -266,9 +272,12 @@ export default function UploadForm() {
                   <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
                     <div className="w-2 h-2 bg-orange-600 rounded-full mt-2"></div>
                     <div>
-                      <h4 className="font-medium text-gray-900">Thumbnail Generation</h4>
+                      <h4 className="font-medium text-gray-900">
+                        Thumbnail Generation
+                      </h4>
                       <p className="text-sm text-gray-600">
-                        Automatic thumbnail creation for easier video identification
+                        Automatic thumbnail creation for easier video
+                        identification
                       </p>
                     </div>
                   </div>
@@ -280,13 +289,16 @@ export default function UploadForm() {
                 <div className="flex items-start space-x-3">
                   <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-yellow-900">File Requirements</h4>
+                    <h4 className="font-medium text-yellow-900">
+                      File Requirements
+                    </h4>
                     <ul className="text-sm text-yellow-800 mt-1 space-y-1">
                       <li>• Maximum file size: 2GB</li>
                       <li>• Supported format: MP4 with H.264 encoding</li>
                       <li>• Recommended resolution: 720p or higher</li>
                       <li>
-                        • Subtitle tracks will be automatically detected if embedded
+                        • Subtitle tracks will be automatically detected if
+                        embedded
                       </li>
                     </ul>
                   </div>

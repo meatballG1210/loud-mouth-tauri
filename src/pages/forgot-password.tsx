@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Mail, Check } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -75,15 +74,15 @@ export default function ForgotPassword() {
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
-        <WindowTitleBar title={t("passwordReset")} />
-
         <div className="flex-1 flex items-center justify-center p-6">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8 text-green-600" />
               </div>
-              <CardTitle className="text-2xl font-bold">{t("emailSent")}</CardTitle>
+              <CardTitle className="text-2xl font-bold">
+                {t("emailSent")}
+              </CardTitle>
               <CardDescription>{t("passwordResetEmailSent")}</CardDescription>
             </CardHeader>
 
@@ -106,7 +105,11 @@ export default function ForgotPassword() {
                   {t("sendAnotherEmail")}
                 </Button>
 
-                <Button onClick={handleBackToLogin} variant="ghost" className="w-full">
+                <Button
+                  onClick={handleBackToLogin}
+                  variant="ghost"
+                  className="w-full"
+                >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {t("backToLogin")}
                 </Button>
@@ -120,21 +123,24 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
-      <WindowTitleBar title={t("forgotPassword")} />
-
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Mail className="w-8 h-8 text-blue-600" />
             </div>
-            <CardTitle className="text-2xl font-bold">{t("forgotPassword")}</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              {t("forgotPassword")}
+            </CardTitle>
             <CardDescription>{t("forgotPasswordDescription")}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="email"
@@ -170,7 +176,11 @@ export default function ForgotPassword() {
             </Form>
 
             <div className="text-center">
-              <Button variant="ghost" onClick={handleBackToLogin} className="text-sm">
+              <Button
+                variant="ghost"
+                onClick={handleBackToLogin}
+                className="text-sm"
+              >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t("backToLogin")}
               </Button>
@@ -178,8 +188,12 @@ export default function ForgotPassword() {
 
             {/* Demo notice */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-              <p className="font-medium text-yellow-900 mb-1">{t("demoNotice")}</p>
-              <p className="text-yellow-700 text-xs">{t("demoPasswordResetNotice")}</p>
+              <p className="font-medium text-yellow-900 mb-1">
+                {t("demoNotice")}
+              </p>
+              <p className="text-yellow-700 text-xs">
+                {t("demoPasswordResetNotice")}
+              </p>
             </div>
           </CardContent>
         </Card>

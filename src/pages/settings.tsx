@@ -15,7 +15,6 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import {
   Card,
@@ -124,7 +123,8 @@ const translations = {
     passwordTooShort: "Password must be at least 6 characters",
 
     languagePreferences: "Language Preferences",
-    languageDescription: "Choose your preferred language for the user interface",
+    languageDescription:
+      "Choose your preferred language for the user interface",
     uiLanguage: "User Interface Language",
     languageSaved: "Language preference saved!",
     supportFeedback: "Support & Feedback",
@@ -226,7 +226,10 @@ export default function Settings() {
   // Load language preference from localStorage on component mount
   useEffect(() => {
     const savedLanguage = localStorage.getItem("ui-language");
-    if (savedLanguage && languages.some((lang) => lang.code === savedLanguage)) {
+    if (
+      savedLanguage &&
+      languages.some((lang) => lang.code === savedLanguage)
+    ) {
       setSelectedLanguage(savedLanguage);
     }
   }, []);
@@ -285,7 +288,9 @@ export default function Settings() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -381,7 +386,8 @@ export default function Settings() {
     } catch (error: any) {
       toast({
         title: t.profileUpdateFailed,
-        description: error.message || "An error occurred while updating your profile",
+        description:
+          error.message || "An error occurred while updating your profile",
         variant: "destructive",
       });
     } finally {
@@ -394,8 +400,6 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar title={t.settings} />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           stats={stats}
@@ -448,7 +452,9 @@ export default function Settings() {
                               />
                             ) : (
                               <span className="text-white text-2xl font-bold">
-                                {user ? user.username.charAt(0).toUpperCase() : "U"}
+                                {user
+                                  ? user.username.charAt(0).toUpperCase()
+                                  : "U"}
                               </span>
                             )}
                           </div>
@@ -513,7 +519,10 @@ export default function Settings() {
                             <FormItem>
                               <FormLabel>{t.firstName}</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter first name" {...field} />
+                                <Input
+                                  placeholder="Enter first name"
+                                  {...field}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -527,7 +536,10 @@ export default function Settings() {
                             <FormItem>
                               <FormLabel>{t.lastName}</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter last name" {...field} />
+                                <Input
+                                  placeholder="Enter last name"
+                                  {...field}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -543,7 +555,10 @@ export default function Settings() {
                             <FormItem>
                               <FormLabel>{t.username}</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter username" {...field} />
+                                <Input
+                                  placeholder="Enter username"
+                                  {...field}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -587,7 +602,9 @@ export default function Settings() {
                                 <FormControl>
                                   <div className="relative">
                                     <Input
-                                      type={showNewPassword ? "text" : "password"}
+                                      type={
+                                        showNewPassword ? "text" : "password"
+                                      }
                                       placeholder="Enter new password"
                                       {...field}
                                     />
@@ -596,7 +613,9 @@ export default function Settings() {
                                       variant="ghost"
                                       size="sm"
                                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() => setShowNewPassword(!showNewPassword)}
+                                      onClick={() =>
+                                        setShowNewPassword(!showNewPassword)
+                                      }
                                     >
                                       {showNewPassword ? (
                                         <EyeOff className="h-4 w-4" />
@@ -620,7 +639,11 @@ export default function Settings() {
                                 <FormControl>
                                   <div className="relative">
                                     <Input
-                                      type={showConfirmPassword ? "text" : "password"}
+                                      type={
+                                        showConfirmPassword
+                                          ? "text"
+                                          : "password"
+                                      }
                                       placeholder="Confirm new password"
                                       {...field}
                                     />
@@ -630,7 +653,9 @@ export default function Settings() {
                                       size="sm"
                                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                                       onClick={() =>
-                                        setShowConfirmPassword(!showConfirmPassword)
+                                        setShowConfirmPassword(
+                                          !showConfirmPassword,
+                                        )
                                       }
                                     >
                                       {showConfirmPassword ? (
@@ -704,7 +729,10 @@ export default function Settings() {
                     >
                       {t.uiLanguage}
                     </Label>
-                    <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                    <Select
+                      value={selectedLanguage}
+                      onValueChange={handleLanguageChange}
+                    >
                       <SelectTrigger className="w-full max-w-xs">
                         <SelectValue>
                           {selectedLang
@@ -725,7 +753,9 @@ export default function Settings() {
                   {isLanguageChanged && (
                     <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <Check className="w-4 h-4 text-green-600" />
-                      <span className="text-sm text-green-700">{t.languageSaved}</span>
+                      <span className="text-sm text-green-700">
+                        {t.languageSaved}
+                      </span>
                     </div>
                   )}
                 </CardContent>
@@ -746,7 +776,9 @@ export default function Settings() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <h4 className="text-gray-900 font-medium">{t.developerContact}</h4>
+                    <h4 className="text-gray-900 font-medium">
+                      {t.developerContact}
+                    </h4>
 
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button

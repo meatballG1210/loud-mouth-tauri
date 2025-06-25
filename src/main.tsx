@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./app.css";
 
 // Set up the document for macOS styling
 document.documentElement.style.height = "100%";

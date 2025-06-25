@@ -12,7 +12,6 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
@@ -299,8 +298,6 @@ export default function VocabularyReview() {
   if (!reviewStarted && !currentReview) {
     return (
       <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-        <WindowTitleBar title={t("vocabularyReview")} />
-
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
             stats={videoStats}
@@ -320,7 +317,9 @@ export default function VocabularyReview() {
                 <h1 className="text-2xl font-bold text-gray-900">
                   {t("vocabularyReview")}
                 </h1>
-                <p className="text-sm text-gray-500 mt-1">{t("reviewDescription")}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("reviewDescription")}
+                </p>
               </div>
             </div>
 
@@ -349,8 +348,6 @@ export default function VocabularyReview() {
   if (isActiveSession && reviewStarted) {
     return (
       <div className="h-screen bg-white flex flex-col macos-body">
-        <WindowTitleBar />
-
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Header */}
           <div
@@ -451,7 +448,9 @@ export default function VocabularyReview() {
                       {currentReview?.difficulty}
                     </span>
                   </div>
-                  <p className="text-gray-600 macos-body">{currentReview?.translation}</p>
+                  <p className="text-gray-600 macos-body">
+                    {currentReview?.translation}
+                  </p>
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-sm text-gray-700 macos-body italic">
                       "{currentReview?.context}"
@@ -521,7 +520,9 @@ export default function VocabularyReview() {
                         className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600"
                       >
                         <Eye className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t("showAnswer")}</span>
+                        <span className="text-sm font-medium">
+                          {t("showAnswer")}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -561,7 +562,9 @@ export default function VocabularyReview() {
                   disabled={!userAnswer.trim()}
                   className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                  <span className="text-sm font-medium">{t("submitAnswer")}</span>
+                  <span className="text-sm font-medium">
+                    {t("submitAnswer")}
+                  </span>
                 </button>
               </div>
             </div>
@@ -574,8 +577,6 @@ export default function VocabularyReview() {
   // For non-session setup page, add sidebar layout
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar title={t("vocabularyReview")} />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           stats={videoStats}

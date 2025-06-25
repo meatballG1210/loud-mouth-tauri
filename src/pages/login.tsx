@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -73,7 +72,10 @@ export default function Login() {
 
         toast({
           title: t("loginSuccessful"),
-          description: t("welcomeBack").replace("{username}", response.user.username),
+          description: t("welcomeBack").replace(
+            "{username}",
+            response.user.username,
+          ),
         });
 
         // The AuthProvider will automatically redirect to home when authenticated
@@ -122,8 +124,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
-      <WindowTitleBar title={isLogin ? t("login") : t("register")} />
-
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
@@ -245,7 +245,11 @@ export default function Login() {
                       <FormItem>
                         <FormLabel>{t("email")}</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder={t("enterEmail")} {...field} />
+                          <Input
+                            type="email"
+                            placeholder={t("enterEmail")}
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -319,9 +323,12 @@ export default function Login() {
             {/* Demo credentials notice */}
             {isLogin && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-                <p className="font-medium text-blue-900 mb-1">{t("demoCredentials")}</p>
+                <p className="font-medium text-blue-900 mb-1">
+                  {t("demoCredentials")}
+                </p>
                 <p className="text-blue-700">
-                  {t("username")}: <code className="bg-blue-100 px-1 rounded">demo</code>
+                  {t("username")}:{" "}
+                  <code className="bg-blue-100 px-1 rounded">demo</code>
                 </p>
                 <p className="text-blue-700">
                   {t("password")}:{" "}

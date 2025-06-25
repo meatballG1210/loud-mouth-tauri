@@ -13,7 +13,6 @@ import {
   Info,
   X,
 } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { VocabularyItem } from "@/types/video";
 
@@ -28,9 +27,15 @@ interface SubtitleLine {
 export default function VocabularyDetail() {
   const [match, params] = useRoute("/vocabulary-list/:videoId");
   const [, setLocation] = useLocation();
-  const { getVocabularyByVideoId, deleteVocabularyItem, toggleStar, isLoading } =
-    useVocabulary();
-  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "timestamp">("timestamp");
+  const {
+    getVocabularyByVideoId,
+    deleteVocabularyItem,
+    toggleStar,
+    isLoading,
+  } = useVocabulary();
+  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "timestamp">(
+    "timestamp",
+  );
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -98,7 +103,13 @@ export default function VocabularyDetail() {
       text: "There will be a penalty for late submission.",
       language: "english",
     },
-    { id: "9", start: 457.3, end: 460.0, text: "迟交将面临惩罚。", language: "chinese" },
+    {
+      id: "9",
+      start: 457.3,
+      end: 460.0,
+      text: "迟交将面临惩罚。",
+      language: "chinese",
+    },
     {
       id: "10",
       start: 676.9,
@@ -221,7 +232,9 @@ export default function VocabularyDetail() {
   };
 
   const handleDeleteWord = async (wordId: string) => {
-    if (window.confirm("Are you sure you want to delete this vocabulary item?")) {
+    if (
+      window.confirm("Are you sure you want to delete this vocabulary item?")
+    ) {
       await deleteVocabularyItem(wordId);
     }
   };
@@ -251,8 +264,6 @@ export default function VocabularyDetail() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
-      <WindowTitleBar />
-
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Side - Video Player */}
@@ -284,15 +295,24 @@ export default function VocabularyDetail() {
           {/* Video Controls */}
           <div className="bg-gray-900 text-white p-4">
             <div className="flex items-center space-x-4">
-              <button onClick={togglePlayPause} className="p-2 hover:bg-gray-700 rounded">
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+              <button
+                onClick={togglePlayPause}
+                className="p-2 hover:bg-gray-700 rounded"
+              >
+                {isPlaying ? (
+                  <Pause className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5" />
+                )}
               </button>
 
               <div className="flex-1">
                 <div className="bg-gray-600 h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-blue-500 h-full transition-all duration-300"
-                    style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                    style={{
+                      width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -330,7 +350,9 @@ export default function VocabularyDetail() {
                     </span>
                     <span
                       className={
-                        subtitle.language === "chinese" ? "text-yellow-300" : "text-white"
+                        subtitle.language === "chinese"
+                          ? "text-yellow-300"
+                          : "text-white"
                       }
                     >
                       {subtitle.text}
@@ -362,7 +384,9 @@ export default function VocabularyDetail() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500">{filteredWords.length} words</div>
+              <div className="text-sm text-gray-500">
+                {filteredWords.length} words
+              </div>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -433,7 +457,9 @@ export default function VocabularyDetail() {
                       <p className="text-gray-700 mb-3">{word.translation}</p>
 
                       <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <p className="text-sm text-gray-800 italic">"{word.context}"</p>
+                        <p className="text-sm text-gray-800 italic">
+                          "{word.context}"
+                        </p>
                       </div>
 
                       <div className="flex items-center justify-between text-xs text-gray-500">
@@ -448,7 +474,9 @@ export default function VocabularyDetail() {
                           </span>
                         </div>
                         {isWordDue(word.nextReview) && (
-                          <span className="text-red-600 font-medium">Due for Review</span>
+                          <span className="text-red-600 font-medium">
+                            Due for Review
+                          </span>
                         )}
                       </div>
                     </div>
@@ -504,13 +532,17 @@ export default function VocabularyDetail() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
             {(() => {
-              const detailWord = filteredWords.find((w) => w.id === detailWordId);
+              const detailWord = filteredWords.find(
+                (w) => w.id === detailWordId,
+              );
               if (!detailWord) return null;
 
               return (
                 <>
                   <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900">Word Details</h2>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Word Details
+                    </h2>
                     <button
                       onClick={() => setDetailWordId(null)}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -545,7 +577,9 @@ export default function VocabularyDetail() {
                           {detailWord.difficulty}
                         </span>
                       </div>
-                      <p className="text-lg text-gray-700">{detailWord.translation}</p>
+                      <p className="text-lg text-gray-700">
+                        {detailWord.translation}
+                      </p>
                     </div>
 
                     {/* Context */}
@@ -554,7 +588,9 @@ export default function VocabularyDetail() {
                         Context
                       </h4>
                       <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-800 italic">"{detailWord.context}"</p>
+                        <p className="text-gray-800 italic">
+                          "{detailWord.context}"
+                        </p>
                       </div>
                     </div>
 
@@ -570,7 +606,9 @@ export default function VocabularyDetail() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Clock className="w-4 h-4" />
-                          <span>Timestamp: {formatTime(detailWord.timestamp)}</span>
+                          <span>
+                            Timestamp: {formatTime(detailWord.timestamp)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -582,17 +620,25 @@ export default function VocabularyDetail() {
                       </h4>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Review Count</span>
+                          <span className="text-sm text-gray-600">
+                            Review Count
+                          </span>
                           <span className="font-medium">
                             {detailWord.reviewCount} times
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Last Reviewed</span>
-                          <span className="font-medium">{detailWord.lastReviewed}</span>
+                          <span className="text-sm text-gray-600">
+                            Last Reviewed
+                          </span>
+                          <span className="font-medium">
+                            {detailWord.lastReviewed}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Next Review</span>
+                          <span className="text-sm text-gray-600">
+                            Next Review
+                          </span>
                           <span
                             className={`font-medium ${isWordDue(detailWord.nextReview) ? "text-red-600" : "text-green-600"}`}
                           >

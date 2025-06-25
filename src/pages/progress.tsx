@@ -13,7 +13,6 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import {
   Card,
@@ -86,8 +85,12 @@ const mockAccuracyTrend = [
 
 export default function Progress() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [weeklyGoal, setWeeklyGoal] = useState(mockLearningStats.weeklyTimeGoal);
-  const [newGoal, setNewGoal] = useState(mockLearningStats.weeklyTimeGoal.toString());
+  const [weeklyGoal, setWeeklyGoal] = useState(
+    mockLearningStats.weeklyTimeGoal,
+  );
+  const [newGoal, setNewGoal] = useState(
+    mockLearningStats.weeklyTimeGoal.toString(),
+  );
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
@@ -134,8 +137,6 @@ export default function Progress() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar title={t("progress")} />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           stats={stats}
@@ -152,8 +153,12 @@ export default function Progress() {
           {/* Content Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t("progressTitle")}</h1>
-              <p className="text-sm text-gray-500 mt-1">{t("progressSubtitle")}</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {t("progressTitle")}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {t("progressSubtitle")}
+              </p>
             </div>
           </div>
 
@@ -169,7 +174,9 @@ export default function Progress() {
                         <p className="text-2xl font-bold text-gray-900">
                           {mockLearningStats.totalVocabulary}
                         </p>
-                        <p className="text-sm text-gray-500">{t("totalWords")}</p>
+                        <p className="text-sm text-gray-500">
+                          {t("totalWords")}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -183,7 +190,9 @@ export default function Progress() {
                         <p className="text-2xl font-bold text-gray-900">
                           {mockLearningStats.totalLearningTime}h
                         </p>
-                        <p className="text-sm text-gray-500">{t("studyTime")}</p>
+                        <p className="text-sm text-gray-500">
+                          {t("studyTime")}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -197,7 +206,9 @@ export default function Progress() {
                         <p className="text-2xl font-bold text-gray-900">
                           {mockLearningStats.currentStreak}
                         </p>
-                        <p className="text-sm text-gray-500">{t("dayStreak")}</p>
+                        <p className="text-sm text-gray-500">
+                          {t("dayStreak")}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -219,7 +230,11 @@ export default function Progress() {
               </div>
 
               {/* Detailed Analytics Tabs */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
                 <TabsList className="grid w-full grid-cols-3 bg-gray-100">
                   <TabsTrigger
                     value="overview"
@@ -251,8 +266,8 @@ export default function Progress() {
                             {t("weeklyGoal")}
                           </CardTitle>
                           <CardDescription className="text-gray-500">
-                            {mockLearningStats.weeklyTimeProgress} of {weeklyGoal}{" "}
-                            {t("hoursThisWeek")}
+                            {mockLearningStats.weeklyTimeProgress} of{" "}
+                            {weeklyGoal} {t("hoursThisWeek")}
                           </CardDescription>
                         </div>
                         <Dialog
@@ -272,7 +287,9 @@ export default function Progress() {
                           <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
                               <DialogTitle>{t("setWeeklyGoal")}</DialogTitle>
-                              <DialogDescription>{t("chooseHours")}</DialogDescription>
+                              <DialogDescription>
+                                {t("chooseHours")}
+                              </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                               <div className="grid grid-cols-4 items-center gap-4">
@@ -302,7 +319,9 @@ export default function Progress() {
                               >
                                 {t("cancel")}
                               </Button>
-                              <Button onClick={handleSaveGoal}>{t("save")}</Button>
+                              <Button onClick={handleSaveGoal}>
+                                {t("save")}
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -319,10 +338,14 @@ export default function Progress() {
                       </div>
                       <div className="flex justify-between text-sm text-gray-500">
                         <span>
-                          {mockLearningStats.weeklyTimeProgress}h {t("completed")}
+                          {mockLearningStats.weeklyTimeProgress}h{" "}
+                          {t("completed")}
                         </span>
                         <span>
-                          {Math.max(weeklyGoal - mockLearningStats.weeklyTimeProgress, 0)}
+                          {Math.max(
+                            weeklyGoal - mockLearningStats.weeklyTimeProgress,
+                            0,
+                          )}
                           h {t("remaining")}
                         </span>
                       </div>
@@ -350,10 +373,16 @@ export default function Progress() {
                               labelFormatter={(label) => t(`day${label}`)}
                               formatter={(value, name) => [
                                 `${value} ${name === "minutes" ? t("minutes") : t("words")}`,
-                                name === "minutes" ? t("studyTime") : t("wordsLearned"),
+                                name === "minutes"
+                                  ? t("studyTime")
+                                  : t("wordsLearned"),
                               ]}
                             />
-                            <Bar dataKey="minutes" fill="#3B82F6" name="minutes" />
+                            <Bar
+                              dataKey="minutes"
+                              fill="#3B82F6"
+                              name="minutes"
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -385,7 +414,9 @@ export default function Progress() {
                               }
                               formatter={(value, name) => [
                                 value,
-                                name === "total" ? t("totalWords") : t("newWords"),
+                                name === "total"
+                                  ? t("totalWords")
+                                  : t("newWords"),
                               ]}
                             />
                             <Area
@@ -425,7 +456,10 @@ export default function Progress() {
                               labelFormatter={(label) =>
                                 new Date(label).toLocaleDateString()
                               }
-                              formatter={(value) => [`${value}%`, t("accuracy")]}
+                              formatter={(value) => [
+                                `${value}%`,
+                                t("accuracy"),
+                              ]}
                             />
                             <Line
                               type="monotone"

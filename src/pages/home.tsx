@@ -1,6 +1,14 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { Grid, List, RefreshCw, Search, SortAsc, SortDesc, Filter } from "lucide-react";
+import {
+  Grid,
+  List,
+  RefreshCw,
+  Search,
+  SortAsc,
+  SortDesc,
+  Filter,
+} from "lucide-react";
 import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VideoGrid } from "@/components/video/video-grid";
@@ -81,7 +89,9 @@ export default function Home() {
   const filteredAndSortedVideos = useMemo(() => {
     let filtered = videos.filter((video) => {
       // Filter by search query
-      const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = video.title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
       // Filter by subtitle availability
       const hasEnglish = video.subtitles.english;
@@ -112,7 +122,9 @@ export default function Home() {
   }, [videos, searchQuery, subtitleFilters, sortOrder]);
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredAndSortedVideos.length / VIDEOS_PER_PAGE);
+  const totalPages = Math.ceil(
+    filteredAndSortedVideos.length / VIDEOS_PER_PAGE,
+  );
   const paginatedVideos = useMemo(() => {
     const startIndex = (currentPage - 1) * VIDEOS_PER_PAGE;
     const endIndex = startIndex + VIDEOS_PER_PAGE;
@@ -138,7 +150,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-      <WindowTitleBar title={t("homeTitle")} />
+      {/* <WindowTitleBar title={t("homeTitle")} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -157,8 +169,12 @@ export default function Home() {
           <div className="flex flex-col space-y-4 p-6 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{t("videos")}</h1>
-                <p className="text-sm text-gray-500 mt-1">{t("homeSubtitle")}</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {t("videos")}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("homeSubtitle")}
+                </p>
               </div>
 
               {activeSection === "videos" && (
@@ -191,7 +207,9 @@ export default function Home() {
                     disabled={isLoading}
                     className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-macos disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                    />
                     <span className="text-sm font-medium">{t("refresh")}</span>
                   </button>
                 </div>
@@ -233,7 +251,9 @@ export default function Home() {
                     <DropdownMenuSeparator />
                     <DropdownMenuCheckboxItem
                       checked={subtitleFilters.english}
-                      onCheckedChange={() => handleSubtitleFilterChange("english")}
+                      onCheckedChange={() =>
+                        handleSubtitleFilterChange("english")
+                      }
                     >
                       <span className="flex items-center">
                         <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
@@ -242,7 +262,9 @@ export default function Home() {
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={subtitleFilters.chinese}
-                      onCheckedChange={() => handleSubtitleFilterChange("chinese")}
+                      onCheckedChange={() =>
+                        handleSubtitleFilterChange("chinese")
+                      }
                     >
                       <span className="flex items-center">
                         <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
@@ -251,7 +273,9 @@ export default function Home() {
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={subtitleFilters.noSubtitles}
-                      onCheckedChange={() => handleSubtitleFilterChange("noSubtitles")}
+                      onCheckedChange={() =>
+                        handleSubtitleFilterChange("noSubtitles")
+                      }
                     >
                       <span className="flex items-center">
                         <span className="w-3 h-3 bg-gray-400 rounded-full mr-2"></span>
@@ -270,7 +294,9 @@ export default function Home() {
                         <SortAsc className="w-4 h-4" />
                       )}
                       <span>
-                        {sortOrder === "newest" ? "Newest First" : "Oldest First"}
+                        {sortOrder === "newest"
+                          ? "Newest First"
+                          : "Oldest First"}
                       </span>
                     </button>
                   </DropdownMenuTrigger>
@@ -318,7 +344,9 @@ export default function Home() {
                     <PaginationContent className="gap-1">
                       <PaginationItem>
                         <PaginationPrevious
-                          onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                          onClick={() =>
+                            handlePageChange(Math.max(1, currentPage - 1))
+                          }
                           className={
                             currentPage === 1
                               ? "pointer-events-none opacity-50"
@@ -346,7 +374,10 @@ export default function Home() {
                               </PaginationItem>
                             );
                           }
-                          if (page === totalPages - 1 && currentPage < totalPages - 3) {
+                          if (
+                            page === totalPages - 1 &&
+                            currentPage < totalPages - 3
+                          ) {
                             return (
                               <PaginationItem key={`ellipsis-${page}`}>
                                 <PaginationEllipsis />
@@ -372,7 +403,9 @@ export default function Home() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={() =>
-                            handlePageChange(Math.min(totalPages, currentPage + 1))
+                            handlePageChange(
+                              Math.min(totalPages, currentPage + 1),
+                            )
                           }
                           className={
                             currentPage === totalPages
@@ -385,8 +418,8 @@ export default function Home() {
                   </Pagination>
 
                   <div className="sm:ml-6 text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
-                    Page {currentPage} of {totalPages} ({filteredAndSortedVideos.length}{" "}
-                    videos)
+                    Page {currentPage} of {totalPages} (
+                    {filteredAndSortedVideos.length} videos)
                   </div>
                 </div>
               )}
@@ -395,7 +428,8 @@ export default function Home() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+                  {activeSection.charAt(0).toUpperCase() +
+                    activeSection.slice(1)}
                 </h2>
                 <p className="text-gray-500">This section is coming soon!</p>
               </div>

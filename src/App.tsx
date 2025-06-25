@@ -69,7 +69,9 @@ function App() {
           <AuthProvider>
             <TooltipProvider>
               <Toaster />
-              <Router />
+              <div className="border-t border-gray-200">
+                <Router />
+              </div>
             </TooltipProvider>
           </AuthProvider>
         </QueryClientProvider>
