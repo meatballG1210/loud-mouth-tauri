@@ -16,7 +16,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Sidebar } from "@/components/layout/sidebar";
-import { DatabaseTest } from "@/components/DatabaseTest";
 import {
   Card,
   CardContent,
@@ -761,11 +760,6 @@ export default function Settings() {
                   )}
                 </CardContent>
               </Card>
-
-              <Separator />
-
-              {/* Database Test Section */}
-              <DatabaseTest />
 
               <Separator />
 

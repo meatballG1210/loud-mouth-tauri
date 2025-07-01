@@ -20,6 +20,7 @@ import Progress from "@/pages/progress";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 import ErrorPage from "@/pages/error";
+import ErrorTest from "@/pages/error-test";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -64,6 +65,7 @@ function Router() {
       <Route path="/progress" component={Progress} />
       <Route path="/settings" component={Settings} />
       <Route path="/error" component={ErrorPage} />
+      <Route path="/error-test" component={ErrorTest} />
       <Route component={NotFound} />
     </Switch>
   );
