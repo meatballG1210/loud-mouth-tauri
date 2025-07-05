@@ -10,6 +10,7 @@ Due to foreign key constraints in SQLite, migrations must be run in the correct 
 
 
 
+
 **Checkpoint Test**:
 Frontend can call `get_user_count()` and receive a response
 - User profile and settings tables are created successfully
@@ -61,14 +62,10 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - full_hash_match (BOOLEAN)
   - status (TEXT NOT NULL) -- 'valid', 'invalid', 'missing'
 
-**Checkpoint 2A.1**: Run migrations and verify both tables created with proper foreign key constraints
-
 ### 2A.2: Video Upload Command Implementation
 - Create `upload_video()` Tauri command in `src/commands/video.rs`
 - Accept parameters: file_path, title, user_id
 - Return Result<VideoMetadata, AppError>
-
-**Checkpoint 2A.2**: Call upload_video with test parameters, verify command is registered and returns error for non-existent file
 
 ### 2A.3: File Validation Module
 - Create `src/services/file_validator.rs`
@@ -77,16 +74,12 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Create magic number checking for file type verification
 - Add virus scanning hook point (for future integration)
 
-**Checkpoint 2A.3**: Test with 5GB file (should fail), test with .txt file (should fail), test with valid MP4 (should pass)
-
 ### 2A.4: Video Processing with FFmpeg
 - Create `src/services/video_processor.rs`
 - Implement duration extraction using ffmpeg-next crate
 - Implement thumbnail generation at 10% of video duration
 - Handle FFmpeg errors gracefully
 - Store thumbnail as JPEG in thumbnails directory
-
-**Checkpoint 2A.4**: Process a test video, verify duration is extracted correctly and thumbnail.jpg is created
 
 ### 2A.5: File Storage Management
 - Create `src/services/file_storage.rs`
@@ -95,8 +88,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Create cleanup on failure mechanism
 - Ensure proper file permissions (read-only after save)
 
-**Checkpoint 2A.5**: Upload video and verify directory structure created, file copied, and permissions set to read-only
-
 ### 2A.6: Hash Calculation Service
 - Create `src/services/hash_calculator.rs`
 - Implement fast hash: SHA-256 of first 1MB
@@ -104,15 +95,21 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Add async/concurrent hash calculation
 - Cache hash results in database
 
-**Checkpoint 2A.6**: Calculate hash for 100MB file, verify hash is consistent across multiple runs
-
 ### 2A.7: Metadata Storage
 - Create `src/models/video.rs` with Diesel model
 - Implement database insertion with transaction
 - Add rollback on any failure
 - Return complete video metadata to frontend
 
-**Checkpoint 2A.7**: Complete full upload flow, verify all metadata stored in database and returned to frontend
+**Checkpoint Test**:
+Upload a 100MB MP4 file, verify:
+- File saved to `/videos/{user_id}/2025/01/{video_id}/video.mp4`
+- Thumbnail exists at `/videos/{user_id}/2025/01/{video_id}/thumbnail.jpg`
+- Duration correctly extracted (e.g., 300 seconds)
+- Size/mtime match file system values
+- Fast hash calculated and stored
+- All database fields populated correctly
+- Frontend receives complete metadata response
 
 ---
 
@@ -125,15 +122,11 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Accept parameters: user_id, page, per_page, sort_by, filter
 - Return Result<VideoListResponse, AppError>
 
-**Checkpoint 2B.1**: Call get_videos with pagination params, verify command returns empty list initially
-
 ### 2B.2: Database Query Implementation
 - Create efficient query with Diesel
 - Add indexes on user_id, upload_date
 - Implement sorting options: newest, oldest, title, duration
 - Add filtering by subtitle availability
-
-**Checkpoint 2B.2**: With 5 videos in database, test each sort option and verify correct order
 
 ### 2B.3: Integrity Validation Service
 - Create `validate_on_access()` in `src/services/file_validator.rs`
@@ -144,15 +137,11 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Update file_integrity_checks table
   - Mark video as needs_validation if hash differs
 
-**Checkpoint 2B.3**: Modify a video file timestamp, call get_videos, verify integrity check triggers
-
 ### 2B.4: Pagination Implementation
 - Implement offset-based pagination
 - Calculate total pages from count query
 - Return metadata: current_page, total_pages, total_items
 - Optimize with lazy loading of thumbnails
-
-**Checkpoint 2B.4**: With 25 videos, request page 2 with per_page=10, verify items 11-20 returned
 
 ### 2B.5: Video Integrity Command
 - Create `validate_video_integrity()` command
@@ -164,15 +153,20 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Optionally calculate full hash
 - Return detailed validation report
 
-**Checkpoint 2B.5**: Delete a video file, run validate_video_integrity, verify returns "missing" status
-
 ### 2B.6: Frontend Integration
 - Update video list API calls
 - Add loading states for integrity checks
 - Display validation warnings in UI
 - Add retry mechanism for failed validations
 
-**Checkpoint 2B.6**: Load video list in frontend, verify thumbnails display and integrity warnings show for invalid videos
+**Checkpoint Test**:
+With 25 videos uploaded:
+- Request page 2 with 10 items per page
+- Verify correct 10 videos returned (items 11-20)
+- Modify a video file externally
+- Refresh list and verify integrity warning appears
+- Run validate_video_integrity on modified video
+- Confirm validation report shows size/mtime mismatch
 
 ---
 
@@ -198,8 +192,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - text (TEXT NOT NULL)
   - INDEX on (subtitle_id, start_time)
 
-**Checkpoint 3A.1**: Run migrations, verify tables created with proper constraints and indexes
-
 ### 3A.2: Subtitle Parser Module
 - Create `src/services/subtitle_parser.rs`
 - Implement SRT format parser:
@@ -212,15 +204,11 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Parse VTT-specific features
   - Convert to common format
 
-**Checkpoint 3A.2**: Parse test SRT with 10 entries, verify all entries parsed with correct millisecond timestamps
-
 ### 3A.3: Upload Subtitle Command
 - Create `upload_subtitle()` in `src/commands/subtitle.rs`
 - Accept parameters: video_id, language, file_path
 - Validate file format (SRT/VTT)
 - Check video ownership before upload
-
-**Checkpoint 3A.3**: Try uploading subtitle for non-existent video, verify ownership check fails
 
 ### 3A.4: Subtitle Processing Pipeline
 - Parse subtitle file into memory
@@ -228,8 +216,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Check for overlapping time ranges
 - Normalize text (trim whitespace, fix encoding)
 - Count total entries for metadata
-
-**Checkpoint 3A.4**: Upload subtitle with overlapping timestamps, verify validation catches the issue
 
 ### 3A.5: Database Storage with Transaction
 - Begin database transaction
@@ -239,8 +225,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Update video record (has_english_subtitles or has_chinese_subtitles)
 - Commit transaction or rollback on error
 
-**Checkpoint 3A.5**: Upload English subtitle, then upload new English subtitle, verify first is replaced
-
 ### 3A.6: Error Handling
 - Handle malformed subtitle files
 - Provide specific error messages:
@@ -249,7 +233,14 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Encoding issues
   - File too large (>5MB)
 
-**Checkpoint 3A.6**: Upload corrupted SRT file, verify specific error message returned
+**Checkpoint Test**:
+Upload a 500-entry SRT file for English:
+- Verify subtitles table has one record with entry_count=500
+- Verify subtitle_entries table has 500 records
+- Check all timestamps are in milliseconds
+- Verify video record has has_english_subtitles=true
+- Upload Chinese subtitles for same video
+- Confirm both subtitle sets coexist
 
 ---
 
@@ -261,8 +252,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Create `get_subtitles()` in `src/commands/subtitle.rs`
 - Accept parameters: video_id, language (optional)
 - Return Result<SubtitleData, AppError>
-
-**Checkpoint 3B.1**: Call get_subtitles for video with no subtitles, verify empty result returned
 
 ### 3B.2: Efficient Subtitle Query
 - Join subtitles and subtitle_entries tables
@@ -278,22 +267,16 @@ Intentionally cause a database error, verify frontend receives proper error mess
   }
   ```
 
-**Checkpoint 3B.2**: Query subtitle with 1000 entries, verify query completes in <50ms
-
 ### 3B.3: Subtitle Synchronization Check
 - Create `check_subtitle_sync()` helper
 - Compare subtitle duration with video duration
 - Flag potential sync issues (>5 second difference)
 - Return sync quality score
 
-**Checkpoint 3B.3**: Upload subtitle with duration 10s longer than video, verify sync warning generated
-
 ### 3B.4: Multi-Language Support
 - If language not specified, return all available
 - Structure response for dual-subtitle display
 - Ensure consistent timing alignment
-
-**Checkpoint 3B.4**: Upload both EN and CN subtitles, call without language param, verify both returned
 
 ### 3B.5: Subtitle Validation
 - Verify subtitle ownership matches video
@@ -301,14 +284,19 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Validate entry count matches database
 - Handle missing or corrupted data gracefully
 
-**Checkpoint 3B.5**: Delete subtitle entries from database, call get_subtitles, verify graceful error handling
-
 ### 3B.6: Performance Optimization
 - Add database indexes for fast retrieval
 - Implement subtitle entry pagination for large files
 - Cache parsed subtitles in memory (LRU cache)
 
-**Checkpoint 3B.6**: Load same subtitle 5 times rapidly, verify cache hit on subsequent loads
+**Checkpoint Test**:
+With video containing both EN and CN subtitles:
+- Call get_subtitles(video_id) without language
+- Verify both subtitle sets returned
+- Check entries are in correct time order
+- Call get_subtitles(video_id, "english")
+- Verify only English subtitles returned
+- Measure query time (<50ms for 1000 entries)
 
 ---
 
@@ -332,8 +320,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - INDEX on (user_id, created_at)
   - INDEX on (video_id)
 
-**Checkpoint 4A.1**: Run migration, verify vocabulary table created with all indexes
-
 ### 4A.2: Add Vocabulary Command
 - Create `add_vocabulary_item()` in `src/commands/vocabulary.rs`
 - Accept parameters:
@@ -341,8 +327,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - timestamp (click position)
   - subtitle_id (Chinese subtitle clicked)
   - entry_index (specific entry clicked)
-
-**Checkpoint 4A.2**: Call command with test parameters, verify command registered and validates inputs
 
 ### 4A.3: Context Extraction Service
 - Create `src/services/context_extractor.rs`
@@ -353,16 +337,12 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Get next entry (if exists)
 - Handle edge cases (first/last subtitle)
 
-**Checkpoint 4A.3**: Click on first subtitle entry, verify context_before is null, context_after populated
-
 ### 4A.4: English Answer Matching
 - Query English subtitles for same video
 - Find English subtitle within ±1000ms of timestamp
 - If multiple matches, pick closest by time
 - If no match found, return error
 - Store matched English text as answer
-
-**Checkpoint 4A.4**: Click at timestamp with no English subtitle within 1s, verify appropriate error returned
 
 ### 4A.5: Duplicate Prevention
 - Check if vocabulary item already exists:
@@ -371,8 +351,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Same word
   - Same timestamp (±500ms)
 - If exists, return existing item instead
-
-**Checkpoint 4A.5**: Add same vocabulary item twice, verify second attempt returns existing item
 
 ### 4A.6: Initial Review Schedule Creation
 - Generate Ebbinghaus review dates:
@@ -384,7 +362,16 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Day 30: created_at + 30 days
 - Store schedule in separate table (Step 5A)
 
-**Checkpoint 4A.6**: Create vocabulary item, verify 6 review dates generated correctly
+**Checkpoint Test**:
+Click Chinese subtitle "你好" at 00:01:30:
+- Verify vocabulary record created with:
+  - word = "你好"
+  - timestamp = 90000 (ms)
+  - context_target = full Chinese sentence
+  - answer = matching English sentence
+  - context_before/after populated
+- Click same word again
+- Verify no duplicate created
 
 ---
 
@@ -401,8 +388,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - sort_by: 'newest', 'oldest', 'alphabetical'
   - page, per_page
 
-**Checkpoint 4B.1**: Call with no vocabulary items, verify empty paginated response returned
-
 ### 4B.2: Advanced Query Building
 - Build dynamic query with Diesel
 - Apply filters conditionally:
@@ -410,8 +395,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Search in word and answer fields
   - Case-insensitive search
 - Implement sorting logic
-
-**Checkpoint 4B.2**: Add 10 items with "hello" in answer, search for "HELLO", verify all 10 returned
 
 ### 4B.3: Video Grouping Feature
 - Add group_by_video option
@@ -426,8 +409,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   ```
 - Sort groups by most recent item
 
-**Checkpoint 4B.3**: Add vocabulary from 3 videos, group by video, verify 3 groups with correct counts
-
 ### 4B.4: Vocabulary Statistics
 - Add `get_vocabulary_stats()` command
 - Return statistics:
@@ -436,22 +417,27 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Words learned today/week/month
   - Most common words
 
-**Checkpoint 4B.4**: Add 20 items over 7 days, verify weekly count shows correct number
-
 ### 4B.5: Export Functionality
 - Add `export_vocabulary()` command
 - Support CSV format
 - Include all context and metadata
 - Generate downloadable file
 
-**Checkpoint 4B.5**: Export 5 vocabulary items to CSV, verify file contains all fields properly formatted
-
 ### 4B.6: Performance Considerations
 - Add composite indexes for common queries
 - Implement query result caching
 - Limit maximum results per page (100)
 
-**Checkpoint 4B.6**: Query 1000 items with pagination, verify response time <100ms
+**Checkpoint Test**:
+With 50 vocabulary items across 3 videos:
+- Get all vocabulary (no filters)
+- Verify all 50 items returned with pagination
+- Filter by specific video_id
+- Verify only items from that video returned
+- Search for "hello"
+- Verify results contain "hello" in word or answer
+- Group by video
+- Verify 3 groups with correct counts
 
 ---
 
@@ -480,8 +466,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - time_taken (INTEGER) -- seconds
   - attempt_number (INTEGER DEFAULT 1)
 
-**Checkpoint 5A.1**: Run migrations, verify both tables created with proper indexes
-
 ### 5A.2: Review Schedule Creation
 - Automatically create when vocabulary item added
 - Store review_dates as JSON array:
@@ -490,8 +474,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   ```
 - Set next_review_date to first date
 - Initialize completed_reviews to 0
-
-**Checkpoint 5A.2**: Add vocabulary item, verify review_schedule created with correct dates
 
 ### 5A.3: Get Due Reviews Command
 - Create `get_due_reviews()` in `src/commands/review.rs`
@@ -505,8 +487,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Filter: last_reviewed_date != today
   - Order by next_review_date ASC
 
-**Checkpoint 5A.3**: Create item due yesterday, verify appears first in due reviews list
-
 ### 5A.4: Review Answer Validation
 - Create `src/services/answer_validator.rs`
 - Implement normalization:
@@ -515,8 +495,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Remove punctuation
 - Calculate exact match first
 - Return validation result with score
-
-**Checkpoint 5A.4**: Validate "Hello, World!" against "hello world", verify exact match after normalization
 
 ### 5A.5: Complete Review Command
 - Create `complete_review()` command
@@ -530,15 +508,23 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Update last_reviewed_date
   - Return success/failure result
 
-**Checkpoint 5A.5**: Complete review with correct answer, verify review_history entry created
-
 ### 5A.6: Review Session Management
 - Track current review session
 - Prevent reviewing same item twice in one day
 - Handle review interruptions gracefully
 - Save progress periodically
 
-**Checkpoint 5A.6**: Try to review same item twice on same day, verify prevented
+**Checkpoint Test**:
+Create 5 vocabulary items on Jan 30:
+- Verify 5 review_schedules created
+- All have next_review_date = "2025-01-30"
+- Call get_due_reviews() on Jan 30
+- Verify all 5 items returned
+- Complete review for item 1 with correct answer
+- Verify review_history entry created
+- Verify last_reviewed_date updated
+- Call get_due_reviews() again
+- Verify only 4 items returned (item 1 excluded)
 
 ---
 
@@ -554,16 +540,12 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Set threshold at 0.85 (85%)
   - Handle Unicode properly
 
-**Checkpoint 5B.1**: Test "café" vs "cafe", verify similarity score ~0.8
-
 ### 5B.2: Enhanced Review Completion
 - Update `complete_review()` command:
   - Use fuzzy matching for validation
   - Store similarity score in review_history
   - Accept answers with score >= 0.85
   - Provide feedback on near-misses (0.70-0.84)
-
-**Checkpoint 5B.2**: Answer with 80% similarity, verify marked as incorrect with feedback
 
 ### 5B.3: Spaced Repetition Scheduling
 - Create `calculate_next_review()` function:
@@ -572,8 +554,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Handle array bounds (max 6 reviews)
   - Update next_review_date field
   - Mark is_completed if all 6 done
-
-**Checkpoint 5B.3**: Complete 6th review, verify is_completed set to true
 
 ### 5B.4: Late Review Policy Implementation
 - Calculate days late:
@@ -591,8 +571,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Continue normally
   - Base next review on actual_date
 
-**Checkpoint 5B.4**: Review item 4 days late, verify progress reset to day 0
-
 ### 5B.5: Review History Analysis
 - Add `get_review_history()` command
 - Calculate statistics:
@@ -600,8 +578,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Success rate by review number
   - Time taken trends
   - Common mistakes
-
-**Checkpoint 5B.5**: Complete 10 reviews, verify statistics calculated correctly
 
 ### 5B.6: Adaptive Difficulty
 - Track difficulty metrics:
@@ -611,7 +587,17 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Flag difficult items for extra practice
 - Suggest similar vocabulary for reinforcement
 
-**Checkpoint 5B.6**: Fail same item 3 times, verify flagged as difficult
+**Checkpoint Test**:
+1. Complete review with "Hello World" vs "Hello world" (case difference)
+   - Verify accepted with ~0.95 similarity
+2. Complete review with "It's a beautiful day" vs "Its a beautifull day" (punctuation + typo)
+   - Verify accepted with ~0.86 similarity
+3. Review item 4 days late:
+   - Verify completed_reviews reset to 0
+   - Verify new schedule starts from today
+4. Complete all 6 reviews on schedule:
+   - Verify is_completed = true
+   - Verify no more reviews scheduled
 
 ---
 
@@ -652,8 +638,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - end_date (TEXT NOT NULL)
   - is_completed (BOOLEAN DEFAULT 0)
 
-**Checkpoint 6.1**: Run all migrations, verify 4 new tables created
-
 ### 6.2: Progress Tracking Service
 - Create `src/services/progress_tracker.rs`
 - Auto-create daily progress record
@@ -662,8 +646,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Increment vocabulary_added on creation
   - Track review accuracy per session
 - Implement atomic updates to prevent race conditions
-
-**Checkpoint 6.2**: Watch video for 5 minutes, verify study_time incremented by 300 seconds
 
 ### 6.3: Get Learning Stats Command
 - Create `get_learning_stats()` in `src/commands/progress.rs`
@@ -680,8 +662,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   }
   ```
 
-**Checkpoint 6.3**: After 3 days of activity, verify all stats calculated correctly
-
 ### 6.4: Streak Calculation
 - Create `calculate_streak()` function:
   - Query learning_progress by date DESC
@@ -689,8 +669,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Handle timezone considerations
   - Cache streak calculation
 - Track both current and longest streak
-
-**Checkpoint 6.4**: Study 3 days, skip 1 day, study 2 more days, verify current streak = 2
 
 ### 6.5: Weekly Progress Analysis
 - Create `get_weekly_progress()` command
@@ -700,8 +678,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Daily review count
   - Rolling accuracy average
 - Format for chart visualization
-
-**Checkpoint 6.5**: Get weekly progress, verify 7 data points returned even with missing days
 
 ### 6.6: Achievement System
 - Seed initial achievements:
@@ -715,8 +691,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Check unearned achievements
   - Award and notify on completion
 
-**Checkpoint 6.6**: Add first vocabulary item, verify "First Word" achievement awarded
-
 ### 6.7: Goal Management
 - Create `set_learning_goal()` command
 - Create `update_goal_progress()` service
@@ -726,7 +700,17 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Monthly review target
 - Auto-check goal completion
 
-**Checkpoint 6.7**: Set daily 10-minute goal, study 10 minutes, verify goal marked complete
+**Checkpoint Test**:
+Simulate 7 days of activity:
+- Day 1-3: Add 5 vocabulary, 10 min study, 3 reviews (90% accuracy)
+- Day 4: Skip (break streak test)
+- Day 5-7: Add 3 vocabulary, 15 min study, 5 reviews (85% accuracy)
+Verify:
+- Current streak = 3 (days 5-7)
+- Longest streak = 3 (days 1-3)
+- Weekly average study time = 75/7 = 10.7 min
+- "First Word" achievement earned on Day 1
+- Weekly progress chart shows gap on Day 4
 
 ---
 
@@ -746,16 +730,12 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Validate avatar URL format
 - Update last_modified timestamp
 
-**Checkpoint 7.1**: Update username, verify change persists after restart
-
 ### 7.2: Language Preference System
 - Create `update_language_settings()` command
 - Support languages: 'en', 'zh-CN'
 - Update UI language preference
 - Update default subtitle language
 - Return localized messages
-
-**Checkpoint 7.2**: Switch to Chinese, verify next command response in Chinese
 
 ### 7.3: Notification Preferences
 - Create `notification_preferences` table:
@@ -767,8 +747,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Create `update_notification_preferences()` command
 - Integrate with system notification API
 
-**Checkpoint 7.3**: Set reminder time to 9 AM, verify preference saved
-
 ### 7.4: Dictionary API Integration
 - Create `src/services/dictionary_service.rs`
 - Add configuration for API credentials
@@ -777,8 +755,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Handle API rate limits
   - Fallback to offline dictionary
 - Support multiple dictionary providers
-
-**Checkpoint 7.4**: Look up word with API down, verify fallback activates
 
 ### 7.5: Video Playback State
 - Create `video_playback_states` table:
@@ -793,8 +769,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Create `get_playback_state()` command
 - Auto-save every 5 seconds during playback
 
-**Checkpoint 7.5**: Watch video to 2:30, close app, verify position saved
-
 ### 7.6: Video Player Commands
 - Create `update_playback_position()` command:
   - Debounce to prevent excessive updates
@@ -807,8 +781,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Return exact timestamp
   - Add 200ms buffer before subtitle
 
-**Checkpoint 7.6**: Set speed to 1.5x, verify saved and restored on reload
-
 ### 7.7: Interactive Subtitle Features
 - Create `handle_subtitle_click()` command:
   - Detect word boundaries in clicked text
@@ -818,7 +790,18 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Add hover state detection
 - Support phrase selection (drag select)
 
-**Checkpoint 7.7**: Click middle of Chinese sentence, verify correct word extracted
+**Checkpoint Test**:
+1. Update user profile with new username and avatar
+   - Verify changes persist across restart
+2. Switch UI language to Chinese
+   - Verify all commands return Chinese messages
+3. Look up word "magnificent" via dictionary API
+   - Verify definition cached in database
+4. Watch video to 5:30, close app, reopen
+   - Verify playback resumes at 5:30
+5. Click Chinese subtitle word
+   - Verify vocabulary created in one action
+   - Verify dictionary preview displayed
 
 ---
 
@@ -838,16 +821,12 @@ Intentionally cause a database error, verify frontend receives proper error mess
   ```
 - Implement progressive validation
 
-**Checkpoint 8.1**: Create validator with all three levels, verify enum works
-
 ### 8.2: Size/Mtime Checking
 - Create `quick_validate()` function:
   - Get current file stats
   - Compare with stored values
   - Return validation result
   - <10ms execution time
-
-**Checkpoint 8.2**: Run quick validation 100 times, verify average <10ms
 
 ### 8.3: Fast Hash Implementation
 - Create `calculate_fast_hash()` function:
@@ -857,8 +836,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Cache result in database
   - Target <100ms execution
 
-**Checkpoint 8.3**: Calculate fast hash for 10MB file, verify completes <100ms
-
 ### 8.4: Full File Hash
 - Create `calculate_full_hash()` function:
   - Stream file in 64KB chunks
@@ -866,8 +843,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Show progress for large files
   - Allow cancellation
   - Store result separately
-
-**Checkpoint 8.4**: Hash 1GB file, verify progress updates every 10%
 
 ### 8.5: Background Validation Service
 - Create `src/services/background_validator.rs`
@@ -880,8 +855,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
   - Quick validation on access
   - Fast validation daily
   - Full validation weekly
-
-**Checkpoint 8.5**: Queue 5 videos for validation, start video playback, verify queue pauses
 
 ### 8.6: Validation Recovery Flow
 - Create `handle_validation_failure()` function:
@@ -897,8 +870,6 @@ Intentionally cause a database error, verify frontend receives proper error mess
      - Maintain vocabulary links
   4. Update integrity check record
 
-**Checkpoint 8.6**: Trigger validation failure, choose re-upload, verify metadata preserved
-
 ### 8.7: User Notification System
 - Create validation status UI:
   - Show validation in progress
@@ -907,7 +878,20 @@ Intentionally cause a database error, verify frontend receives proper error mess
 - Add system tray notifications
 - Log all validation events
 
-**Checkpoint 8.7**: Run full validation, verify progress shown in UI
+**Checkpoint Test**:
+1. Upload 500MB video file
+2. Close application
+3. Modify video file with hex editor (change 1 byte at position 1000)
+4. Reopen application and access video
+5. Verify sequence:
+   - Quick validation passes (size unchanged)
+   - System notices mtime change
+   - Triggers fast hash validation
+   - Fast hash fails (first 1MB includes byte 1000)
+   - User notified with options
+   - Choose re-upload
+   - Verify file re-uploaded successfully
+   - All vocabulary items still linked
 
 ---
 
@@ -924,9 +908,9 @@ Intentionally cause a database error, verify frontend receives proper error mess
 
 ## Benefits of This Approach:
 
-- Each subtask has its own checkpoint for immediate verification
-- Issues are caught early before moving to next subtask
-- Clear success criteria at each step
-- Easy to identify exactly where problems occur
-- Supports incremental development and testing
-- Enables parallel development of independent subtasks
+- Each step builds on the previous one
+- Clear success criteria for each checkpoint
+- Easy to identify and fix issues early
+- Modular commits for version control
+- Frontend can test each feature incrementally
+- Covers all requirements from description.md
