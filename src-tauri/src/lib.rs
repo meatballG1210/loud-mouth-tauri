@@ -1,3 +1,4 @@
+pub mod commands;
 pub mod database;
 pub mod error;
 pub mod schema;
@@ -56,7 +57,8 @@ pub fn run() {
             add_test_user,
             test_error_not_found,
             test_error_with_details,
-            test_database_error
+            test_database_error,
+            commands::upload_video
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

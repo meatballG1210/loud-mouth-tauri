@@ -798,6 +798,14 @@ export default function Settings() {
                         <Mail className="w-4 h-4" />
                         <span>{t.emailContact}</span>
                       </Button>
+
+                      <Button
+                        onClick={() => setLocation("/error-test")}
+                        variant="outline"
+                        className="flex items-center justify-center space-x-2 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                      >
+                        <span>Test Page</span>
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

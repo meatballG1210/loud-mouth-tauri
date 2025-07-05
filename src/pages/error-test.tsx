@@ -87,6 +87,70 @@ export default function ErrorTest() {
     }
   };
 
+  const testVideoUpload = async () => {
+    try {
+      setLoading(true);
+      const result = await invoke("upload_video", {
+        filePath: '/Users/meatballg/Desktop/test_video.mp4',
+        title: 'My Test Video Upload',
+        userId: 1
+      });
+      addResult(`✅ Video Upload Success: ${JSON.stringify(result, null, 2)}`);
+    } catch (error: any) {
+      addResult(`❌ Video Upload Error: ${JSON.stringify(error, null, 2)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testVideoUploadInvalidFile = async () => {
+    try {
+      setLoading(true);
+      const result = await invoke("upload_video", {
+        filePath: '/Users/meatballg/Desktop/nonexistent_file.mp4',
+        title: 'Test Invalid File',
+        userId: 1
+      });
+      addResult(`❌ Expected error but got success: ${JSON.stringify(result, null, 2)}`);
+    } catch (error: any) {
+      addResult(`✅ Invalid File Error: ${JSON.stringify(error, null, 2)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testVideoUploadEmptyTitle = async () => {
+    try {
+      setLoading(true);
+      const result = await invoke("upload_video", {
+        filePath: '/Users/meatballg/Desktop/test_video.mp4',
+        title: '',
+        userId: 1
+      });
+      addResult(`❌ Expected error but got success: ${JSON.stringify(result, null, 2)}`);
+    } catch (error: any) {
+      addResult(`✅ Empty Title Error: ${JSON.stringify(error, null, 2)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testVideoUploadInvalidUserId = async () => {
+    try {
+      setLoading(true);
+      const result = await invoke("upload_video", {
+        filePath: '/Users/meatballg/Desktop/test_video.mp4',
+        title: 'Test Invalid User ID',
+        userId: -1
+      });
+      addResult(`❌ Expected error but got success: ${JSON.stringify(result, null, 2)}`);
+    } catch (error: any) {
+      addResult(`✅ Invalid User ID Error: ${JSON.stringify(error, null, 2)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearResults = () => {
     setResults([]);
   };
@@ -148,6 +212,38 @@ export default function ErrorTest() {
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
             >
               Test Success
+            </button>
+
+            <button
+              onClick={testVideoUpload}
+              disabled={loading}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              Test Video Upload
+            </button>
+
+            <button
+              onClick={testVideoUploadInvalidFile}
+              disabled={loading}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              Test Invalid File
+            </button>
+
+            <button
+              onClick={testVideoUploadEmptyTitle}
+              disabled={loading}
+              className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 disabled:opacity-50"
+            >
+              Test Empty Title
+            </button>
+
+            <button
+              onClick={testVideoUploadInvalidUserId}
+              disabled={loading}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
+            >
+              Test Invalid User ID
             </button>
 
             <button
