@@ -114,6 +114,19 @@ pub async fn upload_video(
             None
         }
     };
+
+    // Extract video duration
+    let duration = match thumbnail::extract_video_duration(&file_path).await {
+        Ok(Some(dur)) => Some(dur),
+        Ok(None) => {
+            eprintln!("Could not extract duration from video");
+            None
+        }
+        Err(e) => {
+            eprintln!("Failed to extract duration: {}", e);
+            None
+        }
+    };
     
     // Create new video record
     let new_video = NewVideo {
@@ -125,7 +138,7 @@ pub async fn upload_video(
         path: file_path.clone(),
         size: file_size as i32,
         mtime: mtime.as_secs().to_string(),
-        duration: None,
+        duration,
         thumbnail_path: thumbnail_path.clone(),
         has_english_subtitles: Some(false),
         has_chinese_subtitles: Some(false),
@@ -155,7 +168,7 @@ pub async fn upload_video(
         path: file_path,
         size: file_size,
         mtime: mtime.as_secs().to_string(),
-        duration: None,
+        duration,
         thumbnail_path,
         has_english_subtitles: Some(false),
         has_chinese_subtitles: Some(false),

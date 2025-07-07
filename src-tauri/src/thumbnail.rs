@@ -44,6 +44,119 @@ pub async fn generate_thumbnail(
     Ok(absolute_path.to_string_lossy().to_string())
 }
 
+pub async fn extract_video_duration(video_path: &str) -> Result<Option<i32>> {
+    // Check if FFprobe is available
+    let ffprobe_check = Command::new("ffprobe")
+        .arg("-version")
+        .output();
+
+    match ffprobe_check {
+        Ok(output) if output.status.success() => {
+            // Use FFprobe to extract duration
+            extract_duration_with_ffprobe(video_path).await
+        }
+        _ => {
+            // FFprobe not available, try FFmpeg
+            let ffmpeg_check = Command::new("ffmpeg")
+                .arg("-version")
+                .output();
+
+            match ffmpeg_check {
+                Ok(output) if output.status.success() => {
+                    extract_duration_with_ffmpeg(video_path).await
+                }
+                _ => {
+                    // Neither available, return None
+                    Ok(None)
+                }
+            }
+        }
+    }
+}
+
+async fn extract_duration_with_ffprobe(video_path: &str) -> Result<Option<i32>> {
+    let output = Command::new("ffprobe")
+        .arg("-v")
+        .arg("quiet")
+        .arg("-print_format")
+        .arg("json")
+        .arg("-show_format")
+        .arg(video_path)
+        .output()
+        .map_err(|e| AppError::new("FFPROBE_ERROR", "Failed to execute FFprobe command")
+            .with_details(e.to_string()))?;
+
+    if !output.status.success() {
+        let error_msg = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::new("FFPROBE_ERROR", "FFprobe failed to extract duration")
+            .with_details(error_msg.to_string()));
+    }
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    
+    // Parse JSON output
+    match serde_json::from_str::<serde_json::Value>(&output_str) {
+        Ok(json) => {
+            if let Some(format) = json.get("format") {
+                if let Some(duration_str) = format.get("duration").and_then(|d| d.as_str()) {
+                    if let Ok(duration_f64) = duration_str.parse::<f64>() {
+                        return Ok(Some(duration_f64.round() as i32));
+                    }
+                }
+            }
+            Ok(None)
+        }
+        Err(_) => Ok(None)
+    }
+}
+
+async fn extract_duration_with_ffmpeg(video_path: &str) -> Result<Option<i32>> {
+    let output = Command::new("ffmpeg")
+        .arg("-i")
+        .arg(video_path)
+        .arg("-f")
+        .arg("null")
+        .arg("-")
+        .output()
+        .map_err(|e| AppError::new("FFMPEG_ERROR", "Failed to execute FFmpeg command")
+            .with_details(e.to_string()))?;
+
+    // FFmpeg outputs info to stderr even on success
+    let stderr_output = String::from_utf8_lossy(&output.stderr);
+    
+    // Look for duration in the output (format: "Duration: HH:MM:SS.ss")
+    for line in stderr_output.lines() {
+        if let Some(duration_start) = line.find("Duration: ") {
+            if let Some(duration_end) = line[duration_start..].find(',') {
+                let duration_str = &line[duration_start + 10..duration_start + duration_end];
+                if let Ok(duration_seconds) = parse_duration_string(duration_str) {
+                    return Ok(Some(duration_seconds));
+                }
+            }
+        }
+    }
+    
+    Ok(None)
+}
+
+fn parse_duration_string(duration_str: &str) -> Result<i32> {
+    // Parse format: "HH:MM:SS.ss"
+    let parts: Vec<&str> = duration_str.split(':').collect();
+    if parts.len() != 3 {
+        return Err(AppError::new("PARSE_ERROR", "Invalid duration format"));
+    }
+
+    let hours: f64 = parts[0].parse()
+        .map_err(|_| AppError::new("PARSE_ERROR", "Invalid hours in duration"))?;
+    let minutes: f64 = parts[1].parse()
+        .map_err(|_| AppError::new("PARSE_ERROR", "Invalid minutes in duration"))?;
+    let seconds: f64 = parts[2].parse()
+        .map_err(|_| AppError::new("PARSE_ERROR", "Invalid seconds in duration"))?;
+
+    let total_seconds = (hours * 3600.0) + (minutes * 60.0) + seconds;
+    Ok(total_seconds.round() as i32)
+}
+
 async fn generate_thumbnail_with_ffmpeg(
     video_path: &str,
     thumbnail_path: &Path,
