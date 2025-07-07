@@ -1,5 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Video, VideoLibraryStats } from '@/types/video';
+import { invoke } from '@tauri-apps/api/core';
+
+interface VideoMetadata {
+  id: string;
+  user_id: number;
+  title: string;
+  filename: string;
+  original_name: string;
+  path: string;
+  size: number;
+  mtime: string;
+  duration: number | null;
+  thumbnail_path: string | null;
+  has_english_subtitles: boolean | null;
+  has_chinese_subtitles: boolean | null;
+  fast_hash: string | null;
+  full_hash: string | null;
+  upload_date: string | null;
+}
 
 // Mock data for the video library
 const mockVideos: Video[] = [
@@ -155,34 +174,107 @@ const mockStats: VideoLibraryStats = {
   dueReviews: 8,
 };
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }
+}
+
+function formatUploadDate(dateString: string | null): string {
+  if (!dateString) return 'Unknown date';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  } catch {
+    return 'Unknown date';
+  }
+}
+
 export function useVideos() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [stats, setStats] = useState<VideoLibraryStats>({ totalVideos: 0, totalVocabulary: 0, dueReviews: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
+  const fetchVideos = async () => {
+    try {
+      setIsLoading(true);
+      
+      // TODO: Get actual user ID from auth context
+      const userId = 1;
+      
+      const videoMetadatas = await invoke<VideoMetadata[]>('get_videos', { userId });
+      
+      // Convert VideoMetadata to Video format
+      const formattedVideos: Video[] = videoMetadatas.map(vm => ({
+        id: vm.id,
+        title: vm.title,
+        duration: formatDuration(vm.duration),
+        uploadDate: formatUploadDate(vm.upload_date),
+        fileSize: formatFileSize(vm.size),
+        thumbnail: vm.thumbnail_path || 'https://picsum.photos/800/450?random=' + vm.id,
+        subtitles: {
+          english: vm.has_english_subtitles || false,
+          chinese: vm.has_chinese_subtitles || false,
+        },
+        path: vm.path, // Add path for video playback
+      }));
+      
+      setVideos(formattedVideos);
+      setStats({
+        totalVideos: formattedVideos.length,
+        totalVocabulary: mockStats.totalVocabulary, // Keep mock data for now
+        dueReviews: mockStats.dueReviews, // Keep mock data for now
+      });
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      // Fall back to mock data on error
       setVideos(mockVideos);
       setStats(mockStats);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
+  };
 
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    fetchVideos();
   }, []);
 
   const refreshVideos = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setVideos(mockVideos);
-      setStats(mockStats);
-      setIsLoading(false);
-    }, 500);
+    fetchVideos();
   };
 
-  const deleteVideo = (videoId: string) => {
-    setVideos(prev => prev.filter(video => video.id !== videoId));
-    setStats(prev => ({ ...prev, totalVideos: prev.totalVideos - 1 }));
+  const deleteVideo = async (videoId: string) => {
+    try {
+      // Call the backend to delete the video
+      await invoke('delete_video', { videoId });
+      
+      // Update the local state
+      setVideos(prev => prev.filter(video => video.id !== videoId));
+      setStats(prev => ({ ...prev, totalVideos: prev.totalVideos - 1 }));
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      alert(`Failed to delete video: ${error}`);
+    }
   };
 
   return {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import {
   ArrowLeft,
@@ -153,8 +153,8 @@ export default function VideoPlayer() {
   const { videos, isLoading } = useVideos();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(15); // Start at 15 seconds for demo
-  const [duration] = useState(1367); // 22:47 in seconds
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<
@@ -167,6 +167,7 @@ export default function VideoPlayer() {
   );
   const [showLookupPopup, setShowLookupPopup] = useState(false);
   const [lookupPosition, setLookupPosition] = useState({ x: 0, y: 0 });
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (params?.videoId && !isLoading) {
@@ -181,20 +182,16 @@ export default function VideoPlayer() {
   }, [params?.videoId, videos, isLoading, setLocation]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= duration) {
-            setIsPlaying(false);
-            return duration;
-          }
-          return prev + playbackSpeed;
-        });
-      }, 1000 / playbackSpeed);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.play().catch(console.error);
+      } else {
+        videoRef.current.pause();
+      }
+      videoRef.current.playbackRate = playbackSpeed;
+      videoRef.current.volume = isMuted ? 0 : volume;
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, duration, playbackSpeed]);
+  }, [isPlaying, playbackSpeed, volume, isMuted]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -281,6 +278,9 @@ export default function VideoPlayer() {
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseInt(e.target.value);
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    }
     setCurrentTime(newTime);
   };
 
@@ -313,11 +313,28 @@ export default function VideoPlayer() {
         <div className="flex-1 flex flex-col">
           {/* Video Container */}
           <div className="flex-1 relative flex items-center justify-center bg-black">
-            <img
-              src={currentVideo.thumbnail}
-              alt={currentVideo.title}
-              className="max-w-full max-h-full object-contain"
-            />
+            {currentVideo.path ? (
+              <video
+                ref={videoRef}
+                src={`file://${currentVideo.path}`}
+                className="max-w-full max-h-full object-contain"
+                controls={false}
+                onLoadedMetadata={(e) => {
+                  const video = e.currentTarget;
+                  setDuration(video.duration);
+                }}
+                onTimeUpdate={(e) => {
+                  const video = e.currentTarget;
+                  setCurrentTime(video.currentTime);
+                }}
+              />
+            ) : (
+              <img
+                src={currentVideo.thumbnail}
+                alt={currentVideo.title}
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
 
             {/* Video Overlay Controls */}
             <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-300 group">

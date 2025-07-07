@@ -9,6 +9,7 @@ export interface Video {
     english: boolean;
     chinese: boolean;
   };
+  path?: string; // Path to the video file
 }
 
 export interface VideoLibraryStats {

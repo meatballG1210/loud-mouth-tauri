@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { Upload, File, CheckCircle, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export default function UploadForm() {
   const [, setLocation] = useLocation();
@@ -10,7 +12,7 @@ export default function UploadForm() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ path: string; name: string; size?: number } | null>(null);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [activeSection, setActiveSection] = useState("upload");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -28,19 +30,34 @@ export default function UploadForm() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const videoFile = files.find((file) => file.type.startsWith("video/"));
-
-    if (videoFile) {
-      setSelectedFile(videoFile);
-    }
+    
+    // In Tauri, we cannot access file paths from drag events due to security restrictions
+    // Show a message to use the file picker instead
+    alert("Please use the 'Select MP4 Video' button to choose a file. Drag and drop is not supported for security reasons.");
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+  const handleFileSelect = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{
+          name: 'Video',
+          extensions: ['mp4']
+        }]
+      });
+      
+      if (selected && typeof selected === 'string') {
+        // Extract filename from path
+        const pathParts = selected.split(/[/\\]/);
+        const filename = pathParts[pathParts.length - 1];
+        
+        setSelectedFile({
+          path: selected,
+          name: filename
+        });
+      }
+    } catch (error) {
+      console.error('Error selecting file:', error);
     }
   };
 
@@ -65,27 +82,54 @@ export default function UploadForm() {
     setViewMode(mode);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) return;
 
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          setUploadComplete(true);
-          setTimeout(() => {
-            setLocation("/");
-          }, 2000);
-          return 100;
-        }
-        return prev + 10;
+    try {
+      // Get the title from the filename (remove extension)
+      const title = selectedFile.name.replace(/\.[^/.]+$/, "");
+      
+      // TODO: Get actual user ID from auth context
+      const userId = 1;
+      
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      // Call the Tauri command to save video metadata
+      const result = await invoke('upload_video', {
+        filePath: selectedFile.path,
+        title: title,
+        userId: userId
       });
-    }, 200);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      console.log('Video uploaded successfully:', result);
+      
+      setIsUploading(false);
+      setUploadComplete(true);
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        setLocation("/");
+      }, 2000);
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      setIsUploading(false);
+      alert(`Failed to upload video: ${error}`);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -188,9 +232,11 @@ export default function UploadForm() {
                       <p className="text-gray-600 font-medium">
                         {selectedFile.name}
                       </p>
-                      <p className="text-sm text-gray-500">
-                        {formatFileSize(selectedFile.size)}
-                      </p>
+                      {selectedFile.size && (
+                        <p className="text-sm text-gray-500">
+                          {formatFileSize(selectedFile.size)}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={handleUpload}
@@ -211,17 +257,12 @@ export default function UploadForm() {
                       <p className="text-gray-600 mb-4">
                         Drag and drop your video file here, or click to browse
                       </p>
-                      <label className="inline-block">
-                        <input
-                          type="file"
-                          accept="video/mp4"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                        <span className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium">
-                          Select MP4 Video
-                        </span>
-                      </label>
+                      <button
+                        onClick={handleFileSelect}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      >
+                        Select MP4 Video
+                      </button>
                     </div>
                   </div>
                 )}

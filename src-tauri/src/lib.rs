@@ -51,6 +51,7 @@ fn test_database_error() -> Result<i64, AppError> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet, 
             get_user_count, 
@@ -58,7 +59,9 @@ pub fn run() {
             test_error_not_found,
             test_error_with_details,
             test_database_error,
-            commands::upload_video
+            commands::upload_video,
+            commands::get_videos,
+            commands::delete_video
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
