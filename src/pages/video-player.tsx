@@ -169,6 +169,7 @@ export default function VideoPlayer() {
   const [showLookupPopup, setShowLookupPopup] = useState(false);
   const [lookupPosition, setLookupPosition] = useState({ x: 0, y: 0 });
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     if (params?.videoId && !isLoading) {
@@ -313,20 +314,83 @@ export default function VideoPlayer() {
         {/* Main Video Area */}
         <div className="flex-1 flex flex-col">
           {/* Video Container */}
-          <div className="flex-1 relative flex items-center justify-center bg-black">
+          <div className="flex-1 relative bg-gray-900" style={{ minHeight: '400px' }}>
             {currentVideo.path ? (
               <video
                 ref={videoRef}
-                src={convertFileSrc(currentVideo.path)}
-                className="max-w-full max-h-full object-contain"
-                controls={false}
+                src={(() => {
+                  // Try different approaches based on platform
+                  const useStreamProtocol = true; // Toggle this to test different approaches
+                  
+                  if (useStreamProtocol) {
+                    // Use custom stream protocol for video playback
+                    // Don't encode slashes - only encode other special characters
+                    const encodedPath = currentVideo.path
+                      .split('/')
+                      .map(segment => encodeURIComponent(segment))
+                      .join('/');
+                    const streamUrl = `stream://localhost/${encodedPath}`;
+                    console.log("Using stream protocol");
+                    console.log("Original path:", currentVideo.path);
+                    console.log("Stream URL:", streamUrl);
+                    return streamUrl;
+                  } else {
+                    // Use convertFileSrc
+                    const assetUrl = convertFileSrc(currentVideo.path);
+                    console.log("Using convertFileSrc");
+                    console.log("Original path:", currentVideo.path);
+                    console.log("Asset URL:", assetUrl);
+                    return assetUrl;
+                  }
+                })()}
+                className="absolute inset-0 w-full h-full"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  objectFit: 'contain',
+                  zIndex: 10
+                }}
+                controls={true}
+                autoPlay={false}
+                playsInline
+                onLoadStart={() => {
+                  console.log("Video load started");
+                }}
+                onLoadedData={() => {
+                  console.log("Video data loaded");
+                }}
                 onLoadedMetadata={(e) => {
                   const video = e.currentTarget;
                   setDuration(video.duration);
+                  console.log("Video metadata loaded - dimensions:", video.videoWidth, "x", video.videoHeight);
+                  console.log("Video duration:", video.duration);
+                  console.log("Video ready state:", video.readyState);
                 }}
                 onTimeUpdate={(e) => {
                   const video = e.currentTarget;
                   setCurrentTime(video.currentTime);
+                }}
+                onError={(e) => {
+                  const video = e.currentTarget as HTMLVideoElement;
+                  console.error("Video playback error:", e);
+                  console.error("Video element src:", video.src);
+                  console.error("Video network state:", video.networkState);
+                  console.error("Video error:", video.error);
+                }}
+                onCanPlay={() => {
+                  console.log("Video can play");
+                  setVideoReady(true);
+                }}
+                onCanPlayThrough={() => {
+                  console.log("Video can play through");
+                }}
+                onStalled={() => {
+                  console.log("Video stalled");
+                }}
+                onWaiting={() => {
+                  console.log("Video waiting");
+                }}
+                onEmptied={() => {
+                  console.log("Video emptied");
                 }}
               />
             ) : (
@@ -335,6 +399,28 @@ export default function VideoPlayer() {
                 alt={currentVideo.title}
                 className="max-w-full max-h-full object-contain"
               />
+            )}
+
+            {/* Debug Play Button */}
+            {videoReady && !isPlaying && (
+              <button
+                onClick={() => {
+                  console.log("Manual play clicked");
+                  if (videoRef.current) {
+                    videoRef.current.play()
+                      .then(() => {
+                        console.log("Video playing");
+                        setIsPlaying(true);
+                      })
+                      .catch(err => {
+                        console.error("Play failed:", err);
+                      });
+                  }
+                }}
+                className="absolute top-4 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Manual Play
+              </button>
             )}
 
             {/* Video Overlay Controls */}

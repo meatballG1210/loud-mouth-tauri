@@ -2168,6 +2168,7 @@ dependencies = [
  "diesel_migrations",
  "image",
  "libsqlite3-sys",
+ "percent-encoding",
  "serde",
  "serde_json",
  "tauri",

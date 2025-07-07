@@ -32,6 +32,7 @@ uuid = { version = "1.0", features = ["v4"] }
 chrono = "0.4"
 tokio = { version = "1", features = ["process"] }
 image = "0.24"
+percent-encoding = "2.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
