@@ -2,8 +2,17 @@ use serde::{Deserialize, Serialize};
 use crate::error::{AppError, Result};
 use diesel::prelude::*;
 use crate::database::establish_connection;
-use crate::schema::videos;
+use crate::schema::{videos, subtitles};
 use crate::thumbnail;
+use std::process::Command;
+use std::path::PathBuf;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubtitleInfo {
+    pub index: i32,
+    pub language: Option<String>,
+    pub title: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VideoMetadata {
@@ -22,6 +31,16 @@ pub struct VideoMetadata {
     pub fast_hash: Option<String>,
     pub full_hash: Option<String>,
     pub upload_date: Option<String>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = subtitles)]
+struct NewSubtitle {
+    id: String,
+    video_id: String,
+    language: String,
+    file_path: String,
+    extracted_date: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -128,6 +147,60 @@ pub async fn upload_video(
         }
     };
     
+    // Extract and save subtitles
+    let mut has_english_subtitles = false;
+    let mut has_chinese_subtitles = false;
+    let mut subtitle_records = Vec::new();
+    
+    match extract_subtitle_info(&file_path).await {
+        Ok(subtitle_infos) => {
+            // Create subtitles directory for this video
+            let subtitles_dir = PathBuf::from("subtitles").join(&video_id);
+            if let Err(e) = tokio::fs::create_dir_all(&subtitles_dir).await {
+                eprintln!("Failed to create subtitles directory: {}", e);
+            } else {
+                for (idx, subtitle_info) in subtitle_infos.iter().enumerate() {
+                    if let Some(language) = detect_subtitle_language(subtitle_info) {
+                        let subtitle_filename = format!("{}.{}.vtt", video_id, language);
+                        let subtitle_path = subtitles_dir.join(&subtitle_filename);
+                        
+                        match extract_and_save_subtitle(
+                            &file_path,
+                            idx as i32,
+                            subtitle_path.to_str().unwrap(),
+                        ).await {
+                            Ok(_) => {
+                                println!("Extracted {} subtitle to {}", language, subtitle_path.display());
+                                
+                                // Prepare subtitle record for database
+                                let new_subtitle = NewSubtitle {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    video_id: video_id.clone(),
+                                    language: language.clone(),
+                                    file_path: subtitle_path.to_str().unwrap().to_string(),
+                                    extracted_date: Some(chrono::Utc::now().to_rfc3339()),
+                                };
+                                subtitle_records.push(new_subtitle);
+                                
+                                if language == "english" {
+                                    has_english_subtitles = true;
+                                } else if language == "chinese" {
+                                    has_chinese_subtitles = true;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to extract subtitle: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to extract subtitle info: {}", e);
+        }
+    }
+    
     // Create new video record
     let new_video = NewVideo {
         id: video_id.clone(),
@@ -140,8 +213,8 @@ pub async fn upload_video(
         mtime: mtime.as_secs().to_string(),
         duration,
         thumbnail_path: thumbnail_path.clone(),
-        has_english_subtitles: Some(false),
-        has_chinese_subtitles: Some(false),
+        has_english_subtitles: Some(has_english_subtitles),
+        has_chinese_subtitles: Some(has_chinese_subtitles),
         fast_hash: None,
         full_hash: None,
         upload_date: Some(upload_date.clone()),
@@ -158,6 +231,15 @@ pub async fn upload_video(
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to save video to database")
             .with_details(e.to_string()))?;
     
+    // Insert subtitle records if any were extracted
+    if !subtitle_records.is_empty() {
+        diesel::insert_into(subtitles::table)
+            .values(&subtitle_records)
+            .execute(&mut connection)
+            .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to save subtitles to database")
+                .with_details(e.to_string()))?;
+    }
+    
     // Return the metadata
     let video_metadata = VideoMetadata {
         id: video_id,
@@ -170,8 +252,8 @@ pub async fn upload_video(
         mtime: mtime.as_secs().to_string(),
         duration,
         thumbnail_path,
-        has_english_subtitles: Some(false),
-        has_chinese_subtitles: Some(false),
+        has_english_subtitles: Some(has_english_subtitles),
+        has_chinese_subtitles: Some(has_chinese_subtitles),
         fast_hash: None,
         full_hash: None,
         upload_date: Some(upload_date),
@@ -267,6 +349,15 @@ pub async fn delete_video(video_id: String) -> Result<()> {
                 eprintln!("Failed to delete thumbnail file {}: {}", thumbnail_path, e);
             }
         }
+        
+        // Delete the subtitles directory for this video
+        let subtitles_dir = PathBuf::from("subtitles").join(&video_id);
+        if subtitles_dir.exists() {
+            if let Err(e) = tokio::fs::remove_dir_all(&subtitles_dir).await {
+                // Log the error but don't fail the deletion
+                eprintln!("Failed to delete subtitles directory {}: {}", subtitles_dir.display(), e);
+            }
+        }
     }
     
     Ok(())
@@ -301,4 +392,116 @@ pub async fn get_thumbnail_data(thumbnail_path: String) -> Result<Vec<u8>> {
             .with_details(e.to_string()))?;
     
     Ok(data)
+}
+
+async fn extract_subtitle_info(video_path: &str) -> Result<Vec<SubtitleInfo>> {
+    let output = Command::new("ffprobe")
+        .args(&[
+            "-v", "error",
+            "-select_streams", "s",
+            "-show_entries", "stream=index:stream_tags=language,title",
+            "-of", "json",
+            video_path
+        ])
+        .output()
+        .map_err(|e| AppError::new("FFMPEG_ERROR", "Failed to run ffprobe")
+            .with_details(e.to_string()))?;
+    
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::new("FFMPEG_ERROR", "Failed to probe video for subtitles")
+            .with_details(error.to_string()));
+    }
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&output_str)
+        .map_err(|e| AppError::new("PARSE_ERROR", "Failed to parse ffprobe output")
+            .with_details(e.to_string()))?;
+    
+    let mut subtitles = Vec::new();
+    
+    if let Some(streams) = json["streams"].as_array() {
+        for stream in streams {
+            if let Some(index) = stream["index"].as_i64() {
+                let language = stream["tags"]["language"].as_str().map(|s| s.to_string());
+                let title = stream["tags"]["title"].as_str().map(|s| s.to_string());
+                
+                subtitles.push(SubtitleInfo {
+                    index: index as i32,
+                    language,
+                    title,
+                });
+            }
+        }
+    }
+    
+    Ok(subtitles)
+}
+
+async fn extract_and_save_subtitle(
+    video_path: &str,
+    subtitle_index: i32,
+    output_path: &str,
+) -> Result<()> {
+    let output = Command::new("ffmpeg")
+        .args(&[
+            "-i", video_path,
+            "-map", &format!("0:s:{}", subtitle_index),
+            "-c:s", "webvtt",
+            "-y",
+            output_path
+        ])
+        .output()
+        .map_err(|e| AppError::new("FFMPEG_ERROR", "Failed to run ffmpeg")
+            .with_details(e.to_string()))?;
+    
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::new("FFMPEG_ERROR", "Failed to extract subtitle")
+            .with_details(error.to_string()));
+    }
+    
+    Ok(())
+}
+
+fn detect_subtitle_language(subtitle_info: &SubtitleInfo) -> Option<String> {
+    if let Some(ref lang) = subtitle_info.language {
+        let lang_lower = lang.to_lowercase();
+        if lang_lower.contains("eng") || lang_lower == "en" {
+            return Some("english".to_string());
+        } else if lang_lower.contains("chi") || lang_lower.contains("zho") || 
+                  lang_lower == "zh" || lang_lower.contains("chs") || lang_lower.contains("cht") {
+            return Some("chinese".to_string());
+        }
+    }
+    
+    if let Some(ref title) = subtitle_info.title {
+        let title_lower = title.to_lowercase();
+        if title_lower.contains("english") || title_lower.contains("eng") {
+            return Some("english".to_string());
+        } else if title_lower.contains("chinese") || title_lower.contains("中文") || 
+                   title_lower.contains("简体") || title_lower.contains("繁体") {
+            return Some("chinese".to_string());
+        }
+    }
+    
+    None
+}
+
+#[tauri::command]
+pub async fn get_video_subtitles(video_id: String, language: String) -> Result<String> {
+    let subtitle_path = PathBuf::from("subtitles")
+        .join(&video_id)
+        .join(format!("{}.{}.vtt", video_id, language));
+    
+    if !subtitle_path.exists() {
+        return Err(AppError::new("NOT_FOUND", "Subtitle file not found")
+            .with_details(format!("No {} subtitles for video {}", language, video_id)));
+    }
+    
+    let content = tokio::fs::read_to_string(&subtitle_path).await
+        .map_err(|e| AppError::new("FILESYSTEM_ERROR", "Failed to read subtitle file")
+            .with_details(e.to_string()))?;
+    
+    Ok(content)
 }

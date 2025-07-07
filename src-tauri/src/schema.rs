@@ -14,6 +14,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    subtitles (id) {
+        id -> Text,
+        video_id -> Text,
+        language -> Text,
+        file_path -> Text,
+        extracted_date -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     user_profiles (id) {
         id -> Integer,
         user_id -> Integer,
@@ -67,12 +77,14 @@ diesel::table! {
 }
 
 diesel::joinable!(file_integrity_checks -> videos (video_id));
+diesel::joinable!(subtitles -> videos (video_id));
 diesel::joinable!(user_profiles -> users (user_id));
 diesel::joinable!(user_settings -> users (user_id));
 diesel::joinable!(videos -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     file_integrity_checks,
+    subtitles,
     user_profiles,
     user_settings,
     users,

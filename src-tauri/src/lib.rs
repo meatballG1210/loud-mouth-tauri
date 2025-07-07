@@ -64,7 +64,8 @@ pub fn run() {
             commands::get_videos,
             commands::delete_video,
             commands::resolve_thumbnail_path,
-            commands::get_thumbnail_data
+            commands::get_thumbnail_data,
+            commands::get_video_subtitles
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
