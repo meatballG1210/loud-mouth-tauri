@@ -2,6 +2,7 @@ pub mod commands;
 pub mod database;
 pub mod error;
 pub mod schema;
+pub mod thumbnail;
 
 #[cfg(test)]
 mod error_tests;
@@ -61,7 +62,9 @@ pub fn run() {
             test_database_error,
             commands::upload_video,
             commands::get_videos,
-            commands::delete_video
+            commands::delete_video,
+            commands::resolve_thumbnail_path,
+            commands::get_thumbnail_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

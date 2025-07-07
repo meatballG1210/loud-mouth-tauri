@@ -43,7 +43,7 @@ export default function ResetPassword() {
   const [isValidToken, setIsValidToken] = useState(false);
   const [checkingToken, setCheckingToken] = useState(true);
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t: _t } = useLanguage();
 
   const form = useForm<ResetPasswordData>({
     resolver: zodResolver(resetPasswordSchema),
@@ -59,6 +59,7 @@ export default function ResetPassword() {
       try {
         // First, check if Supabase can handle the URL automatically
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('Session error:', sessionError);
         
         if (session) {
           console.log('Session found:', session);

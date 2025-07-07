@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
+import { convertFileSrc } from '@tauri-apps/api/core';
 import {
   ArrowLeft,
   Volume2,
@@ -316,7 +317,7 @@ export default function VideoPlayer() {
             {currentVideo.path ? (
               <video
                 ref={videoRef}
-                src={`file://${currentVideo.path}`}
+                src={convertFileSrc(currentVideo.path)}
                 className="max-w-full max-h-full object-contain"
                 controls={false}
                 onLoadedMetadata={(e) => {

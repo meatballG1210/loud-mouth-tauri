@@ -224,20 +224,42 @@ export function useVideos() {
       
       const videoMetadatas = await invoke<VideoMetadata[]>('get_videos', { userId });
       
-      // Convert VideoMetadata to Video format
-      const formattedVideos: Video[] = videoMetadatas.map(vm => ({
-        id: vm.id,
-        title: vm.title,
-        duration: formatDuration(vm.duration),
-        uploadDate: formatUploadDate(vm.upload_date),
-        fileSize: formatFileSize(vm.size),
-        thumbnail: vm.thumbnail_path || 'https://picsum.photos/800/450?random=' + vm.id,
-        subtitles: {
-          english: vm.has_english_subtitles || false,
-          chinese: vm.has_chinese_subtitles || false,
-        },
-        path: vm.path, // Add path for video playback
-      }));
+      // Convert VideoMetadata to Video format with resolved thumbnail paths
+      const formattedVideos: Video[] = await Promise.all(
+        videoMetadatas.map(async (vm) => {
+          let thumbnail = 'https://picsum.photos/800/450?random=' + vm.id;
+          
+          if (vm.thumbnail_path) {
+            try {
+              // Get thumbnail data as base64
+              const thumbnailData = await invoke<number[]>('get_thumbnail_data', { 
+                thumbnailPath: vm.thumbnail_path 
+              });
+              // Convert to Uint8Array and then to base64
+              const uint8Array = new Uint8Array(thumbnailData);
+              const base64 = btoa(String.fromCharCode(...uint8Array));
+              thumbnail = `data:image/jpeg;base64,${base64}`;
+            } catch (error) {
+              console.error('Error loading thumbnail:', error);
+              // Fall back to placeholder
+            }
+          }
+          
+          return {
+            id: vm.id,
+            title: vm.title,
+            duration: formatDuration(vm.duration),
+            uploadDate: formatUploadDate(vm.upload_date),
+            fileSize: formatFileSize(vm.size),
+            thumbnail,
+            subtitles: {
+              english: vm.has_english_subtitles || false,
+              chinese: vm.has_chinese_subtitles || false,
+            },
+            path: vm.path, // Add path for video playback
+          };
+        })
+      );
       
       setVideos(formattedVideos);
       setStats({

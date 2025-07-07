@@ -2,11 +2,11 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "wouter";
 
-interface ErrorResponse {
-  message: string;
-  code: string;
-  details?: string;
-}
+// interface ErrorResponse {
+//   message: string;
+//   code: string;
+//   details?: string;
+// }
 
 export default function ErrorTest() {
   const [results, setResults] = useState<string[]>([]);

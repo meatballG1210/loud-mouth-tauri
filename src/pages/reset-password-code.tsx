@@ -42,7 +42,7 @@ export default function ResetPasswordCode() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t: _t } = useLanguage();
 
   const form = useForm<ResetPasswordWithCodeData>({
     resolver: zodResolver(resetPasswordWithCodeSchema),

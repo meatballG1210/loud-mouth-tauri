@@ -9,7 +9,7 @@ import {
   SortDesc,
   Filter,
 } from "lucide-react";
-import { WindowTitleBar } from "@/components/layout/window-titlebar";
+// import { WindowTitleBar } from "@/components/layout/window-titlebar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VideoGrid } from "@/components/video/video-grid";
 import { useVideos } from "@/hooks/use-videos";
