@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   ArrowLeft,
   Volume2,
@@ -314,21 +314,24 @@ export default function VideoPlayer() {
         {/* Main Video Area */}
         <div className="flex-1 flex flex-col">
           {/* Video Container */}
-          <div className="flex-1 relative bg-gray-900" style={{ minHeight: '400px' }}>
+          <div
+            className="flex-1 relative bg-gray-900"
+            style={{ minHeight: "400px" }}
+          >
             {currentVideo.path ? (
               <video
                 ref={videoRef}
                 src={(() => {
                   // Try different approaches based on platform
                   const useStreamProtocol = true; // Toggle this to test different approaches
-                  
+
                   if (useStreamProtocol) {
                     // Use custom stream protocol for video playback
                     // Don't encode slashes - only encode other special characters
                     const encodedPath = currentVideo.path
-                      .split('/')
-                      .map(segment => encodeURIComponent(segment))
-                      .join('/');
+                      .split("/")
+                      .map((segment) => encodeURIComponent(segment))
+                      .join("/");
                     const streamUrl = `stream://localhost/${encodedPath}`;
                     console.log("Using stream protocol");
                     console.log("Original path:", currentVideo.path);
@@ -344,12 +347,12 @@ export default function VideoPlayer() {
                   }
                 })()}
                 className="absolute inset-0 w-full h-full"
-                style={{ 
-                  backgroundColor: 'transparent',
-                  objectFit: 'contain',
-                  zIndex: 10
+                style={{
+                  backgroundColor: "transparent",
+                  objectFit: "contain",
+                  zIndex: 10,
                 }}
-                controls={true}
+                controls={false}
                 autoPlay={false}
                 playsInline
                 onLoadStart={() => {
@@ -361,7 +364,12 @@ export default function VideoPlayer() {
                 onLoadedMetadata={(e) => {
                   const video = e.currentTarget;
                   setDuration(video.duration);
-                  console.log("Video metadata loaded - dimensions:", video.videoWidth, "x", video.videoHeight);
+                  console.log(
+                    "Video metadata loaded - dimensions:",
+                    video.videoWidth,
+                    "x",
+                    video.videoHeight,
+                  );
                   console.log("Video duration:", video.duration);
                   console.log("Video ready state:", video.readyState);
                 }}
@@ -399,28 +407,6 @@ export default function VideoPlayer() {
                 alt={currentVideo.title}
                 className="max-w-full max-h-full object-contain"
               />
-            )}
-
-            {/* Debug Play Button */}
-            {videoReady && !isPlaying && (
-              <button
-                onClick={() => {
-                  console.log("Manual play clicked");
-                  if (videoRef.current) {
-                    videoRef.current.play()
-                      .then(() => {
-                        console.log("Video playing");
-                        setIsPlaying(true);
-                      })
-                      .catch(err => {
-                        console.error("Play failed:", err);
-                      });
-                  }
-                }}
-                className="absolute top-4 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Manual Play
-              </button>
             )}
 
             {/* Video Overlay Controls */}
