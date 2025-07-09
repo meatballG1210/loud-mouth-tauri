@@ -245,7 +245,7 @@ export function useVideos() {
             }
           }
           
-          return {
+          const video = {
             id: vm.id,
             title: vm.title,
             duration: formatDuration(vm.duration),
@@ -258,6 +258,14 @@ export function useVideos() {
             },
             path: vm.path, // Add path for video playback
           };
+          
+          console.log(`Video ${vm.id} subtitle flags:`, {
+            has_english_subtitles: vm.has_english_subtitles,
+            has_chinese_subtitles: vm.has_chinese_subtitles,
+            subtitles: video.subtitles
+          });
+          
+          return video;
         })
       );
       

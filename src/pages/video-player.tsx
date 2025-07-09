@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import {
   ArrowLeft,
   Volume2,
@@ -12,141 +12,9 @@ import {
 } from "lucide-react";
 import { useVideos } from "@/hooks/use-videos";
 import { Video } from "@/types/video";
+import { parseWebVTT } from "@/utils/subtitle-parser";
 
-interface SubtitleLine {
-  id: string;
-  start: number;
-  end: number;
-  text: string;
-  language: "english" | "chinese";
-}
-
-// Mock subtitle data
-const mockSubtitles: SubtitleLine[] = [
-  {
-    id: "1",
-    start: 0,
-    end: 3,
-    text: "Gloria, they're 6 and 8.",
-    language: "english",
-  },
-  {
-    id: "2",
-    start: 3,
-    end: 6,
-    text: "Let's take it down a notch.",
-    language: "english",
-  },
-  {
-    id: "3",
-    start: 6,
-    end: 9,
-    text: "We're very different.",
-    language: "english",
-  },
-  {
-    id: "4",
-    start: 9,
-    end: 12,
-    text: "Jay's from the city.",
-    language: "english",
-  },
-  {
-    id: "5",
-    start: 12,
-    end: 15,
-    text: "He has a big business.",
-    language: "english",
-  },
-  {
-    id: "6",
-    start: 15,
-    end: 18,
-    text: "I come from a small village.",
-    language: "english",
-  },
-  {
-    id: "7",
-    start: 18,
-    end: 21,
-    text: "Very poor but very, very beautiful.",
-    language: "english",
-  },
-  {
-    id: "8",
-    start: 21,
-    end: 25,
-    text: "It's the number one village in all Colombia for all the-",
-    language: "english",
-  },
-  {
-    id: "9",
-    start: 25,
-    end: 27,
-    text: "What's the word?",
-    language: "english",
-  },
-  { id: "10", start: 27, end: 29, text: "Murders.", language: "english" },
-  {
-    id: "11",
-    start: 29,
-    end: 32,
-    text: "Yes. The murders.",
-    language: "english",
-  },
-  {
-    id: "12",
-    start: 32,
-    end: 35,
-    text: "Manny, stop him!",
-    language: "english",
-  },
-];
-
-const mockChineseSubtitles: SubtitleLine[] = [
-  {
-    id: "1",
-    start: 0,
-    end: 3,
-    text: "格洛丽亚，他们只有6岁和8岁。",
-    language: "chinese",
-  },
-  { id: "2", start: 3, end: 6, text: "让我们冷静一点。", language: "chinese" },
-  { id: "3", start: 6, end: 9, text: "我们很不一样。", language: "chinese" },
-  { id: "4", start: 9, end: 12, text: "杰伊来自城市。", language: "chinese" },
-  {
-    id: "5",
-    start: 12,
-    end: 15,
-    text: "他有一个大企业。",
-    language: "chinese",
-  },
-  {
-    id: "6",
-    start: 15,
-    end: 18,
-    text: "我来自一个小村庄。",
-    language: "chinese",
-  },
-  {
-    id: "7",
-    start: 18,
-    end: 21,
-    text: "很穷但非常非常美丽。",
-    language: "chinese",
-  },
-  {
-    id: "8",
-    start: 21,
-    end: 25,
-    text: "这是哥伦比亚所有村庄中排名第一的-",
-    language: "chinese",
-  },
-  { id: "9", start: 25, end: 27, text: "什么词？", language: "chinese" },
-  { id: "10", start: 27, end: 29, text: "谋杀案。", language: "chinese" },
-  { id: "11", start: 29, end: 32, text: "是的。谋杀案。", language: "chinese" },
-  { id: "12", start: 32, end: 35, text: "曼尼，阻止他！", language: "chinese" },
-];
+import { SubtitleLine } from "@/utils/subtitle-parser";
 
 export default function VideoPlayer() {
   const [, params] = useRoute("/video/:videoId");
@@ -170,6 +38,9 @@ export default function VideoPlayer() {
   const [lookupPosition, setLookupPosition] = useState({ x: 0, y: 0 });
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [englishSubtitles, setEnglishSubtitles] = useState<SubtitleLine[]>([]);
+  const [chineseSubtitles, setChineseSubtitles] = useState<SubtitleLine[]>([]);
+  const [subtitlesLoading, setSubtitlesLoading] = useState(false);
 
   useEffect(() => {
     if (params?.videoId && !isLoading) {
@@ -180,8 +51,70 @@ export default function VideoPlayer() {
         return;
       }
       setCurrentVideo(video);
+      console.log("Current video set:", video);
+      console.log("Video subtitles object:", video.subtitles);
     }
   }, [params?.videoId, videos, isLoading, setLocation]);
+
+  // Load subtitles when video changes
+  useEffect(() => {
+    if (!currentVideo) return;
+
+    const loadSubtitles = async () => {
+      console.log("Loading subtitles for video:", currentVideo);
+      console.log("Subtitles available:", currentVideo.subtitles);
+      setSubtitlesLoading(true);
+
+      // Workaround: Try to load subtitles even if flags are false
+      // This helps when subtitle extraction succeeded but flags weren't updated
+      const tryLoadSubtitles = async (language: "english" | "chinese") => {
+        try {
+          const vtt = await invoke<string>("get_video_subtitles", {
+            videoId: currentVideo.id,
+            language: language,
+          });
+          return parseWebVTT(vtt, language);
+        } catch (error) {
+          console.log(`No ${language} subtitles found:`, error);
+          return null;
+        }
+      };
+
+      try {
+        // Try to load both subtitle types regardless of flags
+        const [englishSubs, chineseSubs] = await Promise.all([
+          tryLoadSubtitles("english"),
+          tryLoadSubtitles("chinese"),
+        ]);
+
+        if (englishSubs) {
+          setEnglishSubtitles(englishSubs);
+          console.log("Loaded English subtitles:", englishSubs.length, "lines");
+        }
+
+        if (chineseSubs) {
+          setChineseSubtitles(chineseSubs);
+          console.log("Loaded Chinese subtitles:", chineseSubs.length, "lines");
+        }
+
+        // Set default language based on what was actually loaded
+        if (englishSubs && englishSubs.length > 0) {
+          setActiveLanguage("english");
+          console.log("Active lang: ", activeLanguage);
+        } else if (chineseSubs && chineseSubs.length > 0) {
+          setActiveLanguage("chinese");
+          console.log("Active lang: ", activeLanguage);
+        } else {
+          setActiveLanguage("off");
+          console.log("Active lang: ", activeLanguage);
+        }
+      } finally {
+        setSubtitlesLoading(false);
+      }
+    };
+
+    loadSubtitles();
+  }, [currentVideo]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -204,7 +137,8 @@ export default function VideoPlayer() {
   const getCurrentSubtitle = () => {
     if (activeLanguage === "off") return null;
     const subtitles =
-      activeLanguage === "english" ? mockSubtitles : mockChineseSubtitles;
+      activeLanguage === "english" ? englishSubtitles : chineseSubtitles;
+    console.log("Sssssss Subtitles:", subtitles);
     return subtitles.find(
       (sub) => currentTime >= sub.start && currentTime < sub.end,
     );
@@ -307,6 +241,7 @@ export default function VideoPlayer() {
   }
 
   const currentSubtitle = getCurrentSubtitle();
+  console.log("Current sub: ", currentSubtitle);
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
@@ -441,7 +376,7 @@ export default function VideoPlayer() {
 
             {/* Current Subtitle Overlay */}
             {currentSubtitle && (
-              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6">
+              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20">
                 <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-white text-lg leading-relaxed">
                     {currentSubtitle.text.split(" ").map((word, index) => (
@@ -562,38 +497,47 @@ export default function VideoPlayer() {
                 </div>
 
                 {/* Subtitle Controls */}
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setActiveLanguage("off")}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                      activeLanguage === "off"
-                        ? "bg-white shadow-sm text-blue-600 font-semibold"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    OFF
-                  </button>
-                  <button
-                    onClick={() => setActiveLanguage("english")}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                      activeLanguage === "english"
-                        ? "bg-white shadow-sm text-blue-600 font-semibold"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    EN
-                  </button>
-                  <button
-                    onClick={() => setActiveLanguage("chinese")}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                      activeLanguage === "chinese"
-                        ? "bg-white shadow-sm text-blue-600 font-semibold"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    中文
-                  </button>
-                </div>
+                {(englishSubtitles.length > 0 ||
+                  chineseSubtitles.length > 0) && (
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setActiveLanguage("off")}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                        activeLanguage === "off"
+                          ? "bg-white shadow-sm text-blue-600 font-semibold"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      OFF
+                    </button>
+                    {englishSubtitles.length > 0 && (
+                      <button
+                        onClick={() => setActiveLanguage("english")}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                          activeLanguage === "english"
+                            ? "bg-white shadow-sm text-blue-600 font-semibold"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                        disabled={subtitlesLoading}
+                      >
+                        EN
+                      </button>
+                    )}
+                    {chineseSubtitles.length > 0 && (
+                      <button
+                        onClick={() => setActiveLanguage("chinese")}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                          activeLanguage === "chinese"
+                            ? "bg-white shadow-sm text-blue-600 font-semibold"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                        disabled={subtitlesLoading}
+                      >
+                        中文
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
