@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { VocabularyItem } from "@/types/video";
+import { useVideos } from "@/hooks/use-videos";
 
 interface SubtitleLine {
   id: string;
@@ -33,6 +34,7 @@ export default function VocabularyDetail() {
     toggleStar,
     isLoading,
   } = useVocabulary();
+  const { videos } = useVideos();
   const [sortBy, setSortBy] = useState<"word" | "timestamp">("timestamp");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,6 +43,7 @@ export default function VocabularyDetail() {
   const [volume, setVolume] = useState(1);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [detailWordId, setDetailWordId] = useState<string | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Mock subtitle data
@@ -131,6 +134,7 @@ export default function VocabularyDetail() {
 
   const videoWords = getVocabularyByVideoId(params.videoId);
   const videoTitle = videoWords[0]?.videoTitle || "Unknown Video";
+  const currentVideo = videos.find((v) => v.id === params.videoId);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -175,12 +179,24 @@ export default function VocabularyDetail() {
     setLocation("/vocabulary-list");
   };
 
-  const handleWordClick = (word: VocabularyItem) => {
+  const handleWordClick = async (word: VocabularyItem) => {
     setSelectedWordId(word.id);
-    if (videoRef.current) {
+    if (videoRef.current && videoReady) {
+      // Pause the video first to ensure smooth seeking
+      videoRef.current.pause();
+      
+      // Set the current time
       videoRef.current.currentTime = word.timestamp;
-      if (!isPlaying) {
-        videoRef.current.play();
+      
+      // Wait a moment for the seek to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Play the video
+      try {
+        await videoRef.current.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error("Failed to play video:", error);
       }
     }
   };
@@ -252,12 +268,37 @@ export default function VocabularyDetail() {
         <div className="w-2/3 bg-black flex flex-col">
           {/* Video */}
           <div className="flex-1 relative">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-contain"
-              src="/placeholder-video.mp4"
-              onClick={togglePlayPause}
-            />
+            {currentVideo?.path ? (
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                src={(() => {
+                  // Use stream protocol for video playback
+                  const encodedPath = currentVideo.path
+                    .split("/")
+                    .map((segment) => encodeURIComponent(segment))
+                    .join("/");
+                  const streamUrl = `stream://localhost/${encodedPath}`;
+                  console.log("Video stream URL:", streamUrl);
+                  return streamUrl;
+                })()}
+                onClick={togglePlayPause}
+                onLoadedMetadata={(e) => {
+                  const video = e.currentTarget;
+                  setDuration(video.duration);
+                  setVideoReady(true);
+                  console.log("Video metadata loaded, duration:", video.duration);
+                }}
+                onError={(e) => {
+                  console.error("Video playback error:", e);
+                  setVideoReady(false);
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white">
+                <p>No video available</p>
+              </div>
+            )}
 
             {/* Play/Pause Overlay */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-20">
@@ -618,8 +659,8 @@ export default function VocabularyDetail() {
                     {/* Action Buttons */}
                     <div className="flex space-x-3 pt-4 border-t border-gray-200">
                       <button
-                        onClick={() => {
-                          handleWordClick(detailWord);
+                        onClick={async () => {
+                          await handleWordClick(detailWord);
                           setDetailWordId(null);
                         }}
                         className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
