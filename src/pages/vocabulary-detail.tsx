@@ -565,24 +565,19 @@ export default function VocabularyDetail() {
                       </div>
                     </div>
 
-                    {/* Video Information */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                        Video Information
-                      </h4>
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center space-x-2">
-                          <BookOpen className="w-4 h-4" />
-                          <span>{detailWord.videoTitle}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4" />
-                          <span>
-                            Timestamp: {formatTime(detailWord.timestamp)}
-                          </span>
+                    {/* Dictionary Response */}
+                    {detailWord.dictionaryResponse && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                          Dictionary Definition
+                        </h4>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {detailWord.dictionaryResponse}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Learning Progress */}
                     <div>

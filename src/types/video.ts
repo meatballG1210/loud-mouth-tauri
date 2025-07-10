@@ -31,6 +31,7 @@ export interface VocabularyItem {
   lastReviewed: string;
   nextReview: string;
   isStarred: boolean;
+  dictionaryResponse?: string;
 }
 
 export interface VocabularyStats {

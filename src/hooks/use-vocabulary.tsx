@@ -42,7 +42,8 @@ function convertToFrontendVocabulary(item: any, videos: any[]): VocabularyItem {
     reviewCount: reviewStage,
     lastReviewed: item.last_reviewed_at || item.created_at || new Date().toISOString().split('T')[0],
     nextReview: item.next_review_at ? item.next_review_at.split('T')[0] : new Date().toISOString().split('T')[0],
-    isStarred: false // Backend doesn't track this yet
+    isStarred: false, // Backend doesn't track this yet
+    dictionaryResponse: item.dictionary_response
   };
 }
 
