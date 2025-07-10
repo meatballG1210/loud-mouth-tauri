@@ -13,6 +13,8 @@ import {
 import { useVideos } from "@/hooks/use-videos";
 import { Video } from "@/types/video";
 import { parseWebVTT } from "@/utils/subtitle-parser";
+import ReactMarkdown from "react-markdown";
+import { vocabularyApi } from "@/api/vocabulary";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
@@ -36,8 +38,10 @@ export default function VideoPlayer() {
   );
   const [showLookupPopup, setShowLookupPopup] = useState(false);
   const [lookupPosition, setLookupPosition] = useState({ x: 0, y: 0 });
+  const [lookupData, setLookupData] = useState<any>(null);
+  const [isLoadingLookup, setIsLoadingLookup] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoReady, setVideoReady] = useState(false);
+  const [, setVideoReady] = useState(false);
   const [englishSubtitles, setEnglishSubtitles] = useState<SubtitleLine[]>([]);
   const [chineseSubtitles, setChineseSubtitles] = useState<SubtitleLine[]>([]);
   const [subtitlesLoading, setSubtitlesLoading] = useState(false);
@@ -144,6 +148,69 @@ export default function VideoPlayer() {
     );
   };
 
+  const fetchWordInfo = async (words: string[]) => {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey || apiKey === "your_openai_api_key_here") {
+      console.error("OpenAI API key not configured");
+      return null;
+    }
+
+    const text = words.join(" ");
+    const prompt = `Please act as a professional English teacher and explain "${text}", follow this structured format exactly:
+
+**Chinese Translation**
+
+Provide the most natural and context-appropriate Chinese translation that accurately conveys the original meaning.
+
+**Usage Explanation**
+
+Please write in Chinese.
+Explain fixed expressions, sentence patterns, or phrase usage (e.g., "have sb do sth", "quite the…").
+
+If the phrase is slang or idiomatic, also include:
+- Explain its literal meaning and how it evolved into its figurative meaning
+- Describe the origin or metaphor (e.g., from sports, war, pop culture, historical references, etc.)
+- If relevant, add its timeline or usage trend (e.g., 1990s school slang, AAVE, etc.)
+
+**Example Sentence**
+
+Write a natural and authentic English sentence using the phrase, followed by a fluent and accurate Chinese translation.`;
+
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 500,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error("Error fetching word info:", error);
+      return null;
+    }
+  };
+
   const handleWordClick = (word: string, event: React.MouseEvent) => {
     const rect = (event.target as HTMLElement).getBoundingClientRect();
 
@@ -155,15 +222,18 @@ export default function VideoPlayer() {
     // Close popup if it's already open
     setShowLookupPopup(false);
 
-    // Toggle word selection
+    // Toggle word selection and calculate new word list
     const cleanWord = word.replace(/[.,!?;:]$/, ""); // Remove punctuation
+    let newSelectedWords: string[] = [];
+
     setSelectedWords((prev) => {
       const isSelected = prev.includes(cleanWord);
       if (isSelected) {
-        return prev.filter((w) => w !== cleanWord);
+        newSelectedWords = prev.filter((w) => w !== cleanWord);
       } else {
-        return [...prev, cleanWord];
+        newSelectedWords = [...prev, cleanWord];
       }
+      return newSelectedWords;
     });
 
     // Set lookup position
@@ -173,8 +243,15 @@ export default function VideoPlayer() {
     });
 
     // Start 2-second timer
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
+      setIsLoadingLookup(true);
       setShowLookupPopup(true);
+
+      const wordInfo = await fetchWordInfo(newSelectedWords);
+      if (wordInfo) {
+        setLookupData(wordInfo);
+      }
+      setIsLoadingLookup(false);
     }, 2000);
 
     setSelectionTimer(timer);
@@ -183,25 +260,95 @@ export default function VideoPlayer() {
   const closeLookupPopup = () => {
     setShowLookupPopup(false);
     setSelectedWords([]);
+    setLookupData(null);
     if (selectionTimer) {
       clearTimeout(selectionTimer);
       setSelectionTimer(null);
     }
   };
 
-  const mockLookupData = {
-    word: selectedWords.join(" "),
-    pronunciation: selectedWords.length === 1 ? "/ˈɡlɔːriə/" : "",
-    partOfSpeech: selectedWords.length === 1 ? "noun" : "phrase",
-    definition:
-      selectedWords.length === 1
-        ? "A feeling of magnificence, splendor, and great beauty"
-        : "A common greeting or expression",
-    examples: [
-      "The glory of the sunset was breathtaking.",
-      "She basked in the glory of her achievement.",
-    ],
-    translation: selectedWords.length === 1 ? "荣耀，光辉" : "问候语",
+  const handleAddVocabulary = async () => {
+    if (!currentVideo || !lookupData || selectedWords.length === 0) return;
+
+    try {
+      // Get current subtitle context
+      const currentSub = getCurrentSubtitle();
+      if (!currentSub) {
+        console.error("No current subtitle found");
+        return;
+      }
+
+      // Find the subtitle index
+      const subtitles = activeLanguage === "english" ? englishSubtitles : chineseSubtitles;
+      const currentIndex = subtitles.findIndex(
+        (sub) => sub.start === currentSub.start && sub.end === currentSub.end
+      );
+
+      // Get context subtitles
+      let before2En = "";
+      let before2Zh = "";
+      let before1En = "";
+      let before1Zh = "";
+      let targetEn = "";
+      let targetZh = "";
+
+      // Get English context
+      if (englishSubtitles.length > 0) {
+        if (currentIndex >= 2) {
+          before2En = englishSubtitles[currentIndex - 2]?.text || "";
+        }
+        if (currentIndex >= 1) {
+          before1En = englishSubtitles[currentIndex - 1]?.text || "";
+        }
+        targetEn = englishSubtitles[currentIndex]?.text || currentSub.text;
+      }
+
+      // Get Chinese context
+      if (chineseSubtitles.length > 0) {
+        // Find matching Chinese subtitle by timestamp
+        const chineseIndex = chineseSubtitles.findIndex(
+          (sub) => Math.abs(sub.start - currentSub.start) < 1
+        );
+        
+        if (chineseIndex >= 0) {
+          if (chineseIndex >= 2) {
+            before2Zh = chineseSubtitles[chineseIndex - 2]?.text || "";
+          }
+          if (chineseIndex >= 1) {
+            before1Zh = chineseSubtitles[chineseIndex - 1]?.text || "";
+          }
+          targetZh = chineseSubtitles[chineseIndex]?.text || "";
+        }
+      }
+
+      // Calculate next review date (tomorrow)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextReviewAt = tomorrow.toISOString();
+
+      // Create vocabulary item
+      await vocabularyApi.create({
+        user_id: "demo-user", // TODO: Get from auth context
+        video_id: currentVideo.id,
+        word: selectedWords.join(" "),
+        timestamp: Math.floor(currentTime * 1000), // Convert to milliseconds
+        before_2_en: before2En || undefined,
+        before_2_zh: before2Zh || undefined,
+        before_1_en: before1En || undefined,
+        before_1_zh: before1Zh || undefined,
+        target_en: targetEn,
+        target_zh: targetZh,
+        dictionary_response: lookupData,
+        next_review_at: nextReviewAt,
+        is_phrase: selectedWords.length > 1,
+      });
+
+      console.log("Vocabulary saved successfully");
+      closeLookupPopup();
+    } catch (error) {
+      console.error("Error saving vocabulary:", error);
+      // TODO: Show error toast
+    }
   };
 
   const handlePlayPause = () => {
@@ -547,51 +694,41 @@ export default function VideoPlayer() {
       {/* Word Lookup Popup */}
       {showLookupPopup && selectedWords.length > 0 && (
         <div
-          className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50 max-w-sm"
+          className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50 max-w-md"
           style={{
             left: `${lookupPosition.x}px`,
             top: `${lookupPosition.y}px`,
             transform: "translate(-50%, -100%)",
+            maxHeight: "400px",
+            overflowY: "auto",
           }}
         >
           <div className="flex justify-between items-start mb-3">
             <h3 className="font-bold text-lg text-gray-900">
-              {mockLookupData.word}
+              {selectedWords.join(" ")}
             </h3>
             <button
               onClick={closeLookupPopup}
-              className="text-gray-400 hover:text-gray-600 ml-2"
+              className="text-gray-400 hover:text-gray-600 ml-2 text-2xl"
             >
               ×
             </button>
           </div>
 
-          {mockLookupData.pronunciation && (
-            <div className="text-sm text-gray-600 mb-2">
-              {mockLookupData.pronunciation}
+          {isLoadingLookup ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : lookupData ? (
+            <div className="prose prose-sm max-w-none">
+              <ReactMarkdown>{lookupData}</ReactMarkdown>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 italic py-4">
+              Unable to fetch word information. Please check your OpenAI API
+              key.
             </div>
           )}
-
-          <div className="text-sm text-blue-600 mb-2 capitalize">
-            {mockLookupData.partOfSpeech}
-          </div>
-
-          <div className="text-sm text-gray-800 mb-3">
-            {mockLookupData.definition}
-          </div>
-
-          <div className="text-sm text-gray-600 mb-3">
-            <strong>中文:</strong> {mockLookupData.translation}
-          </div>
-
-          <div className="text-xs text-gray-500">
-            <strong>Examples:</strong>
-            <ul className="mt-1 space-y-1">
-              {mockLookupData.examples.map((example, index) => (
-                <li key={index}>• {example}</li>
-              ))}
-            </ul>
-          </div>
 
           <div className="flex justify-between mt-4 pt-3 border-t border-gray-100">
             <button
@@ -601,11 +738,9 @@ export default function VideoPlayer() {
               Close
             </button>
             <button
-              onClick={() => {
-                console.log("Added to vocabulary:", selectedWords.join(" "));
-                closeLookupPopup();
-              }}
+              onClick={handleAddVocabulary}
               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              disabled={isLoadingLookup || !lookupData}
             >
               Add to Vocabulary
             </button>

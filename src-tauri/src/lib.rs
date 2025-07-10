@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod database;
 pub mod error;
+pub mod models;
 pub mod schema;
 pub mod thumbnail;
 
@@ -65,7 +66,13 @@ pub fn run() {
             commands::delete_video,
             commands::resolve_thumbnail_path,
             commands::get_thumbnail_data,
-            commands::get_video_subtitles
+            commands::get_video_subtitles,
+            commands::create_vocabulary,
+            commands::get_vocabulary_by_video,
+            commands::get_all_vocabulary,
+            commands::update_vocabulary_review,
+            commands::delete_vocabulary,
+            commands::get_vocabulary_due_for_review
         ])
         .register_uri_scheme_protocol("stream", |_app, request| {
             // Get the path from the URL

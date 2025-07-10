@@ -20,9 +20,7 @@ export default function VocabularyList() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "lastReviewed">(
-    "word",
-  );
+  const [sortBy, setSortBy] = useState<"word" | "lastReviewed">("word");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [activeSection, setActiveSection] = useState("vocabulary");
   const [expandedVideos, setExpandedVideos] = useState<Set<string>>(new Set());
@@ -46,9 +44,6 @@ export default function VocabularyList() {
     switch (sortBy) {
       case "word":
         return a.word.localeCompare(b.word);
-      case "difficulty":
-        const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
-        return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
       case "lastReviewed":
         return (
           new Date(b.lastReviewed).getTime() -
@@ -110,19 +105,6 @@ export default function VocabularyList() {
       newExpanded.add(videoId);
     }
     setExpandedVideos(newExpanded);
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy":
-        return "bg-green-100 text-green-800";
-      case "medium":
-        return "bg-yellow-100 text-yellow-800";
-      case "hard":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
   };
 
   return (
@@ -214,9 +196,6 @@ export default function VocabularyList() {
                 >
                   <option value="word">
                     {t("sortBy")} {t("wordColumn")}
-                  </option>
-                  <option value="difficulty">
-                    {t("sortBy")} {t("difficultyColumn")}
                   </option>
                   <option value="lastReviewed">
                     {t("sortBy")} {t("lastReviewedColumn")}
@@ -355,8 +334,7 @@ export default function VocabularyList() {
                           {/* Column Headers */}
                           <div className="flex items-center justify-between px-2 py-1 mb-2 text-xs text-gray-500 font-medium border-b border-gray-100">
                             <div className="flex-1">Word & Translation</div>
-                            <div className="flex items-center space-x-4 flex-shrink-0">
-                              <span>Difficulty</span>
+                            <div className="flex items-center flex-shrink-0">
                               <span>Reviews</span>
                             </div>
                           </div>
@@ -385,12 +363,7 @@ export default function VocabularyList() {
                                         {word.translation}
                                       </p>
                                     </div>
-                                    <div className="flex items-center space-x-4 flex-shrink-0">
-                                      <span
-                                        className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(word.difficulty)}`}
-                                      >
-                                        {word.difficulty}
-                                      </span>
+                                    <div className="flex items-center flex-shrink-0">
                                       <span className="text-xs text-gray-500 w-8 text-center">
                                         {word.reviewCount}
                                       </span>

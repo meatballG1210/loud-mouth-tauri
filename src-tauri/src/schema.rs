@@ -76,11 +76,34 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    vocabulary (id) {
+        id -> Nullable<Text>,
+        user_id -> Text,
+        video_id -> Text,
+        word -> Text,
+        timestamp -> Integer,
+        before_2_en -> Nullable<Text>,
+        before_2_zh -> Nullable<Text>,
+        before_1_en -> Nullable<Text>,
+        before_1_zh -> Nullable<Text>,
+        target_en -> Text,
+        target_zh -> Text,
+        dictionary_response -> Nullable<Text>,
+        review_stage -> Nullable<Integer>,
+        next_review_at -> Text,
+        last_reviewed_at -> Nullable<Text>,
+        is_phrase -> Nullable<Bool>,
+        created_at -> Nullable<Text>,
+    }
+}
+
 diesel::joinable!(file_integrity_checks -> videos (video_id));
 diesel::joinable!(subtitles -> videos (video_id));
 diesel::joinable!(user_profiles -> users (user_id));
 diesel::joinable!(user_settings -> users (user_id));
 diesel::joinable!(videos -> users (user_id));
+diesel::joinable!(vocabulary -> videos (video_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     file_integrity_checks,
@@ -89,4 +112,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_settings,
     users,
     videos,
+    vocabulary,
 );

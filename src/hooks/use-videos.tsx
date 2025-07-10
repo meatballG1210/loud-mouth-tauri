@@ -220,7 +220,7 @@ export function useVideos() {
       setIsLoading(true);
       
       // TODO: Get actual user ID from auth context
-      const userId = 1;
+      const userId = 1; // Backend expects number for videos
       
       const videoMetadatas = await invoke<VideoMetadata[]>('get_videos', { userId });
       

@@ -33,9 +33,7 @@ export default function VocabularyDetail() {
     toggleStar,
     isLoading,
   } = useVocabulary();
-  const [sortBy, setSortBy] = useState<"word" | "difficulty" | "timestamp">(
-    "timestamp",
-  );
+  const [sortBy, setSortBy] = useState<"word" | "timestamp">("timestamp");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -166,9 +164,6 @@ export default function VocabularyDetail() {
       switch (sortBy) {
         case "word":
           return a.word.localeCompare(b.word);
-        case "difficulty":
-          const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
-          return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
         case "timestamp":
           return a.timestamp - b.timestamp;
         default:
@@ -241,19 +236,6 @@ export default function VocabularyDetail() {
 
   const handleToggleStar = async (wordId: string) => {
     await toggleStar(wordId);
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "hard":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
   };
 
   const isWordDue = (nextReview: string) => {
@@ -407,7 +389,6 @@ export default function VocabularyDetail() {
               >
                 <option value="timestamp">Sort by Timeline</option>
                 <option value="word">Sort by Word</option>
-                <option value="difficulty">Sort by Difficulty</option>
               </select>
             </div>
           </div>
@@ -447,11 +428,6 @@ export default function VocabularyDetail() {
                             className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
                           />
                         </button>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full border ${getDifficultyColor(word.difficulty)}`}
-                        >
-                          {word.difficulty}
-                        </span>
                       </div>
 
                       <p className="text-gray-700 mb-3">{word.translation}</p>
@@ -571,11 +547,6 @@ export default function VocabularyDetail() {
                             className={`w-5 h-5 ${detailWord.isStarred ? "fill-current" : ""}`}
                           />
                         </button>
-                        <span
-                          className={`text-sm px-3 py-1 rounded-full border ${getDifficultyColor(detailWord.difficulty)}`}
-                        >
-                          {detailWord.difficulty}
-                        </span>
                       </div>
                       <p className="text-lg text-gray-700">
                         {detailWord.translation}

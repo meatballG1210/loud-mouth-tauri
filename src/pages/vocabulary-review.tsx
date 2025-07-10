@@ -26,7 +26,6 @@ interface ReviewItem {
   videoId: string;
   videoTitle: string;
   timestamp: number;
-  difficulty: "easy" | "medium" | "hard";
 }
 
 interface SubtitleLine {
@@ -74,7 +73,6 @@ export default function VocabularyReview() {
       videoId: "video-1",
       videoTitle: "Modern Family S01E01",
       timestamp: 125.5,
-      difficulty: "hard",
     },
     {
       id: "2",
@@ -85,7 +83,6 @@ export default function VocabularyReview() {
       videoId: "video-1",
       videoTitle: "Modern Family S01E01",
       timestamp: 142.3,
-      difficulty: "medium",
     },
     {
       id: "3",
@@ -96,7 +93,6 @@ export default function VocabularyReview() {
       videoId: "video-1",
       videoTitle: "Modern Family S01E01",
       timestamp: 156.8,
-      difficulty: "easy",
     },
   ];
 
@@ -256,19 +252,6 @@ export default function VocabularyReview() {
       } else {
         videoRef.current.play();
       }
-    }
-  };
-
-  const getDifficultyClass = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy":
-        return "border-green-200 text-green-700 bg-green-50";
-      case "medium":
-        return "border-yellow-200 text-yellow-700 bg-yellow-50";
-      case "hard":
-        return "border-red-200 text-red-700 bg-red-50";
-      default:
-        return "border-gray-200 text-gray-700 bg-gray-50";
     }
   };
 
@@ -442,11 +425,6 @@ export default function VocabularyReview() {
                     <h3 className="text-lg font-semibold text-gray-900 macos-title">
                       {currentReview?.word}
                     </h3>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium border ${getDifficultyClass(currentReview?.difficulty || "")}`}
-                    >
-                      {currentReview?.difficulty}
-                    </span>
                   </div>
                   <p className="text-gray-600 macos-body">
                     {currentReview?.translation}
