@@ -299,20 +299,6 @@ export default function VocabularyDetail() {
                 <p>No video available</p>
               </div>
             )}
-
-            {/* Play/Pause Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-20">
-              <button
-                onClick={togglePlayPause}
-                className="bg-white bg-opacity-80 rounded-full p-4 hover:bg-opacity-100 transition-all"
-              >
-                {isPlaying ? (
-                  <Pause className="w-8 h-8 text-gray-800" />
-                ) : (
-                  <Play className="w-8 h-8 text-gray-800 ml-1" />
-                )}
-              </button>
-            </div>
           </div>
 
           {/* Video Controls */}
