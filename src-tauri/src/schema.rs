@@ -96,6 +96,10 @@ diesel::table! {
         is_phrase -> Nullable<Bool>,
         created_at -> Nullable<Text>,
         before_2_timestamp -> Nullable<Integer>,
+        scheduled_review_at -> Nullable<Text>,
+        review_count -> Nullable<Integer>,
+        consecutive_correct -> Nullable<Integer>,
+        was_late -> Nullable<Bool>,
     }
 }
 

@@ -330,10 +330,9 @@ Write a natural and authentic English sentence using the phrase, followed by a f
         }
       }
 
-      // Calculate next review date (tomorrow)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const nextReviewAt = tomorrow.toISOString();
+      // Set initial review date to today (same day as creation)
+      const today = new Date();
+      const nextReviewAt = today.toISOString();
 
       // Create vocabulary item
       await vocabularyApi.create({

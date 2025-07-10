@@ -71,6 +71,7 @@ pub fn run() {
             commands::get_vocabulary_by_video,
             commands::get_all_vocabulary,
             commands::update_vocabulary_review,
+            commands::update_vocabulary_review_with_result,
             commands::delete_vocabulary,
             commands::get_vocabulary_due_for_review
         ])

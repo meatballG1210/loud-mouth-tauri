@@ -11,22 +11,15 @@ import {
   Copy,
   Check,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
+import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
+import { isReviewLate, getStageLabel } from "@/utils/review-scheduler";
 
-interface ReviewItem {
-  id: string;
-  word: string;
-  translation: string;
-  context: string;
-  targetSentence: string;
-  videoId: string;
-  videoTitle: string;
-  timestamp: number;
-}
 
 interface SubtitleLine {
   id: string;
@@ -62,70 +55,132 @@ export default function VocabularyReview() {
   const [_currentTime, setCurrentTime] = useState(0);
   const [_duration, setDuration] = useState(0);
 
-  // Mock review items
-  const mockReviewItems: ReviewItem[] = [
-    {
-      id: "1",
-      word: "surrogate",
-      translation: "代理的，替代的",
-      context: "Medical discussion about pregnancy options",
-      targetSentence: "At first, I was hesitant about the idea.",
-      videoId: "video-1",
-      videoTitle: "Modern Family S01E01",
-      timestamp: 125.5,
-    },
-    {
-      id: "2",
-      word: "hesitant",
-      translation: "犹豫的，踌躇的",
-      context: "Character expressing uncertainty",
-      targetSentence: "The doctor suggested this option.",
-      videoId: "video-1",
-      videoTitle: "Modern Family S01E01",
-      timestamp: 142.3,
-    },
-    {
-      id: "3",
-      word: "option",
-      translation: "选择，选项",
-      context: "Discussion about choices",
-      targetSentence: "We need someone to act as a surrogate mother.",
-      videoId: "video-1",
-      videoTitle: "Modern Family S01E01",
-      timestamp: 156.8,
-    },
-  ];
+  // Real review items
+  const [reviewItems, setReviewItems] = useState<VocabularyItem[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const [subtitles, setSubtitles] = useState<SubtitleLine[]>([]);
+  const { videos } = useVideos();
 
-  const currentReview = mockReviewItems[currentReviewIndex];
-  const progress = ((currentReviewIndex + 1) / mockReviewItems.length) * 100;
+  // Load vocabulary items due for review
+  useEffect(() => {
+    const loadReviewItems = async () => {
+      try {
+        setIsLoadingReviews(true);
+        // TODO: Get actual user ID from auth context
+        const userId = 'demo-user';
+        const items = await vocabularyApi.getDueForReview(userId);
+        setReviewItems(items);
+      } catch (error) {
+        console.error('Error loading review items:', error);
+        setReviewItems([]);
+      } finally {
+        setIsLoadingReviews(false);
+      }
+    };
 
-  // Mock subtitle data for context
-  const mockSubtitles: SubtitleLine[] = [
-    {
-      id: "1",
-      start: 87.2,
-      end: 89.8,
-      text: "At first, I was hesitant about the idea.",
-      language: "english",
-      position: "minus2",
-    },
-    {
-      id: "2",
-      start: 89.8,
-      end: 92.5,
-      text: "Initially, I thought it was quite strange.",
-      language: "english",
-      position: "minus1",
-    },
-    {
-      id: "3",
-      start: 92.5,
-      end: 95.1,
-      text: "起初，我觉得这很奇怪。",
-      language: "chinese",
-      position: "current",
-    },
-  ];
+    if (reviewStarted || isActiveSession) {
+      loadReviewItems();
+    }
+  }, [reviewStarted, isActiveSession]);
+
+  const currentReview = reviewItems[currentReviewIndex];
+  const progress = reviewItems.length > 0 
+    ? ((currentReviewIndex + 1) / reviewItems.length) * 100 
+    : 0;
+
+  // Extract Chinese translation from dictionary response
+  function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
+    if (!dictionaryResponse) return '无翻译';
+    
+    const translationMatch = dictionaryResponse.match(/\*\*Chinese Translation\*\*\s*\n\s*(.+?)(?:\n|$)/);
+    if (translationMatch && translationMatch[1]) {
+      return translationMatch[1].trim();
+    }
+    
+    const lines = dictionaryResponse.split('\n');
+    for (const line of lines.slice(0, 5)) {
+      const chineseMatch = line.match(/[\u4e00-\u9fa5]+/);
+      if (chineseMatch) {
+        return chineseMatch[0];
+      }
+    }
+    
+    return '无翻译';
+  }
+
+  // Load subtitles for current review item
+  useEffect(() => {
+    if (currentReview && reviewStarted) {
+      const loadSubtitles = () => {
+        // Create subtitle lines from vocabulary context
+        const subtitleLines: SubtitleLine[] = [];
+        
+        if (currentReview.before_2_en) {
+          subtitleLines.push({
+            id: '1',
+            start: (currentReview.before_2_timestamp || currentReview.timestamp - 4000) / 1000,
+            end: (currentReview.before_2_timestamp || currentReview.timestamp - 2000) / 1000,
+            text: currentReview.before_2_en,
+            language: 'english',
+            position: 'minus2'
+          });
+          if (currentReview.before_2_zh) {
+            subtitleLines.push({
+              id: '1-zh',
+              start: (currentReview.before_2_timestamp || currentReview.timestamp - 4000) / 1000,
+              end: (currentReview.before_2_timestamp || currentReview.timestamp - 2000) / 1000,
+              text: currentReview.before_2_zh,
+              language: 'chinese',
+              position: 'minus2'
+            });
+          }
+        }
+        
+        if (currentReview.before_1_en) {
+          subtitleLines.push({
+            id: '2',
+            start: (currentReview.timestamp - 2000) / 1000,
+            end: currentReview.timestamp / 1000,
+            text: currentReview.before_1_en,
+            language: 'english',
+            position: 'minus1'
+          });
+          if (currentReview.before_1_zh) {
+            subtitleLines.push({
+              id: '2-zh',
+              start: (currentReview.timestamp - 2000) / 1000,
+              end: currentReview.timestamp / 1000,
+              text: currentReview.before_1_zh,
+              language: 'chinese',
+              position: 'minus1'
+            });
+          }
+        }
+        
+        subtitleLines.push({
+          id: '3',
+          start: currentReview.timestamp / 1000,
+          end: (currentReview.timestamp + 2000) / 1000,
+          text: currentReview.target_en,
+          language: 'english',
+          position: 'current'
+        });
+        
+        subtitleLines.push({
+          id: '3-zh',
+          start: currentReview.timestamp / 1000,
+          end: (currentReview.timestamp + 2000) / 1000,
+          text: currentReview.target_zh,
+          language: 'chinese',
+          position: 'current'
+        });
+        
+        setSubtitles(subtitleLines);
+      };
+      
+      loadSubtitles();
+    }
+  }, [currentReview, reviewStarted]);
 
   // Navigation functions
   const handleNavigate = (section: string) => {
@@ -176,13 +231,13 @@ export default function VocabularyReview() {
     setLocation("/vocabulary-review/session");
   };
 
-  const handleSubmitAnswer = () => {
-    if (!userAnswer.trim()) {
+  const handleSubmitAnswer = async () => {
+    if (!userAnswer.trim() || !currentReview) {
       setIsCorrect(false);
       return;
     }
 
-    const correctAnswer = currentReview.targetSentence.toLowerCase();
+    const correctAnswer = currentReview.target_en.toLowerCase();
     const userAnswerLower = userAnswer.toLowerCase().trim();
 
     // Simple similarity check (in real app, use more sophisticated comparison)
@@ -192,9 +247,18 @@ export default function VocabularyReview() {
 
     setIsCorrect(isAnswerCorrect);
 
+    // Update review in database
+    try {
+      if (currentReview.id) {
+        await vocabularyApi.updateReviewWithResult(currentReview.id, isAnswerCorrect);
+      }
+    } catch (error) {
+      console.error('Error updating review:', error);
+    }
+
     if (isAnswerCorrect) {
       setTimeout(() => {
-        if (currentReviewIndex < mockReviewItems.length - 1) {
+        if (currentReviewIndex < reviewItems.length - 1) {
           setCurrentReviewIndex((prev) => prev + 1);
           setUserAnswer("");
           setIsCorrect(null);
@@ -207,6 +271,7 @@ export default function VocabularyReview() {
           setUserAnswer("");
           setIsCorrect(null);
           setShowAnswer(false);
+          setLocation("/vocabulary-review");
         }
       }, 2000);
     }
@@ -214,15 +279,14 @@ export default function VocabularyReview() {
 
   const handleVoiceInput = () => {
     setIsListening(true);
-    // Mock voice input
+    // TODO: Implement real voice input using Web Speech API
     setTimeout(() => {
-      setUserAnswer("At first, I was hesitant about the idea.");
       setIsListening(false);
     }, 2000);
   };
 
   const handleSkip = () => {
-    if (currentReviewIndex < mockReviewItems.length - 1) {
+    if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
       setUserAnswer("");
       setIsCorrect(null);
@@ -233,6 +297,7 @@ export default function VocabularyReview() {
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
+      setLocation("/vocabulary-review");
     }
   };
 
@@ -241,7 +306,9 @@ export default function VocabularyReview() {
   };
 
   const handleCopyAnswer = () => {
-    setUserAnswer(currentReview.targetSentence);
+    if (currentReview) {
+      setUserAnswer(currentReview.target_en);
+    }
   };
 
   // Video functions
@@ -278,57 +345,45 @@ export default function VocabularyReview() {
     };
   }, []);
 
-  if (!reviewStarted && !currentReview) {
-    return (
-      <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar
-            stats={videoStats}
-            activeSection={activeSection}
-            onNavigate={handleNavigate}
-            onUploadVideo={handleUploadVideo}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            onRefresh={refreshVideos}
-            isLoading={false}
-          />
-
-          <div className="flex-1 flex flex-col bg-white overflow-hidden">
-            {/* Content Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {t("vocabularyReview")}
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  {t("reviewDescription")}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  {t("noVideosYet")}
-                </h2>
-                <p className="text-gray-600 mb-6">{t("uploadFirstVideo")}</p>
-                <button
-                  onClick={() => handleNavigate("vocabulary")}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm font-medium">{t("back")}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // For active session, keep the original layout without sidebar
   if (isActiveSession && reviewStarted) {
+    // Show loading state
+    if (isLoadingReviews) {
+      return (
+        <div className="h-screen bg-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">{t("loadingReviews")}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // No reviews available
+    if (reviewItems.length === 0) {
+      return (
+        <div className="h-screen bg-white flex items-center justify-center">
+          <div className="text-center">
+            <Volume2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              {t("noReviewsDue")}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {t("allCaughtUp")}
+            </p>
+            <button
+              onClick={() => handleNavigate("vocabulary-review")}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 mx-auto"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium">{t("back")}</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="h-screen bg-white flex flex-col macos-body">
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
@@ -351,7 +406,7 @@ export default function VocabularyReview() {
                     {t("vocabularyReview")}
                   </h1>
                   <p className="text-sm text-gray-500 macos-body">
-                    {`${currentReviewIndex + 1} of ${mockReviewItems.length}`}
+                    {`${currentReviewIndex + 1} of ${reviewItems.length}`}
                   </p>
                 </div>
               </div>
@@ -380,7 +435,9 @@ export default function VocabularyReview() {
                 <video
                   ref={videoRef}
                   className="w-full h-full object-contain"
-                  src="/placeholder-video.mp4"
+                  src={currentReview && videos.find(v => v.id === currentReview.video_id)?.path ? 
+                    `stream://${videos.find(v => v.id === currentReview.video_id)?.path}` : 
+                    ""}
                   onClick={togglePlayPause}
                 />
 
@@ -401,7 +458,7 @@ export default function VocabularyReview() {
 
               {/* Subtitles */}
               <div className="p-4 space-y-2 bg-gray-50 border-t border-gray-200">
-                {mockSubtitles.map((subtitle) => (
+                {subtitles.filter(s => s.language === 'english').map((subtitle) => (
                   <div
                     key={subtitle.id}
                     className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
@@ -427,13 +484,19 @@ export default function VocabularyReview() {
                     </h3>
                   </div>
                   <p className="text-gray-600 macos-body">
-                    {currentReview?.translation}
+                    {currentReview ? extractChineseTranslation(currentReview.dictionary_response) : ''}
                   </p>
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-sm text-gray-700 macos-body italic">
-                      "{currentReview?.context}"
+                      "{currentReview?.target_en}"
                     </p>
                   </div>
+                  {currentReview?.scheduled_review_at && isReviewLate(currentReview.scheduled_review_at) && (
+                    <div className="flex items-center space-x-2 text-orange-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{t("lateReview")}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Feedback */}
@@ -514,7 +577,7 @@ export default function VocabularyReview() {
                     </h4>
                     <div className="bg-white rounded-md p-3 border border-gray-200 min-h-[60px]">
                       <p className="text-gray-800 italic macos-body leading-relaxed break-words">
-                        "{currentReview?.targetSentence}"
+                        "{currentReview?.target_en}"
                       </p>
                     </div>
                     <div className="space-y-3">
@@ -589,7 +652,7 @@ export default function VocabularyReview() {
               <p className="text-gray-600 mb-8">
                 {t("reviewDescription").replace(
                   "{count}",
-                  mockReviewItems.length.toString(),
+                  stats.wordsToReview.toString(),
                 )}
               </p>
 
@@ -621,9 +684,12 @@ export default function VocabularyReview() {
 
               <button
                 onClick={startReview}
-                className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600"
+                disabled={stats.wordsToReview === 0}
+                className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                <span className="text-sm font-medium">{t("startReview")}</span>
+                <span className="text-sm font-medium">
+                  {stats.wordsToReview > 0 ? t("startReview") : t("noReviewsDue")}
+                </span>
               </button>
             </div>
           </div>

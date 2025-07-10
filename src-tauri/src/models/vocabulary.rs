@@ -24,6 +24,10 @@ pub struct Vocabulary {
     pub is_phrase: Option<bool>,
     pub created_at: Option<String>,
     pub before_2_timestamp: Option<i32>,
+    pub scheduled_review_at: Option<String>,
+    pub review_count: Option<i32>,
+    pub consecutive_correct: Option<i32>,
+    pub was_late: Option<bool>,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -46,6 +50,10 @@ pub struct NewVocabulary {
     pub next_review_at: String,
     pub last_reviewed_at: Option<String>,
     pub is_phrase: bool,
+    pub scheduled_review_at: Option<String>,
+    pub review_count: i32,
+    pub consecutive_correct: i32,
+    pub was_late: bool,
 }
 
 #[derive(Deserialize)]
@@ -68,6 +76,7 @@ pub struct CreateVocabularyRequest {
 
 impl CreateVocabularyRequest {
     pub fn into_new_vocabulary(self) -> NewVocabulary {
+        let next_review_at = self.next_review_at.clone();
         NewVocabulary {
             id: Uuid::new_v4().to_string(),
             user_id: self.user_id,
@@ -83,9 +92,13 @@ impl CreateVocabularyRequest {
             target_zh: self.target_zh,
             dictionary_response: self.dictionary_response,
             review_stage: 0,
-            next_review_at: self.next_review_at,
+            next_review_at: next_review_at.clone(),
             last_reviewed_at: None,
             is_phrase: self.is_phrase.unwrap_or(false),
+            scheduled_review_at: Some(next_review_at),
+            review_count: 0,
+            consecutive_correct: 0,
+            was_late: false,
         }
     }
 }

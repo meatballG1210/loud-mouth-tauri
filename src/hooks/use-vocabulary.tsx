@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { VocabularyItem, VocabularyStats } from '@/types/video';
-import { vocabularyApi } from '@/api/vocabulary';
+import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabulary';
 import { useVideos } from './use-videos';
+import { getStageLabel } from '@/utils/review-scheduler';
 
 // Extract Chinese translation from dictionary response
 function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
@@ -76,16 +77,16 @@ export function useVocabulary() {
       
       setVocabulary(convertedVocabulary);
       
-      // Calculate stats
+      // Calculate stats using backend data
       const now = new Date();
-      const wordsToReview = convertedVocabulary.filter(item => 
-        new Date(item.nextReview) <= now
+      const wordsToReview = backendVocabulary.filter(item => 
+        new Date(item.next_review_at) <= now
       ).length;
-      const masteredWords = convertedVocabulary.filter(item => 
-        item.reviewCount >= 5
+      const masteredWords = backendVocabulary.filter(item => 
+        (item.review_stage || 0) >= 5
       ).length;
-      const newWords = convertedVocabulary.filter(item => 
-        item.reviewCount <= 1
+      const newWords = backendVocabulary.filter(item => 
+        (item.review_count || 0) <= 1
       ).length;
       
       setStats({
@@ -146,6 +147,30 @@ export function useVocabulary() {
     await fetchVocabulary();
   };
 
+  const updateReviewWithResult = async (vocabularyId: string, isCorrect: boolean): Promise<ApiVocabularyItem | null> => {
+    try {
+      setIsLoading(true);
+      const updatedItem = await vocabularyApi.updateReviewWithResult(vocabularyId, isCorrect);
+      // Refresh vocabulary to get updated stats
+      await fetchVocabulary();
+      return updatedItem;
+    } catch (error) {
+      console.error('Error updating review:', error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getDueForReview = async (userId: string): Promise<ApiVocabularyItem[]> => {
+    try {
+      return await vocabularyApi.getDueForReview(userId);
+    } catch (error) {
+      console.error('Error getting due reviews:', error);
+      return [];
+    }
+  };
+
   return {
     vocabulary,
     stats,
@@ -153,6 +178,8 @@ export function useVocabulary() {
     getVocabularyByVideoId,
     deleteVocabularyItem,
     toggleStar,
-    refreshVocabulary
+    refreshVocabulary,
+    updateReviewWithResult,
+    getDueForReview
   };
 }

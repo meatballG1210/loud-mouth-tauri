@@ -19,6 +19,10 @@ export interface VocabularyItem {
   last_reviewed_at?: string;
   is_phrase?: boolean;
   created_at?: string;
+  scheduled_review_at?: string;
+  review_count?: number;
+  consecutive_correct?: number;
+  was_late?: boolean;
 }
 
 export interface CreateVocabularyRequest {
@@ -61,5 +65,9 @@ export const vocabularyApi = {
 
   async getDueForReview(userId: string): Promise<VocabularyItem[]> {
     return await invoke<VocabularyItem[]>("get_vocabulary_due_for_review", { userId });
+  },
+
+  async updateReviewWithResult(vocabularyId: string, isCorrect: boolean): Promise<VocabularyItem> {
+    return await invoke<VocabularyItem>("update_vocabulary_review_with_result", { vocabularyId, isCorrect });
   }
 };
