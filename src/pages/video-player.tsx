@@ -279,9 +279,10 @@ Write a natural and authentic English sentence using the phrase, followed by a f
       }
 
       // Find the subtitle index
-      const subtitles = activeLanguage === "english" ? englishSubtitles : chineseSubtitles;
+      const subtitles =
+        activeLanguage === "english" ? englishSubtitles : chineseSubtitles;
       const currentIndex = subtitles.findIndex(
-        (sub) => sub.start === currentSub.start && sub.end === currentSub.end
+        (sub) => sub.start === currentSub.start && sub.end === currentSub.end,
       );
 
       // Get context subtitles
@@ -298,6 +299,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
         if (currentIndex >= 2) {
           before2En = englishSubtitles[currentIndex - 2]?.text || "";
           // Get the timestamp of the before_2 subtitle
+          console.log("English Subtitles List: ", englishSubtitles);
           before2Timestamp = englishSubtitles[currentIndex - 2]?.start;
         }
         if (currentIndex >= 1) {
@@ -310,9 +312,9 @@ Write a natural and authentic English sentence using the phrase, followed by a f
       if (chineseSubtitles.length > 0) {
         // Find matching Chinese subtitle by timestamp
         const chineseIndex = chineseSubtitles.findIndex(
-          (sub) => Math.abs(sub.start - currentSub.start) < 1
+          (sub) => Math.abs(sub.start - currentSub.start) < 1,
         );
-        
+
         if (chineseIndex >= 0) {
           if (chineseIndex >= 2) {
             before2Zh = chineseSubtitles[chineseIndex - 2]?.text || "";
@@ -341,7 +343,9 @@ Write a natural and authentic English sentence using the phrase, followed by a f
         timestamp: Math.floor(currentTime * 1000), // Convert to milliseconds
         before_2_en: before2En || undefined,
         before_2_zh: before2Zh || undefined,
-        before_2_timestamp: before2Timestamp ? Math.floor(before2Timestamp * 1000) : undefined, // Convert to milliseconds
+        before_2_timestamp: before2Timestamp
+          ? Math.floor(before2Timestamp * 1000)
+          : undefined, // Convert to milliseconds
         before_1_en: before1En || undefined,
         before_1_zh: before1Zh || undefined,
         target_en: targetEn,
