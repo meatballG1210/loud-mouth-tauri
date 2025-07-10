@@ -8,6 +8,7 @@ export interface VocabularyItem {
   timestamp: number;
   before_2_en?: string;
   before_2_zh?: string;
+  before_2_timestamp?: number;
   before_1_en?: string;
   before_1_zh?: string;
   target_en: string;
@@ -27,6 +28,7 @@ export interface CreateVocabularyRequest {
   timestamp: number;
   before_2_en?: string;
   before_2_zh?: string;
+  before_2_timestamp?: number;
   before_1_en?: string;
   before_1_zh?: string;
   target_en: string;

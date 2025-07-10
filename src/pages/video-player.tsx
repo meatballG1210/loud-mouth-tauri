@@ -291,11 +291,14 @@ Write a natural and authentic English sentence using the phrase, followed by a f
       let before1Zh = "";
       let targetEn = "";
       let targetZh = "";
+      let before2Timestamp: number | undefined;
 
       // Get English context
       if (englishSubtitles.length > 0) {
         if (currentIndex >= 2) {
           before2En = englishSubtitles[currentIndex - 2]?.text || "";
+          // Get the timestamp of the before_2 subtitle
+          before2Timestamp = englishSubtitles[currentIndex - 2]?.start;
         }
         if (currentIndex >= 1) {
           before1En = englishSubtitles[currentIndex - 1]?.text || "";
@@ -313,6 +316,10 @@ Write a natural and authentic English sentence using the phrase, followed by a f
         if (chineseIndex >= 0) {
           if (chineseIndex >= 2) {
             before2Zh = chineseSubtitles[chineseIndex - 2]?.text || "";
+            // If we haven't set before2Timestamp from English subtitles, use Chinese
+            if (!before2Timestamp) {
+              before2Timestamp = chineseSubtitles[chineseIndex - 2]?.start;
+            }
           }
           if (chineseIndex >= 1) {
             before1Zh = chineseSubtitles[chineseIndex - 1]?.text || "";
@@ -334,6 +341,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
         timestamp: Math.floor(currentTime * 1000), // Convert to milliseconds
         before_2_en: before2En || undefined,
         before_2_zh: before2Zh || undefined,
+        before_2_timestamp: before2Timestamp ? Math.floor(before2Timestamp * 1000) : undefined, // Convert to milliseconds
         before_1_en: before1En || undefined,
         before_1_zh: before1Zh || undefined,
         target_en: targetEn,

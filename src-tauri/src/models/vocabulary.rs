@@ -23,6 +23,7 @@ pub struct Vocabulary {
     pub last_reviewed_at: Option<String>,
     pub is_phrase: Option<bool>,
     pub created_at: Option<String>,
+    pub before_2_timestamp: Option<i32>,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -35,6 +36,7 @@ pub struct NewVocabulary {
     pub timestamp: i32,
     pub before_2_en: Option<String>,
     pub before_2_zh: Option<String>,
+    pub before_2_timestamp: Option<i32>,
     pub before_1_en: Option<String>,
     pub before_1_zh: Option<String>,
     pub target_en: String,
@@ -54,6 +56,7 @@ pub struct CreateVocabularyRequest {
     pub timestamp: i32,
     pub before_2_en: Option<String>,
     pub before_2_zh: Option<String>,
+    pub before_2_timestamp: Option<i32>,
     pub before_1_en: Option<String>,
     pub before_1_zh: Option<String>,
     pub target_en: String,
@@ -73,6 +76,7 @@ impl CreateVocabularyRequest {
             timestamp: self.timestamp,
             before_2_en: self.before_2_en,
             before_2_zh: self.before_2_zh,
+            before_2_timestamp: self.before_2_timestamp,
             before_1_en: self.before_1_en,
             before_1_zh: self.before_1_zh,
             target_en: self.target_en,

@@ -95,6 +95,7 @@ diesel::table! {
         last_reviewed_at -> Nullable<Text>,
         is_phrase -> Nullable<Bool>,
         created_at -> Nullable<Text>,
+        before_2_timestamp -> Nullable<Integer>,
     }
 }
 
