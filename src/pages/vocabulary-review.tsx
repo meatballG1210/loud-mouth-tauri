@@ -20,7 +20,6 @@ import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { isReviewLate, getStageLabel } from "@/utils/review-scheduler";
 
-
 interface SubtitleLine {
   id: string;
   start: number;
@@ -67,11 +66,11 @@ export default function VocabularyReview() {
       try {
         setIsLoadingReviews(true);
         // TODO: Get actual user ID from auth context
-        const userId = 'demo-user';
+        const userId = "demo-user";
         const items = await vocabularyApi.getDueForReview(userId);
         setReviewItems(items);
       } catch (error) {
-        console.error('Error loading review items:', error);
+        console.error("Error loading review items:", error);
         setReviewItems([]);
       } finally {
         setIsLoadingReviews(false);
@@ -84,28 +83,33 @@ export default function VocabularyReview() {
   }, [reviewStarted, isActiveSession]);
 
   const currentReview = reviewItems[currentReviewIndex];
-  const progress = reviewItems.length > 0 
-    ? ((currentReviewIndex + 1) / reviewItems.length) * 100 
-    : 0;
+  const progress =
+    reviewItems.length > 0
+      ? ((currentReviewIndex + 1) / reviewItems.length) * 100
+      : 0;
 
   // Extract Chinese translation from dictionary response
-  function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
-    if (!dictionaryResponse) return '无翻译';
-    
-    const translationMatch = dictionaryResponse.match(/\*\*Chinese Translation\*\*\s*\n\s*(.+?)(?:\n|$)/);
+  function extractChineseTranslation(
+    dictionaryResponse: string | null | undefined,
+  ): string {
+    if (!dictionaryResponse) return "无翻译";
+
+    const translationMatch = dictionaryResponse.match(
+      /\*\*Chinese Translation\*\*\s*\n\s*(.+?)(?:\n|$)/,
+    );
     if (translationMatch && translationMatch[1]) {
       return translationMatch[1].trim();
     }
-    
-    const lines = dictionaryResponse.split('\n');
+
+    const lines = dictionaryResponse.split("\n");
     for (const line of lines.slice(0, 5)) {
       const chineseMatch = line.match(/[\u4e00-\u9fa5]+/);
       if (chineseMatch) {
         return chineseMatch[0];
       }
     }
-    
-    return '无翻译';
+
+    return "无翻译";
   }
 
   // Load subtitles for current review item
@@ -114,70 +118,78 @@ export default function VocabularyReview() {
       const loadSubtitles = () => {
         // Create subtitle lines from vocabulary context
         const subtitleLines: SubtitleLine[] = [];
-        
+
         if (currentReview.before_2_en) {
           subtitleLines.push({
-            id: '1',
-            start: (currentReview.before_2_timestamp || currentReview.timestamp - 4000) / 1000,
-            end: (currentReview.before_2_timestamp || currentReview.timestamp - 2000) / 1000,
+            id: "1",
+            start:
+              (currentReview.before_2_timestamp ||
+                currentReview.timestamp - 4000) / 1000,
+            end:
+              (currentReview.before_2_timestamp ||
+                currentReview.timestamp - 2000) / 1000,
             text: currentReview.before_2_en,
-            language: 'english',
-            position: 'minus2'
+            language: "english",
+            position: "minus2",
           });
           if (currentReview.before_2_zh) {
             subtitleLines.push({
-              id: '1-zh',
-              start: (currentReview.before_2_timestamp || currentReview.timestamp - 4000) / 1000,
-              end: (currentReview.before_2_timestamp || currentReview.timestamp - 2000) / 1000,
+              id: "1-zh",
+              start:
+                (currentReview.before_2_timestamp ||
+                  currentReview.timestamp - 4000) / 1000,
+              end:
+                (currentReview.before_2_timestamp ||
+                  currentReview.timestamp - 2000) / 1000,
               text: currentReview.before_2_zh,
-              language: 'chinese',
-              position: 'minus2'
+              language: "chinese",
+              position: "minus2",
             });
           }
         }
-        
+
         if (currentReview.before_1_en) {
           subtitleLines.push({
-            id: '2',
+            id: "2",
             start: (currentReview.timestamp - 2000) / 1000,
             end: currentReview.timestamp / 1000,
             text: currentReview.before_1_en,
-            language: 'english',
-            position: 'minus1'
+            language: "english",
+            position: "minus1",
           });
           if (currentReview.before_1_zh) {
             subtitleLines.push({
-              id: '2-zh',
+              id: "2-zh",
               start: (currentReview.timestamp - 2000) / 1000,
               end: currentReview.timestamp / 1000,
               text: currentReview.before_1_zh,
-              language: 'chinese',
-              position: 'minus1'
+              language: "chinese",
+              position: "minus1",
             });
           }
         }
-        
+
         subtitleLines.push({
-          id: '3',
+          id: "3",
           start: currentReview.timestamp / 1000,
           end: (currentReview.timestamp + 2000) / 1000,
           text: currentReview.target_en,
-          language: 'english',
-          position: 'current'
+          language: "english",
+          position: "current",
         });
-        
+
         subtitleLines.push({
-          id: '3-zh',
+          id: "3-zh",
           start: currentReview.timestamp / 1000,
           end: (currentReview.timestamp + 2000) / 1000,
           text: currentReview.target_zh,
-          language: 'chinese',
-          position: 'current'
+          language: "chinese",
+          position: "current",
         });
-        
+
         setSubtitles(subtitleLines);
       };
-      
+
       loadSubtitles();
     }
   }, [currentReview, reviewStarted]);
@@ -250,10 +262,13 @@ export default function VocabularyReview() {
     // Update review in database
     try {
       if (currentReview.id) {
-        await vocabularyApi.updateReviewWithResult(currentReview.id, isAnswerCorrect);
+        await vocabularyApi.updateReviewWithResult(
+          currentReview.id,
+          isAnswerCorrect,
+        );
       }
     } catch (error) {
-      console.error('Error updating review:', error);
+      console.error("Error updating review:", error);
     }
 
     if (isAnswerCorrect) {
@@ -329,9 +344,12 @@ export default function VocabularyReview() {
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
-      
+
       // Auto pause at target timestamp
-      if (currentReview && video.currentTime >= currentReview.timestamp / 1000) {
+      if (
+        currentReview &&
+        video.currentTime >= currentReview.timestamp / 1000
+      ) {
         video.pause();
       }
     };
@@ -356,28 +374,31 @@ export default function VocabularyReview() {
   useEffect(() => {
     if (currentReview && videoRef.current && reviewStarted) {
       const video = videoRef.current;
-      const videoPath = videos.find(v => v.id === currentReview.video_id)?.path;
-      
+      const videoPath = videos.find(
+        (v) => v.id === currentReview.video_id,
+      )?.path;
+
       if (!videoPath) return;
-      
+
       // Calculate the start time (before_2 timestamp or 4 seconds before target)
-      const startTime = currentReview.before_2_timestamp 
-        ? currentReview.before_2_timestamp / 1000 
+      const startTime = currentReview.before_2_timestamp
+        ? currentReview.before_2_timestamp / 1000
         : (currentReview.timestamp - 4000) / 1000;
-      
+
       // Wait for video to be ready before playing
       const attemptPlay = () => {
-        if (video.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+        if (video.readyState >= 3) {
+          // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
           video.currentTime = startTime;
-          video.play().catch(error => {
-            console.error('Error auto-playing video:', error);
+          video.play().catch((error) => {
+            console.error("Error auto-playing video:", error);
           });
         } else {
           // If not ready, wait a bit and try again
           setTimeout(attemptPlay, 100);
         }
       };
-      
+
       // If video is already loaded, play immediately
       if (video.readyState >= 3) {
         attemptPlay();
@@ -385,21 +406,20 @@ export default function VocabularyReview() {
         // Otherwise, wait for it to be ready
         const handleCanPlay = () => {
           video.currentTime = startTime;
-          video.play().catch(error => {
-            console.error('Error auto-playing video:', error);
+          video.play().catch((error) => {
+            console.error("Error auto-playing video:", error);
           });
         };
-        
-        video.addEventListener('canplay', handleCanPlay, { once: true });
-        
+
+        video.addEventListener("canplay", handleCanPlay, { once: true });
+
         // Cleanup
         return () => {
-          video.removeEventListener('canplay', handleCanPlay);
+          video.removeEventListener("canplay", handleCanPlay);
         };
       }
     }
   }, [currentReview, reviewStarted, videos]);
-
 
   // For active session, keep the original layout without sidebar
   if (isActiveSession && reviewStarted) {
@@ -424,9 +444,7 @@ export default function VocabularyReview() {
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               {t("noReviewsDue")}
             </h2>
-            <p className="text-gray-600 mb-6">
-              {t("allCaughtUp")}
-            </p>
+            <p className="text-gray-600 mb-6">{t("allCaughtUp")}</p>
             <button
               onClick={() => handleNavigate("vocabulary-review")}
               className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 mx-auto"
@@ -491,9 +509,11 @@ export default function VocabularyReview() {
                   ref={videoRef}
                   className="w-full h-full object-contain"
                   src={(() => {
-                    const video = currentReview && videos.find(v => v.id === currentReview.video_id);
+                    const video =
+                      currentReview &&
+                      videos.find((v) => v.id === currentReview.video_id);
                     if (!video?.path) return "";
-                    
+
                     // Use same format as video-player.tsx
                     const encodedPath = video.path
                       .split("/")
@@ -521,47 +541,29 @@ export default function VocabularyReview() {
 
               {/* Subtitles */}
               <div className="p-4 space-y-2 bg-gray-50 border-t border-gray-200">
-                {subtitles.filter(s => s.language === 'english').map((subtitle) => (
-                  <div
-                    key={subtitle.id}
-                    className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
-                      subtitle.position === "current"
-                        ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
-                        : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
-                    }`}
-                  >
-                    {subtitle.text}
-                  </div>
-                ))}
+                {subtitles
+                  .filter((s) => s.language === "english")
+                  .map((subtitle) => (
+                    <div
+                      key={subtitle.id}
+                      className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
+                        subtitle.position === "current"
+                          ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
+                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
+                      }`}
+                    >
+                      {subtitle.position === "current"
+                        ? subtitles.find((s) => s.id === "3-zh")?.text ||
+                          subtitle.text
+                        : subtitle.text}
+                    </div>
+                  ))}
               </div>
             </div>
 
             {/* Right Side - Review Interface */}
             <div className="w-1/3 bg-white flex flex-col border-l border-gray-200">
               <div className="p-6 space-y-4 flex-1">
-                {/* Word Info */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 macos-title">
-                      {currentReview?.word}
-                    </h3>
-                  </div>
-                  <p className="text-gray-600 macos-body">
-                    {currentReview ? extractChineseTranslation(currentReview.dictionary_response) : ''}
-                  </p>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-700 macos-body italic">
-                      "{currentReview?.target_en}"
-                    </p>
-                  </div>
-                  {currentReview?.scheduled_review_at && isReviewLate(currentReview.scheduled_review_at) && (
-                    <div className="flex items-center space-x-2 text-orange-600 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>{t("lateReview")}</span>
-                    </div>
-                  )}
-                </div>
-
                 {/* Feedback */}
                 {isCorrect !== null && (
                   <div
@@ -751,7 +753,9 @@ export default function VocabularyReview() {
                 className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <span className="text-sm font-medium">
-                  {stats.wordsToReview > 0 ? t("startReview") : t("noReviewsDue")}
+                  {stats.wordsToReview > 0
+                    ? t("startReview")
+                    : t("noReviewsDue")}
                 </span>
               </button>
             </div>
