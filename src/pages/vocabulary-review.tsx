@@ -19,6 +19,8 @@ import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { isReviewLate, getStageLabel } from "@/utils/review-scheduler";
+import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
+import { listen } from "@tauri-apps/api/event";
 
 interface SubtitleLine {
   id: string;
@@ -27,6 +29,21 @@ interface SubtitleLine {
   text: string;
   language: "english" | "chinese";
   position?: "minus2" | "minus1" | "current";
+}
+
+// Web Speech API type declarations
+interface Window {
+  SpeechRecognition: typeof SpeechRecognition;
+  webkitSpeechRecognition: typeof SpeechRecognition;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: 'no-speech' | 'audio-capture' | 'not-allowed' | 'network' | 'service-not-allowed' | 'bad-grammar' | 'language-not-supported';
 }
 
 export default function VocabularyReview() {
@@ -48,6 +65,12 @@ export default function VocabularyReview() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  
+  // Speech recognition state
+  const [modelDownloadProgress, setModelDownloadProgress] = useState<number | null>(null);
+  const [isModelDownloading, setIsModelDownloading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Video state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -292,12 +315,136 @@ export default function VocabularyReview() {
     }
   };
 
-  const handleVoiceInput = () => {
-    setIsListening(true);
-    // TODO: Implement real voice input using Web Speech API
-    setTimeout(() => {
+  const handleVoiceInput = async () => {
+    try {
+      // Check if model is available
+      const modelName = "vosk-model-en-us-0.22-lgraph";
+      const hasModel = await speechApi.checkWhisperModel(modelName);
+      
+      if (!hasModel) {
+        // Download model if not available
+        const shouldDownload = confirm(
+          t('voskModelNotFound') || 
+          'Speech recognition model not found. Would you like to download it? (This is a one-time download of ~128MB for better accuracy)'
+        );
+        
+        if (!shouldDownload) {
+          return;
+        }
+        
+        setIsModelDownloading(true);
+        
+        // Set up event listeners for download progress
+        const unlistenStart = await listen('whisper-model-download-start', (event) => {
+          console.log('Model download started:', event.payload);
+        });
+        
+        const unlistenProgress = await listen<number>('whisper-model-download-progress', (event) => {
+          setModelDownloadProgress(event.payload);
+        });
+        
+        const unlistenComplete = await listen('whisper-model-download-complete', (event) => {
+          console.log('Model download completed:', event.payload);
+          setIsModelDownloading(false);
+          setModelDownloadProgress(null);
+        });
+        
+        try {
+          await speechApi.downloadWhisperModel(modelName);
+        } catch (error) {
+          console.error('Failed to download model:', error);
+          alert(t('modelDownloadFailed') || 'Failed to download speech recognition model. Please try again later.');
+          return;
+        } finally {
+          // Clean up listeners
+          unlistenStart();
+          unlistenProgress();
+          unlistenComplete();
+          setIsModelDownloading(false);
+          setModelDownloadProgress(null);
+        }
+      }
+      
+      // Request microphone permission with optimized settings
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000, // Match Vosk's expected sample rate
+          channelCount: 1,   // Mono audio for better recognition
+        }
+      });
+      
+      // Create MediaRecorder with higher quality
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 128000
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        try {
+          // Create blob from chunks
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          // Convert to WAV format
+          const wavBlob = await convertWebmToWav(audioBlob);
+          
+          // Convert to base64
+          const base64Audio = await audioToBase64(wavBlob);
+          
+          // Send to Tauri for transcription
+          const result = await speechApi.transcribeAudio(base64Audio, modelName);
+          
+          // Update the answer field
+          setUserAnswer(result.text);
+        } catch (error) {
+          console.error('Transcription error:', error);
+          alert(t('transcriptionFailed') || 'Failed to transcribe audio. Please try again.');
+        } finally {
+          // Stop all tracks
+          stream.getTracks().forEach(track => track.stop());
+          setIsListening(false);
+        }
+      };
+      
+      // Start recording
+      setIsListening(true);
+      mediaRecorder.start();
+      
+      // Stop recording after 10 seconds max
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        }
+      }, 10000);
+      
+    } catch (error) {
+      console.error('Voice input error:', error);
       setIsListening(false);
-    }, 2000);
+      
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        alert(t('microphonePermissionDenied') || 'Microphone permission was denied. Please allow access to use voice input.');
+      } else {
+        alert(t('voiceInputError') || 'Failed to start voice input. Please check your microphone and try again.');
+      }
+    }
+  };
+  
+  // Add a function to stop recording
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
   };
 
   const handleSkip = () => {
@@ -604,16 +751,30 @@ export default function VocabularyReview() {
                     />
 
                     <div className="flex space-x-2">
-                      <button
-                        onClick={handleVoiceInput}
-                        disabled={isListening}
-                        className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
-                      >
-                        <Mic className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {isListening ? t("listening") : t("voiceInput")}
-                        </span>
-                      </button>
+                      {!isListening ? (
+                        <button
+                          onClick={handleVoiceInput}
+                          disabled={isModelDownloading}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
+                        >
+                          <Mic className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {isModelDownloading 
+                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : '...'}`
+                              : t("voiceInput")}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={stopVoiceRecording}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                        >
+                          <div className="w-4 h-4 bg-white rounded-full" />
+                          <span className="text-sm font-medium">
+                            {t("stopRecording") || "Stop Recording"}
+                          </span>
+                        </button>
+                      )}
                       <button
                         onClick={handleSkip}
                         className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"

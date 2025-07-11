@@ -18,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https://picsum.photos https://*.picsum.photos blob: data:; media-src 'self' asset: blob: stream:; connect-src 'self' asset: stream: http://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+      "csp": "default-src 'self'; img-src 'self' asset: https://picsum.photos https://*.picsum.photos blob: data:; media-src 'self' asset: blob: stream: mediastream:; connect-src 'self' asset: stream: http://localhost:* https://alphacephei.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
     }
   },
   "bundle": {

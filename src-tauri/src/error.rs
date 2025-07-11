@@ -64,6 +64,13 @@ impl From<diesel::result::Error> for AppError {
     }
 }
 
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::new("IO_ERROR", "IO operation failed")
+            .with_details(err.to_string())
+    }
+}
+
 
 #[macro_export]
 macro_rules! app_error {
