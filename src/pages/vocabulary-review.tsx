@@ -77,6 +77,7 @@ export default function VocabularyReview() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [_currentTime, setCurrentTime] = useState(0);
   const [_duration, setDuration] = useState(0);
+  const [shouldAutoPause, setShouldAutoPause] = useState(true);
 
   // Real review items
   const [reviewItems, setReviewItems] = useState<VocabularyItem[]>([]);
@@ -297,23 +298,66 @@ export default function VocabularyReview() {
     }
 
     if (isAnswerCorrect) {
-      setTimeout(() => {
-        if (currentReviewIndex < reviewItems.length - 1) {
-          setCurrentReviewIndex((prev) => prev + 1);
-          setUserAnswer("");
-          setIsCorrect(null);
-          setShowAnswer(false);
-        } else {
-          // Review completed
-          alert("Review session completed!");
-          setReviewStarted(false);
-          setCurrentReviewIndex(0);
-          setUserAnswer("");
-          setIsCorrect(null);
-          setShowAnswer(false);
-          setLocation("/vocabulary-review");
-        }
-      }, 2000);
+      console.log("Answer is correct, attempting to play video");
+      // Play the current sentence automatically
+      if (videoRef.current && currentReview) {
+        const video = videoRef.current;
+        const startTime = currentReview.timestamp / 1000;
+        const endTime = (currentReview.timestamp + 2000) / 1000; // Play for 2 seconds
+        
+        console.log("Playing video from", startTime, "to", endTime);
+        
+        // Disable auto-pause temporarily
+        setShouldAutoPause(false);
+        
+        video.currentTime = startTime;
+        video.play().then(() => {
+          console.log("Video started playing successfully");
+          // Set up a one-time event listener to stop at the end time
+          const handleTimeUpdate = () => {
+            if (video.currentTime >= endTime) {
+              console.log("Reached end time, pausing and moving to next");
+              video.pause();
+              video.removeEventListener('timeupdate', handleTimeUpdate);
+              
+              // Re-enable auto-pause
+              setShouldAutoPause(true);
+              
+              // Move to next question after a short delay
+              setTimeout(() => {
+                if (currentReviewIndex < reviewItems.length - 1) {
+                  console.log("Moving to next review item");
+                  setCurrentReviewIndex((prev) => prev + 1);
+                  setUserAnswer("");
+                  setIsCorrect(null);
+                  setShowAnswer(false);
+                } else {
+                  // Review completed
+                  console.log("Review session completed");
+                  alert("Review session completed!");
+                  setReviewStarted(false);
+                  setCurrentReviewIndex(0);
+                  setUserAnswer("");
+                  setIsCorrect(null);
+                  setShowAnswer(false);
+                  setLocation("/vocabulary-review");
+                }
+              }, 500);
+            }
+          };
+          
+          video.addEventListener('timeupdate', handleTimeUpdate);
+        }).catch((error) => {
+          console.error("Error playing video after correct answer:", error);
+          // Re-enable auto-pause on error
+          setShouldAutoPause(true);
+        });
+      } else {
+        console.log("Video ref or current review not available", {
+          videoRef: videoRef.current,
+          currentReview
+        });
+      }
     }
   };
 
@@ -494,8 +538,9 @@ export default function VocabularyReview() {
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
 
-      // Auto pause at target timestamp
+      // Auto pause at target timestamp (only if shouldAutoPause is true)
       if (
+        shouldAutoPause &&
         currentReview &&
         video.currentTime >= currentReview.timestamp / 1000
       ) {
@@ -517,7 +562,7 @@ export default function VocabularyReview() {
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
     };
-  }, [currentReview]);
+  }, [currentReview, shouldAutoPause]);
 
   // Auto-play video when review item changes
   useEffect(() => {
