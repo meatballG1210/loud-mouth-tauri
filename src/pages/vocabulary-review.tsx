@@ -21,6 +21,7 @@ import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { isReviewLate, getStageLabel } from "@/utils/review-scheduler";
 import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
+import { areStringsSimilar } from "@/utils/string-similarity";
 
 interface SubtitleLine {
   id: string;
@@ -272,13 +273,14 @@ export default function VocabularyReview() {
       return;
     }
 
-    const correctAnswer = currentReview.target_en.toLowerCase();
-    const userAnswerLower = userAnswer.toLowerCase().trim();
-
-    // Simple similarity check (in real app, use more sophisticated comparison)
-    const isAnswerCorrect =
-      userAnswerLower.includes(correctAnswer.slice(0, 10)) ||
-      correctAnswer.includes(userAnswerLower.slice(0, 10));
+    // Use Levenshtein distance similarity with 0.85 threshold
+    // The function will normalize strings (remove spaces/punctuation) before comparison
+    const isAnswerCorrect = areStringsSimilar(
+      userAnswer.trim(),
+      currentReview.target_en,
+      0.85,
+      true // normalize strings
+    );
 
     setIsCorrect(isAnswerCorrect);
 
