@@ -327,7 +327,14 @@ export default function VocabularyReview() {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      
+      // Auto pause at target timestamp
+      if (currentReview && video.currentTime >= currentReview.timestamp / 1000) {
+        video.pause();
+      }
+    };
     const handleLoadedMetadata = () => setDuration(video.duration);
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
@@ -343,7 +350,55 @@ export default function VocabularyReview() {
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
     };
-  }, []);
+  }, [currentReview]);
+
+  // Auto-play video when review item changes
+  useEffect(() => {
+    if (currentReview && videoRef.current && reviewStarted) {
+      const video = videoRef.current;
+      const videoPath = videos.find(v => v.id === currentReview.video_id)?.path;
+      
+      if (!videoPath) return;
+      
+      // Calculate the start time (before_2 timestamp or 4 seconds before target)
+      const startTime = currentReview.before_2_timestamp 
+        ? currentReview.before_2_timestamp / 1000 
+        : (currentReview.timestamp - 4000) / 1000;
+      
+      // Wait for video to be ready before playing
+      const attemptPlay = () => {
+        if (video.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+          video.currentTime = startTime;
+          video.play().catch(error => {
+            console.error('Error auto-playing video:', error);
+          });
+        } else {
+          // If not ready, wait a bit and try again
+          setTimeout(attemptPlay, 100);
+        }
+      };
+      
+      // If video is already loaded, play immediately
+      if (video.readyState >= 3) {
+        attemptPlay();
+      } else {
+        // Otherwise, wait for it to be ready
+        const handleCanPlay = () => {
+          video.currentTime = startTime;
+          video.play().catch(error => {
+            console.error('Error auto-playing video:', error);
+          });
+        };
+        
+        video.addEventListener('canplay', handleCanPlay, { once: true });
+        
+        // Cleanup
+        return () => {
+          video.removeEventListener('canplay', handleCanPlay);
+        };
+      }
+    }
+  }, [currentReview, reviewStarted, videos]);
 
 
   // For active session, keep the original layout without sidebar
@@ -435,9 +490,17 @@ export default function VocabularyReview() {
                 <video
                   ref={videoRef}
                   className="w-full h-full object-contain"
-                  src={currentReview && videos.find(v => v.id === currentReview.video_id)?.path ? 
-                    `stream://${videos.find(v => v.id === currentReview.video_id)?.path}` : 
-                    ""}
+                  src={(() => {
+                    const video = currentReview && videos.find(v => v.id === currentReview.video_id);
+                    if (!video?.path) return "";
+                    
+                    // Use same format as video-player.tsx
+                    const encodedPath = video.path
+                      .split("/")
+                      .map((segment) => encodeURIComponent(segment))
+                      .join("/");
+                    return `stream://localhost/${encodedPath}`;
+                  })()}
                   onClick={togglePlayPause}
                 />
 

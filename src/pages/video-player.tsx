@@ -333,13 +333,14 @@ Write a natural and authentic English sentence using the phrase, followed by a f
       // Set initial review date to today (same day as creation)
       const today = new Date();
       const nextReviewAt = today.toISOString();
+      console.log("VVVVVVVVVVideo current time: ", currentTime);
 
       // Create vocabulary item
       await vocabularyApi.create({
         user_id: "demo-user", // TODO: Get from auth context
         video_id: currentVideo.id,
         word: selectedWords.join(" "),
-        timestamp: Math.floor(currentTime * 1000), // Convert to milliseconds
+        timestamp: Math.floor(currentSub.start * 1000), // Convert subtitle start time to milliseconds
         before_2_en: before2En || undefined,
         before_2_zh: before2Zh || undefined,
         before_2_timestamp: before2Timestamp
