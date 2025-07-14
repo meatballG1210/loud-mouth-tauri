@@ -134,7 +134,7 @@ export default function VideoPlayer() {
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -385,6 +385,22 @@ Write a natural and authentic English sentence using the phrase, followed by a f
     setIsMuted(false);
   };
 
+  const handleSkipBackward = () => {
+    if (videoRef.current) {
+      const newTime = Math.max(0, videoRef.current.currentTime - 15);
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const handleSkipForward = () => {
+    if (videoRef.current) {
+      const newTime = Math.min(duration, videoRef.current.currentTime + 15);
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
   if (!currentVideo || isLoading) {
     // Show loading state while videos are loading or video not found yet
     return (
@@ -576,14 +592,18 @@ Write a natural and authentic English sentence using the phrase, followed by a f
               </div>
               <div className="flex justify-between text-xs text-gray-600 mt-2 font-medium">
                 <span>{formatTime(currentTime)}</span>
-                <span className="text-gray-400">/ {formatTime(duration)}</span>
+                <span className="text-gray-400">{formatTime(duration)}</span>
               </div>
             </div>
 
             {/* Control Buttons */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                <button
+                  onClick={handleSkipBackward}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                  title="Skip back 15s"
+                >
                   <RotateCcw className="w-5 h-5" />
                 </button>
 
@@ -598,7 +618,11 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                   )}
                 </button>
 
-                <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                <button
+                  onClick={handleSkipForward}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                  title="Skip forward 15s"
+                >
                   <RotateCw className="w-5 h-5" />
                 </button>
 
@@ -644,22 +668,19 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                     }
                     className="text-xs bg-gray-100 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                     style={{
-                      WebkitAppearance: 'none',
-                      MozAppearance: 'none',
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
                       backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                      backgroundPosition: 'right 0.25rem center',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundSize: '1.2em 1.2em',
-                      paddingRight: '1.75rem'
+                      backgroundPosition: "right 0.25rem center",
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: "1.2em 1.2em",
+                      paddingRight: "1.75rem",
                     }}
                   >
-                    <option value={0.25}>0.25x</option>
-                    <option value={0.5}>0.5x</option>
                     <option value={0.75}>0.75x</option>
                     <option value={1.0}>1.0x</option>
                     <option value={1.25}>1.25x</option>
                     <option value={1.5}>1.5x</option>
-                    <option value={1.75}>1.75x</option>
                     <option value={2.0}>2.0x</option>
                   </select>
                 </div>
