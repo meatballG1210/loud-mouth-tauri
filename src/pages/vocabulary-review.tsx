@@ -285,18 +285,22 @@ export default function VocabularyReview() {
 
     setIsCorrect(isAnswerCorrect);
 
-    // Update review in database
-    try {
-      if (currentReview.id) {
-        await vocabularyApi.updateReviewWithResult(
-          currentReview.id,
-          isAnswerCorrect,
-        );
+    // Only update review in database if answer wasn't shown
+    // If answer was shown, we still allow progression but don't update the review stage
+    if (!showAnswer) {
+      try {
+        if (currentReview.id) {
+          await vocabularyApi.updateReviewWithResult(
+            currentReview.id,
+            isAnswerCorrect,
+          );
+        }
+      } catch (error) {
+        console.error("Error updating review:", error);
       }
-    } catch (error) {
-      console.error("Error updating review:", error);
     }
 
+    // Play video and move to next only if correct (regardless of whether answer was shown)
     if (isAnswerCorrect) {
       console.log("Answer is correct, attempting to play video");
       // Play the current sentence automatically
@@ -511,6 +515,8 @@ export default function VocabularyReview() {
 
   const handleShowAnswer = () => {
     setShowAnswer(true);
+    // Don't mark as incorrect immediately - let user still try
+    // Don't update database here - we'll handle it in submit
   };
 
   const handleCopyAnswer = () => {
