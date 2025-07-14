@@ -113,7 +113,7 @@ export function Sidebar({
               <span
                 className={`ml-auto text-xs rounded-full px-2 py-0.5 ${
                   activeSection === "videos"
-                    ? "bg-white bg-opacity-20 text-white"
+                    ? "bg-white/20 text-white"
                     : "bg-gray-200 text-gray-600"
                 }`}
               >
@@ -136,7 +136,9 @@ export function Sidebar({
           {!isCollapsed && (
             <>
               <span className="text-sm font-medium">{t("vocabulary")}</span>
-              <span className="ml-auto text-xs text-gray-500">
+              <span
+                className={`ml-auto text-xs ${activeSection === "vocabulary" ? "text-white" : "text-shadow-gray-500"}`}
+              >
                 {stats.totalVocabulary}
               </span>
             </>
@@ -181,7 +183,9 @@ export function Sidebar({
           title={isCollapsed ? t("progress") : undefined}
         >
           <BarChart3 className="w-4 h-4" />
-          {!isCollapsed && <span className="text-sm font-medium">{t("progress")}</span>}
+          {!isCollapsed && (
+            <span className="text-sm font-medium">{t("progress")}</span>
+          )}
         </button>
 
         <button
@@ -194,7 +198,9 @@ export function Sidebar({
           title={isCollapsed ? t("settings") : undefined}
         >
           <Settings className="w-4 h-4" />
-          {!isCollapsed && <span className="text-sm font-medium">{t("settings")}</span>}
+          {!isCollapsed && (
+            <span className="text-sm font-medium">{t("settings")}</span>
+          )}
         </button>
       </nav>
 
@@ -217,7 +223,9 @@ export function Sidebar({
           title={isCollapsed ? t("logout") : undefined}
         >
           <LogOut className="w-4 h-4" />
-          {!isCollapsed && <span className="text-sm font-medium">{t("logout")}</span>}
+          {!isCollapsed && (
+            <span className="text-sm font-medium">{t("logout")}</span>
+          )}
         </button>
       </div>
     </div>

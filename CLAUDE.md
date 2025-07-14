@@ -144,3 +144,7 @@ The application uses SQLite with Diesel ORM. Key tables include:
 - Subtitle sync: <100ms latency
 - Database queries: <50ms response
 - UI responsiveness: 60 FPS
+
+## Context Guidelines
+
+- When the user requests code examples, setup or configuration steps, or library/API documentation, use context7.

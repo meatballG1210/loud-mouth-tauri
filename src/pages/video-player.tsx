@@ -642,7 +642,16 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                     onChange={(e) =>
                       setPlaybackSpeed(parseFloat(e.target.value))
                     }
-                    className="text-xs bg-gray-100 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-xs bg-gray-100 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                    style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                      backgroundPosition: 'right 0.25rem center',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundSize: '1.2em 1.2em',
+                      paddingRight: '1.75rem'
+                    }}
                   >
                     <option value={0.25}>0.25x</option>
                     <option value={0.5}>0.5x</option>
