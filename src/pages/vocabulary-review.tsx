@@ -11,14 +11,12 @@ import {
   Copy,
   Check,
   X,
-  AlertCircle,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
-import { isReviewLate, getStageLabel } from "@/utils/review-scheduler";
 import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
 import { areStringsSimilar } from "@/utils/string-similarity";
@@ -30,21 +28,6 @@ interface SubtitleLine {
   text: string;
   language: "english" | "chinese";
   position?: "minus2" | "minus1" | "current";
-}
-
-// Web Speech API type declarations
-interface Window {
-  SpeechRecognition: typeof SpeechRecognition;
-  webkitSpeechRecognition: typeof SpeechRecognition;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: 'no-speech' | 'audio-capture' | 'not-allowed' | 'network' | 'service-not-allowed' | 'bad-grammar' | 'language-not-supported';
 }
 
 export default function VocabularyReview() {
@@ -66,9 +49,11 @@ export default function VocabularyReview() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  
+
   // Speech recognition state
-  const [modelDownloadProgress, setModelDownloadProgress] = useState<number | null>(null);
+  const [modelDownloadProgress, setModelDownloadProgress] = useState<
+    number | null
+  >(null);
   const [isModelDownloading, setIsModelDownloading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -112,30 +97,6 @@ export default function VocabularyReview() {
     reviewItems.length > 0
       ? ((currentReviewIndex + 1) / reviewItems.length) * 100
       : 0;
-
-  // Extract Chinese translation from dictionary response
-  function extractChineseTranslation(
-    dictionaryResponse: string | null | undefined,
-  ): string {
-    if (!dictionaryResponse) return "无翻译";
-
-    const translationMatch = dictionaryResponse.match(
-      /\*\*Chinese Translation\*\*\s*\n\s*(.+?)(?:\n|$)/,
-    );
-    if (translationMatch && translationMatch[1]) {
-      return translationMatch[1].trim();
-    }
-
-    const lines = dictionaryResponse.split("\n");
-    for (const line of lines.slice(0, 5)) {
-      const chineseMatch = line.match(/[\u4e00-\u9fa5]+/);
-      if (chineseMatch) {
-        return chineseMatch[0];
-      }
-    }
-
-    return "无翻译";
-  }
 
   // Load subtitles for current review item
   useEffect(() => {
@@ -280,7 +241,7 @@ export default function VocabularyReview() {
       userAnswer.trim(),
       currentReview.target_en,
       0.85,
-      true // normalize strings
+      true, // normalize strings
     );
 
     setIsCorrect(isAnswerCorrect);
@@ -308,58 +269,61 @@ export default function VocabularyReview() {
         const video = videoRef.current;
         const startTime = currentReview.timestamp / 1000;
         const endTime = (currentReview.timestamp + 2000) / 1000; // Play for 2 seconds
-        
+
         console.log("Playing video from", startTime, "to", endTime);
-        
+
         // Disable auto-pause temporarily
         setShouldAutoPause(false);
-        
+
         video.currentTime = startTime;
-        video.play().then(() => {
-          console.log("Video started playing successfully");
-          // Set up a one-time event listener to stop at the end time
-          const handleTimeUpdate = () => {
-            if (video.currentTime >= endTime) {
-              console.log("Reached end time, pausing and moving to next");
-              video.pause();
-              video.removeEventListener('timeupdate', handleTimeUpdate);
-              
-              // Re-enable auto-pause
-              setShouldAutoPause(true);
-              
-              // Move to next question after a short delay
-              setTimeout(() => {
-                if (currentReviewIndex < reviewItems.length - 1) {
-                  console.log("Moving to next review item");
-                  setCurrentReviewIndex((prev) => prev + 1);
-                  setUserAnswer("");
-                  setIsCorrect(null);
-                  setShowAnswer(false);
-                } else {
-                  // Review completed
-                  console.log("Review session completed");
-                  alert("Review session completed!");
-                  setReviewStarted(false);
-                  setCurrentReviewIndex(0);
-                  setUserAnswer("");
-                  setIsCorrect(null);
-                  setShowAnswer(false);
-                  setLocation("/vocabulary-review");
-                }
-              }, 500);
-            }
-          };
-          
-          video.addEventListener('timeupdate', handleTimeUpdate);
-        }).catch((error) => {
-          console.error("Error playing video after correct answer:", error);
-          // Re-enable auto-pause on error
-          setShouldAutoPause(true);
-        });
+        video
+          .play()
+          .then(() => {
+            console.log("Video started playing successfully");
+            // Set up a one-time event listener to stop at the end time
+            const handleTimeUpdate = () => {
+              if (video.currentTime >= endTime) {
+                console.log("Reached end time, pausing and moving to next");
+                video.pause();
+                video.removeEventListener("timeupdate", handleTimeUpdate);
+
+                // Re-enable auto-pause
+                setShouldAutoPause(true);
+
+                // Move to next question after a short delay
+                setTimeout(() => {
+                  if (currentReviewIndex < reviewItems.length - 1) {
+                    console.log("Moving to next review item");
+                    setCurrentReviewIndex((prev) => prev + 1);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                  } else {
+                    // Review completed
+                    console.log("Review session completed");
+                    alert("Review session completed!");
+                    setReviewStarted(false);
+                    setCurrentReviewIndex(0);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                    setLocation("/vocabulary-review");
+                  }
+                }, 500);
+              }
+            };
+
+            video.addEventListener("timeupdate", handleTimeUpdate);
+          })
+          .catch((error) => {
+            console.error("Error playing video after correct answer:", error);
+            // Re-enable auto-pause on error
+            setShouldAutoPause(true);
+          });
       } else {
         console.log("Video ref or current review not available", {
           videoRef: videoRef.current,
-          currentReview
+          currentReview,
         });
       }
     }
@@ -370,40 +334,52 @@ export default function VocabularyReview() {
       // Check if model is available
       const modelName = "vosk-model-en-us-0.22-lgraph";
       const hasModel = await speechApi.checkWhisperModel(modelName);
-      
+
       if (!hasModel) {
         // Download model if not available
         const shouldDownload = confirm(
-          t('voskModelNotFound') || 
-          'Speech recognition model not found. Would you like to download it? (This is a one-time download of ~128MB for better accuracy)'
+          t("voskModelNotFound") ||
+            "Speech recognition model not found. Would you like to download it? (This is a one-time download of ~128MB for better accuracy)",
         );
-        
+
         if (!shouldDownload) {
           return;
         }
-        
+
         setIsModelDownloading(true);
-        
+
         // Set up event listeners for download progress
-        const unlistenStart = await listen('whisper-model-download-start', (event) => {
-          console.log('Model download started:', event.payload);
-        });
-        
-        const unlistenProgress = await listen<number>('whisper-model-download-progress', (event) => {
-          setModelDownloadProgress(event.payload);
-        });
-        
-        const unlistenComplete = await listen('whisper-model-download-complete', (event) => {
-          console.log('Model download completed:', event.payload);
-          setIsModelDownloading(false);
-          setModelDownloadProgress(null);
-        });
-        
+        const unlistenStart = await listen(
+          "whisper-model-download-start",
+          (event) => {
+            console.log("Model download started:", event.payload);
+          },
+        );
+
+        const unlistenProgress = await listen<number>(
+          "whisper-model-download-progress",
+          (event) => {
+            setModelDownloadProgress(event.payload);
+          },
+        );
+
+        const unlistenComplete = await listen(
+          "whisper-model-download-complete",
+          (event) => {
+            console.log("Model download completed:", event.payload);
+            setIsModelDownloading(false);
+            setModelDownloadProgress(null);
+          },
+        );
+
         try {
           await speechApi.downloadWhisperModel(modelName);
         } catch (error) {
-          console.error('Failed to download model:', error);
-          alert(t('modelDownloadFailed') || 'Failed to download speech recognition model. Please try again later.');
+          console.error("Failed to download model:", error);
+          alert(
+            t("modelDownloadFailed") ||
+              "Failed to download speech recognition model. Please try again later.",
+          );
           return;
         } finally {
           // Clean up listeners
@@ -414,85 +390,104 @@ export default function VocabularyReview() {
           setModelDownloadProgress(null);
         }
       }
-      
+
       // Request microphone permission with optimized settings
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
           sampleRate: 16000, // Match Vosk's expected sample rate
-          channelCount: 1,   // Mono audio for better recognition
-        }
+          channelCount: 1, // Mono audio for better recognition
+        },
       });
-      
+
       // Create MediaRecorder with higher quality
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000
+        mimeType: "audio/webm;codecs=opus",
+        audioBitsPerSecond: 128000,
       });
-      
+
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
-      
+
       mediaRecorder.onstop = async () => {
         try {
           // Create blob from chunks
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
+          });
+
           // Convert to WAV format
           const wavBlob = await convertWebmToWav(audioBlob);
-          
+
           // Convert to base64
           const base64Audio = await audioToBase64(wavBlob);
-          
+
           // Send to Tauri for transcription
-          const result = await speechApi.transcribeAudio(base64Audio, modelName);
-          
+          const result = await speechApi.transcribeAudio(
+            base64Audio,
+            modelName,
+          );
+
           // Update the answer field
           setUserAnswer(result.text);
         } catch (error) {
-          console.error('Transcription error:', error);
-          alert(t('transcriptionFailed') || 'Failed to transcribe audio. Please try again.');
+          console.error("Transcription error:", error);
+          alert(
+            t("transcriptionFailed") ||
+              "Failed to transcribe audio. Please try again.",
+          );
         } finally {
           // Stop all tracks
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach((track) => track.stop());
           setIsListening(false);
         }
       };
-      
+
       // Start recording
       setIsListening(true);
       mediaRecorder.start();
-      
+
       // Stop recording after 10 seconds max
       setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state === "recording"
+        ) {
           mediaRecorderRef.current.stop();
         }
       }, 10000);
-      
     } catch (error) {
-      console.error('Voice input error:', error);
+      console.error("Voice input error:", error);
       setIsListening(false);
-      
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        alert(t('microphonePermissionDenied') || 'Microphone permission was denied. Please allow access to use voice input.');
+
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        alert(
+          t("microphonePermissionDenied") ||
+            "Microphone permission was denied. Please allow access to use voice input.",
+        );
       } else {
-        alert(t('voiceInputError') || 'Failed to start voice input. Please check your microphone and try again.');
+        alert(
+          t("voiceInputError") ||
+            "Failed to start voice input. Please check your microphone and try again.",
+        );
       }
     }
   };
-  
+
   // Add a function to stop recording
   const stopVoiceRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.stop();
     }
   };
@@ -812,8 +807,8 @@ export default function VocabularyReview() {
                         >
                           <Mic className="w-4 h-4" />
                           <span className="text-sm font-medium">
-                            {isModelDownloading 
-                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : '...'}`
+                            {isModelDownloading
+                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
                               : t("voiceInput")}
                           </span>
                         </button>
