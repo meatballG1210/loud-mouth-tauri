@@ -49,6 +49,7 @@ export default function VocabularyReview() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
 
   // Speech recognition state
   const [modelDownloadProgress, setModelDownloadProgress] = useState<
@@ -192,6 +193,7 @@ export default function VocabularyReview() {
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
+      setShowMarkAsKnown(false);
       setLocation("/vocabulary-review");
     } else if (section === "vocabulary") {
       setLocation("/vocabulary-list");
@@ -226,6 +228,7 @@ export default function VocabularyReview() {
     setUserAnswer("");
     setIsCorrect(null);
     setShowAnswer(false);
+    setShowMarkAsKnown(false);
     setLocation("/vocabulary-review/session");
   };
 
@@ -245,6 +248,11 @@ export default function VocabularyReview() {
     );
 
     setIsCorrect(isAnswerCorrect);
+    
+    // Show "Mark as Known" button only when answer is incorrect
+    if (!isAnswerCorrect) {
+      setShowMarkAsKnown(true);
+    }
 
     // Only update review in database if answer wasn't shown
     // If answer was shown, we still allow progression but don't update the review stage
@@ -298,6 +306,7 @@ export default function VocabularyReview() {
                     setUserAnswer("");
                     setIsCorrect(null);
                     setShowAnswer(false);
+                    setShowMarkAsKnown(false);
                   } else {
                     // Review completed
                     console.log("Review session completed");
@@ -307,6 +316,7 @@ export default function VocabularyReview() {
                     setUserAnswer("");
                     setIsCorrect(null);
                     setShowAnswer(false);
+                    setShowMarkAsKnown(false);
                     setLocation("/vocabulary-review");
                   }
                 }, 500);
@@ -498,13 +508,96 @@ export default function VocabularyReview() {
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
+      setShowMarkAsKnown(false);
     } else {
       setReviewStarted(false);
       setCurrentReviewIndex(0);
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
+      setShowMarkAsKnown(false);
       setLocation("/vocabulary-review");
+    }
+  };
+
+  const handleMarkAsKnown = async () => {
+    if (!currentReview) return;
+
+    try {
+      // Update the vocabulary item as correct in the database
+      if (currentReview.id) {
+        await vocabularyApi.updateReviewWithResult(currentReview.id, true);
+      }
+
+      // Play the current sentence automatically before moving to next
+      if (videoRef.current && currentReview) {
+        const video = videoRef.current;
+        const startTime = currentReview.timestamp / 1000;
+        const endTime = (currentReview.timestamp + 2000) / 1000;
+
+        setShouldAutoPause(false);
+        video.currentTime = startTime;
+        
+        video.play()
+          .then(() => {
+            const handleTimeUpdate = () => {
+              if (video.currentTime >= endTime) {
+                video.pause();
+                video.removeEventListener("timeupdate", handleTimeUpdate);
+                setShouldAutoPause(true);
+
+                // Move to next question
+                setTimeout(() => {
+                  if (currentReviewIndex < reviewItems.length - 1) {
+                    setCurrentReviewIndex((prev) => prev + 1);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                    setShowMarkAsKnown(false);
+                    setShowMarkAsKnown(false);
+                  } else {
+                    // Review completed
+                    alert("Review session completed!");
+                    setReviewStarted(false);
+                    setCurrentReviewIndex(0);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                    setShowMarkAsKnown(false);
+                    setShowMarkAsKnown(false);
+                    setLocation("/vocabulary-review");
+                  }
+                }, 500);
+              }
+            };
+
+            video.addEventListener("timeupdate", handleTimeUpdate);
+          })
+          .catch((error) => {
+            console.error("Error playing video after marking as known:", error);
+            setShouldAutoPause(true);
+            
+            // Still move to next even if video fails
+            if (currentReviewIndex < reviewItems.length - 1) {
+              setCurrentReviewIndex((prev) => prev + 1);
+              setUserAnswer("");
+              setIsCorrect(null);
+              setShowAnswer(false);
+              setShowMarkAsKnown(false);
+            } else {
+              alert("Review session completed!");
+              setReviewStarted(false);
+              setCurrentReviewIndex(0);
+              setUserAnswer("");
+              setIsCorrect(null);
+              setShowAnswer(false);
+              setShowMarkAsKnown(false);
+              setLocation("/vocabulary-review");
+            }
+          });
+      }
+    } catch (error) {
+      console.error("Error marking vocabulary as known:", error);
     }
   };
 
@@ -720,7 +813,7 @@ export default function VocabularyReview() {
                 />
 
                 {/* Play/Pause Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-20">
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                   <button
                     onClick={togglePlayPause}
                     className="bg-white bg-opacity-80 rounded-full p-4 hover:bg-opacity-100 transition-all"
@@ -839,6 +932,17 @@ export default function VocabularyReview() {
                           {t("showAnswer")}
                         </span>
                       </button>
+                      {showMarkAsKnown && isCorrect === false && (
+                        <button
+                          onClick={handleMarkAsKnown}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {t("markAsKnown")}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -283,7 +283,8 @@ export const translations = {
     copyAnswerToInput: 'Copy Answer to Input Field',
     practiceTyping: 'Practice typing or speaking the correct answer',
     submitAnswer: 'Submit Answer',
-    typeEnglishSentence: 'Type the English sentence you heard...'
+    typeEnglishSentence: 'Type the English sentence you heard...',
+    markAsKnown: 'Mark as Known'
   },
   zh: {
     // Common
@@ -587,7 +588,8 @@ export const translations = {
     copyAnswerToInput: '将答案复制到输入框',
     practiceTyping: '练习输入或说出正确答案',
     submitAnswer: '提交答案',
-    typeEnglishSentence: '输入您听到的英语句子...'
+    typeEnglishSentence: '输入您听到的英语句子...',
+    markAsKnown: '标记为已知'
   }
 };
 
