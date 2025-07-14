@@ -181,7 +181,7 @@ export const translations = {
     allWords: 'All Words',
     starredWords: 'Starred Words',
     masteredWords: 'Mastered Words',
-    newWords: 'New Words',
+    overdueWords: 'Overdue Words',
     wordDetails: 'Word Details',
     translation: 'Translation',
     context: 'Context',
@@ -236,7 +236,7 @@ export const translations = {
     // Chart and tooltip translations
     chartTooltips: {
       totalWords: 'Total Words',
-      newWords: 'New Words',
+      overdueWords: 'Overdue Words',
       studyTime: 'Study Time',
       wordsLearned: 'Words Learned',
       accuracy: 'Accuracy',
@@ -453,7 +453,7 @@ export const translations = {
     allWords: '所有单词',
     starredWords: '已收藏单词',
     masteredWords: '已掌握单词',
-    newWords: '新单词',
+    overdueWords: '逾期单词',
     wordDetails: '单词详情',
     translation: '翻译',
     context: '语境',
@@ -540,7 +540,7 @@ export const translations = {
     // Chart and tooltip translations
     chartTooltips: {
       totalWords: '总单词',
-      newWords: '新单词',
+      overdueWords: '逾期单词',
       studyTime: '学习时间',
       wordsLearned: '已学单词',
       accuracy: '准确率',

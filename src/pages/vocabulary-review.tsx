@@ -948,9 +948,9 @@ export default function VocabularyReview() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-600">
-                      {stats.newWords}
+                      {stats.overdueWords}
                     </div>
-                    <div className="text-gray-500">{t("newWords")}</div>
+                    <div className="text-gray-500">{t("overdueWords")}</div>
                   </div>
                 </div>
               </div>

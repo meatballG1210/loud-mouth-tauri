@@ -161,6 +161,10 @@ pub fn update_vocabulary_review_with_result(
         0
     };
     
+    // Determine if this item should be marked as ever_overdue
+    // Once marked as overdue, it stays overdue forever
+    let should_mark_overdue = is_late || vocab.ever_overdue;
+    
     // Update the vocabulary item
     diesel::update(vocabulary::table.filter(vocabulary::id.eq(&vocabulary_id)))
         .set((
@@ -171,6 +175,7 @@ pub fn update_vocabulary_review_with_result(
             vocabulary::review_count.eq(new_review_count),
             vocabulary::consecutive_correct.eq(new_consecutive_correct),
             vocabulary::was_late.eq(is_late),
+            vocabulary::ever_overdue.eq(should_mark_overdue),
         ))
         .execute(&mut conn)?;
     
@@ -179,4 +184,17 @@ pub fn update_vocabulary_review_with_result(
         .filter(vocabulary::id.eq(&vocabulary_id))
         .first(&mut conn)
         .map_err(|e| AppError::new("VOCABULARY_NOT_FOUND", "Failed to retrieve updated vocabulary").with_details(e.to_string()))
+}
+
+#[tauri::command]
+pub fn get_overdue_vocabulary(user_id: String) -> Result<Vec<Vocabulary>> {
+    use crate::schema::vocabulary;
+
+    let mut conn = establish_connection()?;
+    vocabulary::table
+        .filter(vocabulary::user_id.eq(user_id))
+        .filter(vocabulary::ever_overdue.eq(true))
+        .order(vocabulary::last_reviewed_at.desc())
+        .load(&mut conn)
+        .map_err(|e| AppError::new("VOCABULARY_FETCH_ERROR", "Failed to fetch overdue vocabulary").with_details(e.to_string()))
 }

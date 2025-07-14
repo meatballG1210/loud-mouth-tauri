@@ -54,7 +54,7 @@ export function useVocabulary() {
     totalWords: 0,
     wordsToReview: 0,
     masteredWords: 0,
-    newWords: 0
+    overdueWords: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const { videos } = useVideos();
@@ -85,15 +85,16 @@ export function useVocabulary() {
       const masteredWords = backendVocabulary.filter(item => 
         (item.review_stage || 0) >= 5
       ).length;
-      const newWords = backendVocabulary.filter(item => 
-        (item.review_count || 0) <= 1
+      // Count overdue words - words that were ever overdue
+      const overdueWords = backendVocabulary.filter(item => 
+        item.ever_overdue === true
       ).length;
       
       setStats({
         totalWords: convertedVocabulary.length,
         wordsToReview,
         masteredWords,
-        newWords
+        overdueWords
       });
     } catch (error) {
       console.error('Error fetching vocabulary:', error);
@@ -103,7 +104,7 @@ export function useVocabulary() {
         totalWords: 0,
         wordsToReview: 0,
         masteredWords: 0,
-        newWords: 0
+        overdueWords: 0
       });
     } finally {
       setIsLoading(false);

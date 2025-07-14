@@ -74,6 +74,7 @@ pub fn run() {
             commands::update_vocabulary_review_with_result,
             commands::delete_vocabulary,
             commands::get_vocabulary_due_for_review,
+            commands::get_overdue_vocabulary,
             commands::transcribe_audio,
             commands::check_whisper_model,
             commands::download_whisper_model,

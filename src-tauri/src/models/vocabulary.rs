@@ -28,6 +28,7 @@ pub struct Vocabulary {
     pub review_count: Option<i32>,
     pub consecutive_correct: Option<i32>,
     pub was_late: Option<bool>,
+    pub ever_overdue: bool,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -54,6 +55,7 @@ pub struct NewVocabulary {
     pub review_count: i32,
     pub consecutive_correct: i32,
     pub was_late: bool,
+    pub ever_overdue: bool,
 }
 
 #[derive(Deserialize)]
@@ -99,6 +101,7 @@ impl CreateVocabularyRequest {
             review_count: 0,
             consecutive_correct: 0,
             was_late: false,
+            ever_overdue: false,
         }
     }
 }

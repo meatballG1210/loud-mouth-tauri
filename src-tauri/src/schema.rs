@@ -100,6 +100,7 @@ diesel::table! {
         review_count -> Nullable<Integer>,
         consecutive_correct -> Nullable<Integer>,
         was_late -> Nullable<Bool>,
+        ever_overdue -> Bool,
     }
 }
 

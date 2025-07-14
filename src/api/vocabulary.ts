@@ -23,6 +23,7 @@ export interface VocabularyItem {
   review_count?: number;
   consecutive_correct?: number;
   was_late?: boolean;
+  ever_overdue?: boolean;
 }
 
 export interface CreateVocabularyRequest {
@@ -69,5 +70,9 @@ export const vocabularyApi = {
 
   async updateReviewWithResult(vocabularyId: string, isCorrect: boolean): Promise<VocabularyItem> {
     return await invoke<VocabularyItem>("update_vocabulary_review_with_result", { vocabularyId, isCorrect });
+  },
+
+  async getOverdue(userId: string): Promise<VocabularyItem[]> {
+    return await invoke<VocabularyItem[]>("get_overdue_vocabulary", { userId });
   }
 };

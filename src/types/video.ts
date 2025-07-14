@@ -38,5 +38,5 @@ export interface VocabularyStats {
   totalWords: number;
   wordsToReview: number;
   masteredWords: number;
-  newWords: number;
+  overdueWords: number;
 }
