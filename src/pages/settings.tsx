@@ -92,6 +92,7 @@ const translations = {
     profileDescription: "Manage your account information and security settings",
     username: "Username",
     email: "Email Address",
+    emailNote: "Changing your email may require verification",
     changePassword: "Change Password",
     newPassword: "New Password",
     confirmPassword: "Confirm New Password",
@@ -124,6 +125,7 @@ const translations = {
     profileDescription: "管理您的账户信息和安全设置",
     username: "用户名",
     email: "邮箱地址",
+    emailNote: "更改邮箱可能需要验证",
     changePassword: "修改密码",
     newPassword: "新密码",
     confirmPassword: "确认新密码",
@@ -159,7 +161,7 @@ export default function Settings() {
   const [isProfileUpdating, setIsProfileUpdating] = useState(false);
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
 
-  const { user } = useAuth();
+  const { user, updateProfile, updatePassword } = useAuth();
   const { toast } = useToast();
 
   // Profile form
@@ -177,8 +179,8 @@ export default function Settings() {
   useEffect(() => {
     if (user) {
       profileForm.reset({
-        username: "",
-        email: user.email,
+        username: user.user_metadata?.username || "",
+        email: user.email || "",
         newPassword: "",
         confirmPassword: "",
       });
@@ -267,9 +269,6 @@ export default function Settings() {
   const onProfileSubmit = async (data: ProfileFormData) => {
     setIsProfileUpdating(true);
     try {
-      // Mock profile update - in real app this would call an API
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-
       // Validate password change if provided
       if (data.newPassword) {
         if (data.newPassword !== data.confirmPassword) {
@@ -277,6 +276,40 @@ export default function Settings() {
         }
         if (data.newPassword.length < 6) {
           throw new Error(t.passwordTooShort);
+        }
+      }
+
+      // Update profile (username and/or email)
+      const profileUpdates: any = {};
+      let hasProfileChanges = false;
+      
+      // Check if username changed
+      if (data.username !== (user?.user_metadata?.username || "")) {
+        profileUpdates.username = data.username;
+        hasProfileChanges = true;
+      }
+      
+      // Check if email changed
+      if (data.email !== user?.email) {
+        profileUpdates.email = data.email;
+        hasProfileChanges = true;
+      }
+      
+      // Update profile if there are changes
+      if (hasProfileChanges) {
+        const { error: profileError } = await updateProfile(profileUpdates);
+        if (profileError) {
+          throw profileError;
+        }
+      }
+      
+      // Update password if provided
+      if (data.newPassword) {
+        const { error: passwordError } = await updatePassword({
+          password: data.newPassword,
+        });
+        if (passwordError) {
+          throw passwordError;
         }
       }
 
@@ -296,10 +329,18 @@ export default function Settings() {
         setProfileUpdateSuccess(false);
       }, 3000);
     } catch (error: any) {
+      // Handle specific Supabase errors
+      let errorMessage = error.message || "An error occurred while updating your profile";
+      
+      if (error.message?.includes("email")) {
+        errorMessage = "Failed to update email. You may need to verify your new email address.";
+      } else if (error.message?.includes("password")) {
+        errorMessage = "Failed to update password. Please ensure you're logged in.";
+      }
+      
       toast({
         title: t.profileUpdateFailed,
-        description:
-          error.message || "An error occurred while updating your profile",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -383,9 +424,15 @@ export default function Settings() {
                                   type="email"
                                   placeholder="Enter email address"
                                   {...field}
+                                  disabled={!user}
                                 />
                               </FormControl>
                               <FormMessage />
+                              {field.value !== user?.email && field.value && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {t.emailNote}
+                                </p>
+                              )}
                             </FormItem>
                           )}
                         />

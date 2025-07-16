@@ -68,7 +68,7 @@ export function Sidebar({
           {!isCollapsed && user && (
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-semibold text-gray-900 truncate">
-                {user.email}
+                {user.user_metadata?.username || user.email}
               </h1>
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>

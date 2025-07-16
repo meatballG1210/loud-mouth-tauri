@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { queryClient } from "@/lib/queryClient";
+import { UpdateProfileData, UpdatePasswordData } from "@/types/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  updateProfile: (data: UpdateProfileData) => Promise<{ error: Error | null }>;
+  updatePassword: (data: UpdatePasswordData) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +88,50 @@ export function SupabaseAuthProvider({ children }: AuthProviderProps) {
     return { error };
   };
 
+  const updateProfile = async (data: UpdateProfileData) => {
+    try {
+      const updates: any = {};
+      
+      // Update user metadata (username)
+      if (data.username !== undefined) {
+        updates.data = { username: data.username };
+      }
+      
+      // Update email if provided
+      if (data.email) {
+        updates.email = data.email;
+      }
+      
+      const { error } = await supabase.auth.updateUser(updates);
+      
+      if (error) throw error;
+      
+      // Refresh the session to get updated user data
+      const { data: { user: updatedUser } } = await supabase.auth.getUser();
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+      
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
+
+  const updatePassword = async (data: UpdatePasswordData) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+      
+      if (error) throw error;
+      
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
+
   const value: AuthContextType = {
     user,
     session,
@@ -94,6 +141,8 @@ export function SupabaseAuthProvider({ children }: AuthProviderProps) {
     signIn,
     signOut,
     resetPassword,
+    updateProfile,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
