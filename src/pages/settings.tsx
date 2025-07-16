@@ -10,6 +10,7 @@ import {
   EyeOff,
   Save,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -234,15 +235,32 @@ export default function Settings() {
     }, 2000);
   };
 
-  const handleGitHubProfile = () => {
-    window.open("https://github.com/meatballG1210", "_blank");
+  const handleGitHubProfile = async () => {
+    try {
+      await openUrl("https://github.com/meatballG1210");
+    } catch (error) {
+      console.error("Failed to open GitHub profile:", error);
+      toast({
+        title: "Failed to open link",
+        description: "Could not open GitHub profile in your browser",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEmailContact = () => {
-    window.open(
-      "mailto:meatballg1210@gmail.com?subject=Loud%20Mouth%20Language%20Learning%20-%20Contact",
-      "_blank",
-    );
+  const handleEmailContact = async () => {
+    try {
+      await openUrl(
+        "mailto:meatballg1210@gmail.com?subject=Loud%20Mouth%20Language%20Learning%20-%20Contact"
+      );
+    } catch (error) {
+      console.error("Failed to open email client:", error);
+      toast({
+        title: "Failed to open email",
+        description: "Could not open your email client",
+        variant: "destructive",
+      });
+    }
   };
 
 
