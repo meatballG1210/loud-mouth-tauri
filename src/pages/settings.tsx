@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Globe,
   Mail,
@@ -9,7 +9,6 @@ import {
   Eye,
   EyeOff,
   Save,
-  Camera,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -54,20 +53,11 @@ const languages = [
 // Profile form schema
 const profileSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(1, "First name is required")
-      .max(50, "First name must be less than 50 characters"),
-    lastName: z
-      .string()
-      .min(1, "Last name is required")
-      .max(50, "Last name must be less than 50 characters"),
     username: z
       .string()
       .min(3, "Username must be at least 3 characters")
       .max(20, "Username must be less than 20 characters"),
     email: z.string().email("Please enter a valid email address"),
-    avatar: z.string().optional(),
     newPassword: z.string().optional(),
     confirmPassword: z.string().optional(),
   })
@@ -99,16 +89,6 @@ const translations = {
     // Profile section
     userProfile: "User Profile",
     profileDescription: "Manage your account information and security settings",
-    avatar: "Profile Picture",
-    changeAvatar: "Change Avatar",
-    uploadNewAvatar: "Upload New Avatar",
-    removeAvatar: "Remove Avatar",
-    avatarUpdated: "Avatar updated successfully!",
-    avatarRemoved: "Avatar removed successfully!",
-    avatarUploadFailed: "Failed to upload avatar",
-    supportedFormats: "Supported formats: JPG, PNG, GIF (max 5MB)",
-    firstName: "First Name",
-    lastName: "Last Name",
     username: "Username",
     email: "Email Address",
     changePassword: "Change Password",
@@ -141,16 +121,6 @@ const translations = {
     // Profile section
     userProfile: "用户资料",
     profileDescription: "管理您的账户信息和安全设置",
-    avatar: "头像",
-    changeAvatar: "更换头像",
-    uploadNewAvatar: "上传新头像",
-    removeAvatar: "移除头像",
-    avatarUpdated: "头像更新成功！",
-    avatarRemoved: "头像移除成功！",
-    avatarUploadFailed: "头像上传失败",
-    supportedFormats: "支持格式：JPG、PNG、GIF（最大5MB）",
-    firstName: "名",
-    lastName: "姓",
     username: "用户名",
     email: "邮箱地址",
     changePassword: "修改密码",
@@ -187,22 +157,16 @@ export default function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isProfileUpdating, setIsProfileUpdating] = useState(false);
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profile form
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
       username: "",
       email: user?.email || "",
-      avatar: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -212,11 +176,8 @@ export default function Settings() {
   useEffect(() => {
     if (user) {
       profileForm.reset({
-        firstName: "", // Demo user - would come from user data in real app
-        lastName: "", // Demo user - would come from user data in real app
         username: "",
         email: user.email,
-        avatar: "",
         newPassword: "",
         confirmPassword: "",
       });
@@ -284,73 +245,6 @@ export default function Settings() {
     );
   };
 
-  const handleAvatarUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: t.avatarUploadFailed,
-        description: "Please select a valid image file (JPG, PNG, or GIF)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: t.avatarUploadFailed,
-        description: "File size must be less than 5MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUploadingAvatar(true);
-    try {
-      // Convert file to base64 for demo purposes
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCurrentAvatar(result);
-        profileForm.setValue("avatar", result);
-
-        toast({
-          title: t.avatarUpdated,
-          description: "Your profile picture has been updated",
-        });
-
-        setIsUploadingAvatar(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      toast({
-        title: t.avatarUploadFailed,
-        description: "Failed to upload avatar. Please try again.",
-        variant: "destructive",
-      });
-      setIsUploadingAvatar(false);
-    }
-  };
-
-  const handleRemoveAvatar = () => {
-    setCurrentAvatar(null);
-    profileForm.setValue("avatar", "");
-
-    toast({
-      title: t.avatarRemoved,
-      description: "Your profile picture has been removed",
-    });
-  };
 
   const onProfileSubmit = async (data: ProfileFormData) => {
     setIsProfileUpdating(true);
@@ -440,112 +334,7 @@ export default function Settings() {
                       onSubmit={profileForm.handleSubmit(onProfileSubmit)}
                       className="space-y-6"
                     >
-                      {/* Avatar Section */}
-                      <div className="flex items-center space-x-6">
-                        <div className="relative">
-                          <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                            {currentAvatar ? (
-                              <img
-                                src={currentAvatar}
-                                alt="Profile Avatar"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-white text-2xl font-bold">
-                                {user?.email
-                                  ? user.email.charAt(0).toUpperCase()
-                                  : "U"}
-                              </span>
-                            )}
-                          </div>
-                          {isUploadingAvatar && (
-                            <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
-                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            </div>
-                          )}
-                        </div>
 
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">
-                            {t.avatar}
-                          </h4>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleAvatarUpload}
-                              disabled={isUploadingAvatar}
-                              className="flex items-center space-x-2"
-                            >
-                              <Camera className="w-4 h-4" />
-                              <span>{t.uploadNewAvatar}</span>
-                            </Button>
-
-                            {currentAvatar && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={handleRemoveAvatar}
-                                disabled={isUploadingAvatar}
-                                className="text-red-600 border-red-200 hover:bg-red-50"
-                              >
-                                {t.removeAvatar}
-                              </Button>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-2">
-                            {t.supportedFormats}
-                          </p>
-                        </div>
-
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                      </div>
-
-                      <Separator />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={profileForm.control}
-                          name="firstName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t.firstName}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter first name"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="lastName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t.lastName}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter last name"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -797,14 +586,6 @@ export default function Settings() {
                       >
                         <Mail className="w-4 h-4" />
                         <span>{t.emailContact}</span>
-                      </Button>
-
-                      <Button
-                        onClick={() => setLocation("/error-test")}
-                        variant="outline"
-                        className="flex items-center justify-center space-x-2 bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                      >
-                        <span>Test Page</span>
                       </Button>
                     </div>
                   </div>
