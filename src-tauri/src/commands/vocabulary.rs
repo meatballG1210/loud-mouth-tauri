@@ -149,10 +149,12 @@ pub fn update_vocabulary_review_with_result(
     
     // Calculate new review stage
     let current_stage = vocab.review_stage.unwrap_or(0);
-    let new_stage = if !is_correct || is_late {
-        0 // Reset to beginning
+    let new_stage = if is_late {
+        0 // Reset to beginning if late
+    } else if !is_correct {
+        current_stage // Keep current stage if incorrect but not late
     } else {
-        (current_stage + 1).min(5) // Max stage is 5 (mastered)
+        (current_stage + 1).min(5) // Advance stage if correct and not late
     };
     
     // Calculate next review date
