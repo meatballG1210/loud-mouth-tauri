@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, Target, BookOpen, Activity, Settings } from "lucide-react";
 import {
   LineChart,
@@ -38,81 +38,41 @@ import { useLocation } from "wouter";
 import { useLanguage } from "@/lib/i18n";
 import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
+import { useStudyTime } from "@/hooks/use-study-time";
 
-// Mock data for progress tracking
-const mockLearningStats = {
-  totalLearningTime: 142, // hours
-  totalVocabulary: 387,
-  activeDays: 28,
-  currentStreak: 7,
-  longestStreak: 14,
-  weeklyTimeGoal: 8, // hours per week
-  weeklyTimeProgress: 5.5, // hours this week
-  averageAccuracy: 85.2,
-  bestDay: {
-    date: "2025-06-05",
-    wordsLearned: 23,
-    accuracy: 94.1,
-  },
-};
-
-const mockVocabularyGrowth = [
-  { date: "2025-05-01", total: 250, new: 0 },
-  { date: "2025-05-08", total: 270, new: 20 },
-  { date: "2025-05-15", total: 295, new: 25 },
-  { date: "2025-05-22", total: 325, new: 30 },
-  { date: "2025-05-29", total: 350, new: 25 },
-  { date: "2025-06-05", total: 387, new: 37 },
-];
-
-const mockDailyStudy = [
-  { day: "Mon", minutes: 45, words: 8 },
-  { day: "Tue", minutes: 62, words: 12 },
-  { day: "Wed", minutes: 38, words: 6 },
-  { day: "Thu", minutes: 55, words: 10 },
-  { day: "Fri", minutes: 71, words: 15 },
-  { day: "Sat", minutes: 89, words: 18 },
-  { day: "Sun", minutes: 43, words: 7 },
-];
-
-const mockAccuracyTrend = [
-  { date: "2025-05-01", accuracy: 72.3 },
-  { date: "2025-05-08", accuracy: 76.8 },
-  { date: "2025-05-15", accuracy: 81.2 },
-  { date: "2025-05-22", accuracy: 83.7 },
-  { date: "2025-05-29", accuracy: 84.9 },
-  { date: "2025-06-05", accuracy: 85.2 },
-];
+// Default weekly goal in hours
+const DEFAULT_WEEKLY_GOAL = 8;
 
 // Calculate day streak from vocabulary review data
 function calculateDayStreak(vocabulary: any[]): number {
   if (!vocabulary || vocabulary.length === 0) return 0;
-  
+
   // Get all review dates
   const reviewDates = vocabulary
-    .filter(item => item.lastReviewed)
-    .map(item => {
+    .filter((item) => item.lastReviewed)
+    .map((item) => {
       const date = new Date(item.lastReviewed);
       return date.toDateString();
     })
     .filter((date, index, self) => self.indexOf(date) === index) // unique dates
     .sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // newest first
-  
+
   if (reviewDates.length === 0) return 0;
-  
+
   // Check if today or yesterday has reviews
   const today = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
-  
+
   if (reviewDates[0] !== today && reviewDates[0] !== yesterday) {
     return 0; // Streak is broken
   }
-  
+
   // Count consecutive days
   let streak = 0;
   let currentDate = new Date();
-  
-  for (let i = 0; i < 365; i++) { // max 365 days
+
+  for (let i = 0; i < 365; i++) {
+    // max 365 days
     const dateStr = currentDate.toDateString();
     if (reviewDates.includes(dateStr)) {
       streak++;
@@ -122,68 +82,72 @@ function calculateDayStreak(vocabulary: any[]): number {
     }
     currentDate = new Date(currentDate.getTime() - 86400000); // go back one day
   }
-  
+
   return streak;
 }
 
 // Calculate average accuracy from vocabulary review data
 function calculateAverageAccuracy(vocabulary: any[]): number {
   if (!vocabulary || vocabulary.length === 0) return 0;
-  
+
   // Filter items that have been reviewed
-  const reviewedItems = vocabulary.filter(item => 
-    item.reviewCount !== undefined && item.reviewCount > 0
+  const reviewedItems = vocabulary.filter(
+    (item) => item.reviewCount !== undefined && item.reviewCount > 0,
   );
-  
+
   if (reviewedItems.length === 0) return 0;
-  
+
   // Calculate total correct reviews
   const totalCorrect = reviewedItems.reduce((sum, item) => {
     // Use consecutive_correct from the API data
-    const correct = item.dictionaryResponse ? 
-      (item.reviewCount || 0) - Math.max(0, (item.difficulty === 'hard' ? 2 : item.difficulty === 'medium' ? 1 : 0)) :
-      0;
+    const correct = item.dictionaryResponse
+      ? (item.reviewCount || 0) -
+        Math.max(
+          0,
+          item.difficulty === "hard" ? 2 : item.difficulty === "medium" ? 1 : 0,
+        )
+      : 0;
     return sum + Math.max(0, correct);
   }, 0);
-  
+
   // Calculate total reviews
-  const totalReviews = reviewedItems.reduce((sum, item) => 
-    sum + (item.reviewCount || 0), 0
+  const totalReviews = reviewedItems.reduce(
+    (sum, item) => sum + (item.reviewCount || 0),
+    0,
   );
-  
+
   if (totalReviews === 0) return 0;
-  
+
   return Math.round((totalCorrect / totalReviews) * 100 * 10) / 10; // Round to 1 decimal
 }
 
 // Calculate vocabulary growth over time
 function calculateVocabularyGrowth(vocabulary: any[]): any[] {
   if (!vocabulary || vocabulary.length === 0) return [];
-  
+
   // Group vocabulary by creation date
   const growthMap = new Map<string, number>();
-  
+
   // Sort vocabulary by creation date
   const sortedVocab = [...vocabulary].sort((a, b) => {
-    const dateA = new Date(a.lastReviewed || a.createdAt || Date.now());
-    const dateB = new Date(b.lastReviewed || b.createdAt || Date.now());
+    const dateA = new Date(a.lastReviewed || Date.now());
+    const dateB = new Date(b.lastReviewed || Date.now());
     return dateA.getTime() - dateB.getTime();
   });
-  
+
   // Calculate cumulative growth
-  let total = 0;
   const growthData: any[] = [];
-  
+
   sortedVocab.forEach((item) => {
-    const date = new Date(item.lastReviewed || item.createdAt || Date.now());
-    const dateStr = date.toISOString().split('T')[0];
-    
+    const date = new Date(item.lastReviewed || Date.now());
+    const dateStr = date.toISOString().split("T")[0];
+
     if (!growthMap.has(dateStr)) {
       growthMap.set(dateStr, 0);
     }
     growthMap.set(dateStr, growthMap.get(dateStr)! + 1);
   });
-  
+
   // Convert to array format for chart
   let runningTotal = 0;
   Array.from(growthMap.entries())
@@ -193,73 +157,90 @@ function calculateVocabularyGrowth(vocabulary: any[]): any[] {
       growthData.push({
         date,
         total: runningTotal,
-        new: count
+        new: count,
       });
     });
-  
+
   // If we have data, ensure we show at least the last 6 data points
   if (growthData.length > 6) {
     return growthData.slice(-6);
   }
-  
+
   return growthData;
 }
 
 // Calculate accuracy trend over time
 function calculateAccuracyTrend(vocabulary: any[]): any[] {
   if (!vocabulary || vocabulary.length === 0) return [];
-  
+
   // Group reviews by date and calculate daily accuracy
   const accuracyMap = new Map<string, { correct: number; total: number }>();
-  
+
   vocabulary.forEach((item) => {
     if (item.reviewCount && item.reviewCount > 0 && item.lastReviewed) {
-      const date = new Date(item.lastReviewed).toISOString().split('T')[0];
-      
+      const date = new Date(item.lastReviewed).toISOString().split("T")[0];
+
       if (!accuracyMap.has(date)) {
         accuracyMap.set(date, { correct: 0, total: 0 });
       }
-      
+
       const stats = accuracyMap.get(date)!;
       // Estimate correct reviews based on difficulty
-      const correctCount = Math.max(0, 
-        item.reviewCount - (item.difficulty === 'hard' ? 2 : item.difficulty === 'medium' ? 1 : 0)
+      const correctCount = Math.max(
+        0,
+        item.reviewCount -
+          (item.difficulty === "hard"
+            ? 2
+            : item.difficulty === "medium"
+              ? 1
+              : 0),
       );
-      
+
       stats.correct += correctCount;
       stats.total += item.reviewCount;
     }
   });
-  
+
   // Convert to array format for chart
   const trendData = Array.from(accuracyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, stats]) => ({
       date,
-      accuracy: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100 * 10) / 10 : 0
+      accuracy:
+        stats.total > 0
+          ? Math.round((stats.correct / stats.total) * 100 * 10) / 10
+          : 0,
     }));
-  
+
   // If we have data, ensure we show at least the last 6 data points
   if (trendData.length > 6) {
     return trendData.slice(-6);
   }
-  
+
   return trendData;
 }
 
 export default function Progress() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [weeklyGoal, setWeeklyGoal] = useState(
-    mockLearningStats.weeklyTimeGoal,
-  );
-  const [newGoal, setNewGoal] = useState(
-    mockLearningStats.weeklyTimeGoal.toString(),
-  );
+  const [weeklyGoal, setWeeklyGoal] = useState(() => {
+    // Load saved goal from localStorage
+    const saved = localStorage.getItem("weekly_study_goal");
+    return saved ? parseFloat(saved) : DEFAULT_WEEKLY_GOAL;
+  });
+  const [newGoal, setNewGoal] = useState(() => {
+    const saved = localStorage.getItem("weekly_study_goal");
+    return saved || DEFAULT_WEEKLY_GOAL.toString();
+  });
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const { stats, isLoading, refreshVideos } = useVideos();
   const { vocabulary } = useVocabulary();
+  const {
+    stats: studyTimeStats,
+    getWeeklyStudyData,
+    updateDayWordCount,
+  } = useStudyTime();
   const [activeSection, setActiveSection] = useState("progress");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -268,6 +249,7 @@ export default function Progress() {
     if (goalValue > 0 && goalValue <= 168) {
       // Max 168 hours per week
       setWeeklyGoal(goalValue);
+      localStorage.setItem("weekly_study_goal", goalValue.toString());
       setIsGoalDialogOpen(false);
     }
   };
@@ -305,6 +287,38 @@ export default function Progress() {
   const averageAccuracy = calculateAverageAccuracy(vocabulary);
   const vocabularyGrowth = calculateVocabularyGrowth(vocabulary);
   const accuracyTrend = calculateAccuracyTrend(vocabulary);
+
+  // Update word counts for each day
+  useEffect(() => {
+    const wordsByDay = new Map<string, number>();
+
+    vocabulary.forEach((item) => {
+      const date = new Date(item.lastReviewed || Date.now());
+      const dateStr = date.toISOString().split("T")[0];
+      wordsByDay.set(dateStr, (wordsByDay.get(dateStr) || 0) + 1);
+    });
+
+    // Update today's word count
+    const today = new Date().toISOString().split("T")[0];
+    const todayWords = wordsByDay.get(today) || 0;
+    if (todayWords > 0) {
+      updateDayWordCount(today, todayWords);
+    }
+  }, [vocabulary, updateDayWordCount]);
+
+  // Get weekly study data with word counts
+  const weeklyStudyData = getWeeklyStudyData().map((day) => {
+    // Count words added on this day
+    const dayWords = vocabulary.filter((item) => {
+      const itemDate = new Date(item.lastReviewed || Date.now());
+      return itemDate.toISOString().split("T")[0] === day.date;
+    }).length;
+
+    return {
+      ...day,
+      words: dayWords,
+    };
+  });
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
@@ -359,7 +373,7 @@ export default function Progress() {
                       <Clock className="w-8 h-8 text-green-500" />
                       <div>
                         <p className="text-2xl font-bold text-gray-900">
-                          {mockLearningStats.totalLearningTime}h
+                          {studyTimeStats.totalHours}h
                         </p>
                         <p className="text-sm text-gray-500">
                           {t("studyTime")}
@@ -437,8 +451,8 @@ export default function Progress() {
                             {t("weeklyGoal")}
                           </CardTitle>
                           <CardDescription className="text-gray-500">
-                            {mockLearningStats.weeklyTimeProgress} of{" "}
-                            {weeklyGoal} {t("hoursThisWeek")}
+                            {studyTimeStats.weeklyHours} of {weeklyGoal}{" "}
+                            {t("hoursThisWeek")}
                           </CardDescription>
                         </div>
                         <Dialog
@@ -503,20 +517,19 @@ export default function Progress() {
                         <div
                           className="bg-blue-500 h-3 rounded-full transition-all duration-500"
                           style={{
-                            width: `${Math.min((mockLearningStats.weeklyTimeProgress / weeklyGoal) * 100, 100)}%`,
+                            width: `${Math.min((studyTimeStats.weeklyHours / weeklyGoal) * 100, 100)}%`,
                           }}
                         />
                       </div>
                       <div className="flex justify-between text-sm text-gray-500">
                         <span>
-                          {mockLearningStats.weeklyTimeProgress}h{" "}
-                          {t("completed")}
+                          {studyTimeStats.weeklyHours}h {t("completed")}
                         </span>
                         <span>
                           {Math.max(
-                            weeklyGoal - mockLearningStats.weeklyTimeProgress,
+                            weeklyGoal - studyTimeStats.weeklyHours,
                             0,
-                          )}
+                          ).toFixed(1)}
                           h {t("remaining")}
                         </span>
                       </div>
@@ -536,7 +549,7 @@ export default function Progress() {
                     <CardContent>
                       <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={mockDailyStudy}>
+                          <BarChart data={weeklyStudyData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="day" />
                             <YAxis />
@@ -575,7 +588,7 @@ export default function Progress() {
                     <CardContent>
                       <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={vocabularyGrowth.length > 0 ? vocabularyGrowth : mockVocabularyGrowth}>
+                          <AreaChart data={vocabularyGrowth}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="date" />
                             <YAxis />
@@ -619,7 +632,7 @@ export default function Progress() {
                     <CardContent>
                       <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={accuracyTrend.length > 0 ? accuracyTrend : mockAccuracyTrend}>
+                          <LineChart data={accuracyTrend}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="date" />
                             <YAxis domain={[0, 100]} />
