@@ -20,6 +20,7 @@ import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
 import { areStringsSimilar } from "@/utils/string-similarity";
+import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 
 interface SubtitleLine {
   id: string;
@@ -714,40 +715,45 @@ export default function VocabularyReview() {
     // Show loading state
     if (isLoadingReviews) {
       return (
-        <div className="h-screen bg-white flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">{t("loadingReviews")}</p>
+        <ReviewErrorBoundary>
+          <div className="h-screen bg-white flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">{t("loadingReviews")}</p>
+            </div>
           </div>
-        </div>
+        </ReviewErrorBoundary>
       );
     }
 
     // No reviews available
     if (reviewItems.length === 0) {
       return (
-        <div className="h-screen bg-white flex items-center justify-center">
-          <div className="text-center">
-            <Volume2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {t("noReviewsDue")}
-            </h2>
-            <p className="text-gray-600 mb-6">{t("allCaughtUp")}</p>
-            <button
-              onClick={() => handleNavigate("vocabulary-review")}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 mx-auto"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">{t("back")}</span>
-            </button>
+        <ReviewErrorBoundary>
+          <div className="h-screen bg-white flex items-center justify-center">
+            <div className="text-center">
+              <Volume2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                {t("noReviewsDue")}
+              </h2>
+              <p className="text-gray-600 mb-6">{t("allCaughtUp")}</p>
+              <button
+                onClick={() => handleNavigate("vocabulary-review")}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 mx-auto"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">{t("back")}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        </ReviewErrorBoundary>
       );
     }
 
     return (
-      <div className="h-screen bg-white flex flex-col macos-body">
-        <div className="flex-1 flex flex-col bg-white overflow-hidden">
+      <ReviewErrorBoundary>
+        <div className="h-screen bg-white flex flex-col macos-body">
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Header */}
           <div
             className="bg-white border-b px-6 py-4"
@@ -989,7 +995,8 @@ export default function VocabularyReview() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </ReviewErrorBoundary>
     );
   }
 
@@ -1009,8 +1016,9 @@ export default function VocabularyReview() {
         />
 
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Content Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+          <ReviewErrorBoundary>
+            {/* Content Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {t("vocabularyReview")}
@@ -1073,6 +1081,7 @@ export default function VocabularyReview() {
               </button>
             </div>
           </div>
+          </ReviewErrorBoundary>
         </div>
       </div>
     </div>

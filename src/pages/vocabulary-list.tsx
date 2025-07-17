@@ -13,6 +13,7 @@ import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useVideos } from "@/hooks/use-videos";
 import { VocabularyItem } from "@/types/video";
 import { useLanguage } from "@/lib/i18n";
+import { VocabularyErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 
 export default function VocabularyList() {
   const { vocabulary, stats, isLoading } = useVocabulary();
@@ -123,8 +124,9 @@ export default function VocabularyList() {
         />
 
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Content Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+          <VocabularyErrorBoundary>
+            {/* Content Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-3">
               <BookOpen className="w-6 h-6 text-blue-500" />
               <div>
@@ -410,6 +412,7 @@ export default function VocabularyList() {
               )}
             </div>
           </div>
+          </VocabularyErrorBoundary>
         </div>
       </div>
     </div>

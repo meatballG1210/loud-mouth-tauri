@@ -16,6 +16,8 @@ import {
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { VocabularyItem } from "@/types/video";
 import { useVideos } from "@/hooks/use-videos";
+import { VocabularyErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
+import { VideoErrorBoundary } from "@/components/video/video-error-boundary";
 
 interface SubtitleLine {
   id: string;
@@ -268,9 +270,10 @@ export default function VocabularyDetail() {
         <div className="w-2/3 bg-black flex flex-col">
           {/* Video */}
           <div className="flex-1 relative">
-            {currentVideo?.path ? (
-              <video
-                ref={videoRef}
+            <VideoErrorBoundary videoId={params?.videoId}>
+              {currentVideo?.path ? (
+                <video
+                  ref={videoRef}
                 className="w-full h-full object-contain"
                 src={(() => {
                   // Use stream protocol for video playback
@@ -293,12 +296,13 @@ export default function VocabularyDetail() {
                   console.error("Video playback error:", e);
                   setVideoReady(false);
                 }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white">
-                <p>No video available</p>
-              </div>
-            )}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white">
+                  <p>No video available</p>
+                </div>
+              )}
+            </VideoErrorBoundary>
           </div>
 
           {/* Video Controls */}
@@ -375,9 +379,10 @@ export default function VocabularyDetail() {
 
         {/* Right Side - Word List */}
         <div className="w-1/3 bg-white flex flex-col">
-          {/* Controls */}
-          <div className="border-b border-gray-200 px-6 py-3">
-            <div className="flex items-center justify-between mb-3">
+          <VocabularyErrorBoundary>
+            {/* Controls */}
+            <div className="border-b border-gray-200 px-6 py-3">
+              <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleBack}
@@ -527,6 +532,7 @@ export default function VocabularyDetail() {
               )}
             </div>
           </div>
+          </VocabularyErrorBoundary>
         </div>
       </div>
 

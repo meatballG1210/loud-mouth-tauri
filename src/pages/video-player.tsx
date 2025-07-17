@@ -15,6 +15,7 @@ import { Video } from "@/types/video";
 import { parseWebVTT } from "@/utils/subtitle-parser";
 import ReactMarkdown from "react-markdown";
 import { vocabularyApi } from "@/api/vocabulary";
+import { VideoErrorBoundary, SubtitleErrorBoundary } from "@/components/video/video-error-boundary";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
@@ -428,9 +429,10 @@ Write a natural and authentic English sentence using the phrase, followed by a f
             className="flex-1 relative bg-gray-900"
             style={{ minHeight: "400px" }}
           >
-            {currentVideo.path ? (
-              <video
-                ref={videoRef}
+            <VideoErrorBoundary videoId={currentVideo.id} onRetry={() => window.location.reload()}>
+              {currentVideo.path ? (
+                <video
+                  ref={videoRef}
                 src={(() => {
                   // Try different approaches based on platform
                   const useStreamProtocol = true; // Toggle this to test different approaches
@@ -510,14 +512,15 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                 onEmptied={() => {
                   console.log("Video emptied");
                 }}
-              />
-            ) : (
-              <img
-                src={currentVideo.thumbnail}
-                alt={currentVideo.title}
-                className="max-w-full max-h-full object-contain"
-              />
-            )}
+                />
+              ) : (
+                <img
+                  src={currentVideo.thumbnail}
+                  alt={currentVideo.title}
+                  className="max-w-full max-h-full object-contain"
+                />
+              )}
+            </VideoErrorBoundary>
 
             {/* Video Overlay Controls */}
             <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-300 group">
@@ -550,27 +553,29 @@ Write a natural and authentic English sentence using the phrase, followed by a f
             </div>
 
             {/* Current Subtitle Overlay */}
-            {currentSubtitle && (
-              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20">
-                <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center">
-                  <div className="text-white text-lg leading-relaxed">
-                    {currentSubtitle.text.split(" ").map((word, index) => (
-                      <span
-                        key={index}
-                        className={`hover:bg-yellow-400 hover:text-black px-1 rounded cursor-pointer transition-colors ${
-                          selectedWords.includes(word.replace(/[.,!?;:]$/, ""))
-                            ? "bg-yellow-400 text-black"
-                            : ""
-                        }`}
-                        onClick={(e) => handleWordClick(word, e)}
-                      >
-                        {word}{" "}
-                      </span>
-                    ))}
+            <SubtitleErrorBoundary>
+              {currentSubtitle && (
+                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20">
+                  <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center">
+                    <div className="text-white text-lg leading-relaxed">
+                      {currentSubtitle.text.split(" ").map((word, index) => (
+                        <span
+                          key={index}
+                          className={`hover:bg-yellow-400 hover:text-black px-1 rounded cursor-pointer transition-colors ${
+                            selectedWords.includes(word.replace(/[.,!?;:]$/, ""))
+                              ? "bg-yellow-400 text-black"
+                              : ""
+                          }`}
+                          onClick={(e) => handleWordClick(word, e)}
+                        >
+                          {word}{" "}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </SubtitleErrorBoundary>
           </div>
 
           {/* Video Controls Bar */}
