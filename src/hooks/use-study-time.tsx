@@ -21,7 +21,7 @@ interface StudyTimeStats {
 }
 
 const STORAGE_KEY = 'loudmouth_study_sessions';
-const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes of inactivity ends session
+const MIN_SESSION_DURATION = 3; // Minimum session duration in seconds (reduced from 10 for testing)
 
 export function useStudyTime() {
   const [stats, setStats] = useState<StudyTimeStats>({
@@ -32,8 +32,6 @@ export function useStudyTime() {
   });
   const [isTracking, setIsTracking] = useState(false);
   const currentSessionRef = useRef<StudySession | null>(null);
-  const lastActivityRef = useRef<number>(Date.now());
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load sessions from localStorage
   const loadSessions = useCallback((): DailyStudyTime[] => {
@@ -96,21 +94,29 @@ export function useStudyTime() {
       startTime: now.toISOString(),
       duration: 0
     };
-    lastActivityRef.current = Date.now();
     setIsTracking(true);
+    console.log('[StudyTime] Session started (window focused) at:', now.toISOString());
   }, []);
 
   // End current session
   const endSession = useCallback(() => {
-    if (!currentSessionRef.current) return;
+    if (!currentSessionRef.current) {
+      console.log('[StudyTime] No active session to end');
+      return;
+    }
 
     const now = new Date();
     const session = currentSessionRef.current;
     session.endTime = now.toISOString();
     session.duration = Math.floor((now.getTime() - new Date(session.startTime).getTime()) / 1000);
 
-    // Only save sessions longer than 10 seconds
-    if (session.duration > 10) {
+    console.log('[StudyTime] Ending session (window blurred):', {
+      duration: session.duration,
+      willSave: session.duration >= MIN_SESSION_DURATION
+    });
+
+    // Only save sessions longer than minimum duration
+    if (session.duration >= MIN_SESSION_DURATION) {
       const today = now.toISOString().split('T')[0];
       const dailyData = loadSessions();
       
@@ -134,77 +140,52 @@ export function useStudyTime() {
 
       saveSessions(filteredData);
       setStats(calculateStats(filteredData));
+      console.log('[StudyTime] Session saved to localStorage');
+    } else {
+      console.log(`[StudyTime] Session too short, not saving (min: ${MIN_SESSION_DURATION}s)`);
     }
 
     currentSessionRef.current = null;
     setIsTracking(false);
   }, [loadSessions, saveSessions, calculateStats]);
 
-  // Handle activity timeout
-  const resetTimeout = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    if (isTracking) {
-      timeoutRef.current = setTimeout(() => {
-        endSession();
-      }, SESSION_TIMEOUT);
-    }
-  }, [isTracking, endSession]);
-
   // Handle window focus
   const handleFocus = useCallback(() => {
     if (!isTracking) {
       startSession();
     }
-    lastActivityRef.current = Date.now();
-    resetTimeout();
-  }, [isTracking, startSession, resetTimeout]);
+  }, [isTracking, startSession]);
 
   // Handle window blur
   const handleBlur = useCallback(() => {
     endSession();
   }, [endSession]);
 
-  // Handle user activity
-  const handleActivity = useCallback(() => {
-    lastActivityRef.current = Date.now();
-    if (!isTracking && document.hasFocus()) {
-      startSession();
-    }
-    resetTimeout();
-  }, [isTracking, startSession, resetTimeout]);
-
   // Set up event listeners
   useEffect(() => {
+    console.log('[StudyTime] Hook initialized - tracking based on window focus only');
+    
     // Initial load
     const dailyData = loadSessions();
+    console.log('[StudyTime] Loaded sessions from localStorage:', dailyData);
     setStats(calculateStats(dailyData));
 
     // Start tracking if window has focus
     if (document.hasFocus()) {
+      console.log('[StudyTime] Window is focused, starting initial session');
       startSession();
+    } else {
+      console.log('[StudyTime] Window is not focused, waiting for focus event');
     }
 
     // Event listeners
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keypress', handleActivity);
-    window.addEventListener('click', handleActivity);
 
     // Cleanup
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keypress', handleActivity);
-      window.removeEventListener('click', handleActivity);
-      
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       
       // End session on unmount
       endSession();
@@ -267,10 +248,17 @@ export function useStudyTime() {
     }
   }, [loadSessions, saveSessions, calculateStats]);
 
+  // Force save current session (for debugging)
+  const forceEndSession = useCallback(() => {
+    console.log('[StudyTime] Force ending session for debugging (simulating window blur)');
+    endSession();
+  }, [endSession]);
+
   return {
     stats,
     isTracking,
     getWeeklyStudyData,
-    updateDayWordCount
+    updateDayWordCount,
+    forceEndSession // Exposed for debugging
   };
 }

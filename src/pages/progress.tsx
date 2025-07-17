@@ -240,6 +240,8 @@ export default function Progress() {
     stats: studyTimeStats,
     getWeeklyStudyData,
     updateDayWordCount,
+    isTracking,
+    forceEndSession,
   } = useStudyTime();
   const [activeSection, setActiveSection] = useState("progress");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -367,7 +369,7 @@ export default function Progress() {
                   </div>
                 </Card>
 
-                <Card className="border-gray-200 bg-white">
+                <Card className="border-gray-200 bg-white relative">
                   <div className="p-4">
                     <div className="flex items-center space-x-3">
                       <Clock className="w-8 h-8 text-green-500" />
@@ -380,6 +382,12 @@ export default function Progress() {
                         </p>
                       </div>
                     </div>
+                    {isTracking && (
+                      <div className="absolute top-2 right-2 flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-xs text-green-600">Tracking</span>
+                      </div>
+                    )}
                   </div>
                 </Card>
 
@@ -659,6 +667,34 @@ export default function Progress() {
                   </Card>
                 </TabsContent>
               </Tabs>
+
+              {/* Debug Section - Only show in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <Card className="mt-4 border-gray-200 bg-gray-50">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-gray-600">Debug Tools</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-xs text-gray-500">
+                        Session: {isTracking ? 'Active' : 'Inactive'}
+                      </div>
+                      <Button
+                        onClick={forceEndSession}
+                        size="sm"
+                        variant="outline"
+                        disabled={!isTracking}
+                        className="text-xs"
+                      >
+                        Force End Session
+                      </Button>
+                      <div className="text-xs text-gray-500">
+                        Today: {studyTimeStats.todayMinutes}min
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
