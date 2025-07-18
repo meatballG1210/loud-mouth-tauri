@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { SupabaseAuthProvider, useAuth } from "@/components/SupabaseAuthProvider";
+import { StudyTimeProvider } from "@/components/StudyTimeProvider";
 import Login from "@/pages/login";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
@@ -77,12 +78,14 @@ function App() {
       <LanguageProvider>
         <QueryClientProvider client={queryClient}>
           <SupabaseAuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <div className="border-t border-gray-200">
-                <Router />
-              </div>
-            </TooltipProvider>
+            <StudyTimeProvider>
+              <TooltipProvider>
+                <Toaster />
+                <div className="border-t border-gray-200">
+                  <Router />
+                </div>
+              </TooltipProvider>
+            </StudyTimeProvider>
           </SupabaseAuthProvider>
         </QueryClientProvider>
       </LanguageProvider>
