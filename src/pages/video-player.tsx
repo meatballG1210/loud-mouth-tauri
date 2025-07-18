@@ -146,10 +146,18 @@ export default function VideoPlayer() {
         setIsPlaying(prev => !prev);
       } else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
         e.preventDefault();
-        handleSkipBackward();
+        if (videoRef.current) {
+          const newTime = Math.max(0, videoRef.current.currentTime - 4);
+          videoRef.current.currentTime = newTime;
+          setCurrentTime(newTime);
+        }
       } else if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
         e.preventDefault();
-        handleSkipForward();
+        if (videoRef.current) {
+          const newTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 4);
+          videoRef.current.currentTime = newTime;
+          setCurrentTime(newTime);
+        }
       }
     };
 
