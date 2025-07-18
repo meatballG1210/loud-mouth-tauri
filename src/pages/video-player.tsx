@@ -133,6 +133,27 @@ export default function VideoPlayer() {
     }
   }, [isPlaying, playbackSpeed, volume, isMuted]);
 
+  // Add keyboard event handler for spacebar
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Check if the target is an input element to avoid interference
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault(); // Prevent page scroll
+        setIsPlaying(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
+  }, []);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -428,6 +449,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
           <div
             className="flex-1 relative bg-gray-900"
             style={{ minHeight: "400px" }}
+            onClick={() => setIsPlaying(!isPlaying)}
           >
             <VideoErrorBoundary videoId={currentVideo.id} onRetry={() => window.location.reload()}>
               {currentVideo.path ? (
