@@ -227,7 +227,7 @@ pub async fn upload_video(
     
     diesel::insert_into(videos::table)
         .values(&new_video)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to save video to database")
             .with_details(e.to_string()))?;
     
@@ -235,7 +235,7 @@ pub async fn upload_video(
     if !subtitle_records.is_empty() {
         diesel::insert_into(subtitles::table)
             .values(&subtitle_records)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to save subtitles to database")
                 .with_details(e.to_string()))?;
     }
@@ -291,7 +291,7 @@ pub async fn get_videos(user_id: i32) -> Result<Vec<VideoMetadata>> {
     
     let stored_videos: Vec<StoredVideo> = videos
         .filter(crate::schema::videos::user_id.eq(user_id))
-        .load(&mut connection)
+        .load(&mut *connection)
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to fetch videos from database")
             .with_details(e.to_string()))?;
     
@@ -330,14 +330,14 @@ pub async fn delete_video(video_id: String) -> Result<()> {
     // First, get the video record to find the thumbnail path
     let video_record: Option<StoredVideo> = videos
         .filter(id.eq(&video_id))
-        .first(&mut connection)
+        .first(&mut *connection)
         .optional()
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to fetch video from database")
             .with_details(e.to_string()))?;
     
     // Delete the video record from database
     diesel::delete(videos.filter(id.eq(&video_id)))
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to delete video from database")
             .with_details(e.to_string()))?;
     

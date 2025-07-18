@@ -51,6 +51,12 @@ fn test_database_error() -> Result<i64, AppError> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize the database connection pool
+    if let Err(e) = database::init_pool() {
+        eprintln!("Failed to initialize database pool: {}", e);
+        return;
+    }
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
