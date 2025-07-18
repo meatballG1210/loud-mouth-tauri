@@ -591,7 +591,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
             {/* Current Subtitle Overlay */}
             <SubtitleErrorBoundary>
               {currentSubtitle && (
-                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20">
+                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20" onClick={(e) => e.stopPropagation()}>
                   <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center">
                     <div className="text-white text-lg leading-relaxed">
                       {currentSubtitle.text.split(" ").map((word, index) => (
@@ -602,7 +602,10 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                               ? "bg-yellow-400 text-black"
                               : ""
                           }`}
-                          onClick={(e) => handleWordClick(word, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleWordClick(word, e);
+                          }}
                         >
                           {word}{" "}
                         </span>
