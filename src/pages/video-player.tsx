@@ -133,7 +133,7 @@ export default function VideoPlayer() {
     }
   }, [isPlaying, playbackSpeed, volume, isMuted]);
 
-  // Add keyboard event handler for spacebar
+  // Add keyboard event handler for spacebar and arrow keys
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Check if the target is an input element to avoid interference
@@ -144,6 +144,12 @@ export default function VideoPlayer() {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault(); // Prevent page scroll
         setIsPlaying(prev => !prev);
+      } else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleSkipBackward();
+      } else if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleSkipForward();
       }
     };
 
@@ -409,7 +415,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
 
   const handleSkipBackward = () => {
     if (videoRef.current) {
-      const newTime = Math.max(0, videoRef.current.currentTime - 15);
+      const newTime = Math.max(0, videoRef.current.currentTime - 4);
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
@@ -417,7 +423,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
 
   const handleSkipForward = () => {
     if (videoRef.current) {
-      const newTime = Math.min(duration, videoRef.current.currentTime + 15);
+      const newTime = Math.min(duration, videoRef.current.currentTime + 4);
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
@@ -629,7 +635,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                 <button
                   onClick={handleSkipBackward}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Skip back 15s"
+                  title="Skip back 4s"
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
@@ -648,7 +654,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                 <button
                   onClick={handleSkipForward}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Skip forward 15s"
+                  title="Skip forward 4s"
                 >
                   <RotateCw className="w-5 h-5" />
                 </button>
