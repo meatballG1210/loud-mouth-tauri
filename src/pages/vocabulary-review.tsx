@@ -50,7 +50,9 @@ export default function VocabularyReview() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
+  const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(new Set());
 
   // Speech recognition state
   const [modelDownloadProgress, setModelDownloadProgress] = useState<
@@ -195,6 +197,7 @@ export default function VocabularyReview() {
       setIsCorrect(null);
       setShowAnswer(false);
       setShowMarkAsKnown(false);
+      setShownAnswerItems(new Set());
       setLocation("/vocabulary-review");
     } else if (section === "vocabulary") {
       setLocation("/vocabulary-list");
@@ -230,6 +233,7 @@ export default function VocabularyReview() {
     setIsCorrect(null);
     setShowAnswer(false);
     setShowMarkAsKnown(false);
+    setShownAnswerItems(new Set());
     setLocation("/vocabulary-review/session");
   };
 
@@ -256,7 +260,6 @@ export default function VocabularyReview() {
     }
 
     // Only update review in database if answer wasn't shown
-    // If answer was shown, we still allow progression but don't update the review stage
     if (!showAnswer) {
       try {
         if (currentReview.id) {
@@ -268,6 +271,12 @@ export default function VocabularyReview() {
       } catch (error) {
         console.error("Error updating review:", error);
       }
+    }
+
+    // If answer was shown, add to end of queue (regardless of correct/incorrect)
+    if (showAnswer && currentReview.id) {
+      setReviewItems(prev => [...prev, currentReview]);
+      setShownAnswerItems(prev => new Set(prev).add(currentReview.id));
     }
 
     // Play video and move to next only if correct (regardless of whether answer was shown)
@@ -318,6 +327,7 @@ export default function VocabularyReview() {
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
+                    setShownAnswerItems(new Set());
                     setLocation("/vocabulary-review");
                   }
                 }, 500);
@@ -429,6 +439,7 @@ export default function VocabularyReview() {
       };
 
       mediaRecorder.onstop = async () => {
+        setIsProcessingAudio(true);
         try {
           // Create blob from chunks
           const audioBlob = new Blob(audioChunksRef.current, {
@@ -459,6 +470,7 @@ export default function VocabularyReview() {
           // Stop all tracks
           stream.getTracks().forEach((track) => track.stop());
           setIsListening(false);
+          setIsProcessingAudio(false);
         }
       };
 
@@ -499,6 +511,7 @@ export default function VocabularyReview() {
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "recording"
     ) {
+      setIsListening(false);  // Immediately update UI
       mediaRecorderRef.current.stop();
     }
   };
@@ -517,6 +530,7 @@ export default function VocabularyReview() {
       setIsCorrect(null);
       setShowAnswer(false);
       setShowMarkAsKnown(false);
+      setShownAnswerItems(new Set());
       setLocation("/vocabulary-review");
     }
   };
@@ -565,7 +579,7 @@ export default function VocabularyReview() {
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
-                    setShowMarkAsKnown(false);
+                    setShownAnswerItems(new Set());
                     setLocation("/vocabulary-review");
                   }
                 }, 500);
@@ -593,6 +607,7 @@ export default function VocabularyReview() {
               setIsCorrect(null);
               setShowAnswer(false);
               setShowMarkAsKnown(false);
+              setShownAnswerItems(new Set());
               setLocation("/vocabulary-review");
             }
           });
@@ -898,7 +913,7 @@ export default function VocabularyReview() {
                     />
 
                     <div className="flex space-x-2">
-                      {!isListening ? (
+                      {!isListening && !isProcessingAudio ? (
                         <button
                           onClick={handleVoiceInput}
                           disabled={isModelDownloading}
@@ -911,7 +926,7 @@ export default function VocabularyReview() {
                               : t("voiceInput")}
                           </span>
                         </button>
-                      ) : (
+                      ) : isListening ? (
                         <button
                           onClick={stopVoiceRecording}
                           className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse"
@@ -919,6 +934,16 @@ export default function VocabularyReview() {
                           <div className="w-4 h-4 bg-white rounded-full" />
                           <span className="text-sm font-medium">
                             {t("stopRecording") || "Stop Recording"}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed"
+                        >
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          <span className="text-sm font-medium">
+                            {t("processing") || "Processing..."}
                           </span>
                         </button>
                       )}
