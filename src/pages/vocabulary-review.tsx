@@ -96,6 +96,17 @@ export default function VocabularyReview() {
     }
   }, [reviewStarted, isActiveSession]);
 
+  // Cleanup effect - stop any recording when component unmounts
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      setIsListening(false);
+      setIsProcessingAudio(false);
+    };
+  }, []);
+
   const currentReview = reviewItems[currentReviewIndex];
   const progress =
     reviewItems.length > 0
@@ -187,6 +198,14 @@ export default function VocabularyReview() {
   // Navigation functions
   const handleNavigate = (section: string) => {
     console.log("Navigate to:", section);
+    
+    // Clean up any ongoing audio recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+    setIsProcessingAudio(false);
+    
     if (section === "home") {
       setLocation("/");
     } else if (section === "vocabulary-review" || section === "back") {
@@ -259,27 +278,114 @@ export default function VocabularyReview() {
       setShowMarkAsKnown(true);
     }
 
-    // Only update review in database if answer wasn't shown
-    if (!showAnswer) {
-      try {
-        if (currentReview.id) {
-          await vocabularyApi.updateReviewWithResult(
-            currentReview.id,
-            isAnswerCorrect,
-          );
-        }
-      } catch (error) {
-        console.error("Error updating review:", error);
-      }
-    }
-
-    // If answer was shown, add to end of queue (regardless of correct/incorrect)
+    // If answer was shown, handle differently
     if (showAnswer && currentReview.id) {
+      // Add to end of queue for re-review
       setReviewItems(prev => [...prev, currentReview]);
-      setShownAnswerItems(prev => new Set(prev).add(currentReview.id));
+      setShownAnswerItems(prev => new Set(prev).add(currentReview.id!));
+      
+      // Handle based on correctness
+      if (isAnswerCorrect) {
+        // CORRECT: Play video then move to next
+        console.log("Answer is correct after show answer, playing video");
+        if (videoRef.current && currentReview) {
+          const video = videoRef.current;
+          const startTime = currentReview.timestamp / 1000;
+          const endTime = (currentReview.timestamp + 2000) / 1000;
+
+          // Disable auto-pause temporarily
+          setShouldAutoPause(false);
+
+          video.currentTime = startTime;
+          video
+            .play()
+            .then(() => {
+              console.log("Video started playing successfully (after show answer)");
+              // Set up a one-time event listener to stop at the end time
+              const handleTimeUpdate = () => {
+                if (video.currentTime >= endTime) {
+                  console.log("Reached end time, pausing and moving to next");
+                  video.pause();
+                  video.removeEventListener("timeupdate", handleTimeUpdate);
+
+                  // Re-enable auto-pause
+                  setShouldAutoPause(true);
+
+                  // Move to next question after a short delay
+                  setTimeout(() => {
+                    if (currentReviewIndex < reviewItems.length - 1) {
+                      console.log("Moving to next review item");
+                      setCurrentReviewIndex((prev) => prev + 1);
+                      setUserAnswer("");
+                      setIsCorrect(null);
+                      setShowAnswer(false);
+                      setShowMarkAsKnown(false);
+                    } else {
+                      // Review completed
+                      console.log("Review session completed");
+                      alert("Review session completed!");
+                      setReviewStarted(false);
+                      setCurrentReviewIndex(0);
+                      setUserAnswer("");
+                      setIsCorrect(null);
+                      setShowAnswer(false);
+                      setShowMarkAsKnown(false);
+                      setShownAnswerItems(new Set());
+                      setLocation("/vocabulary-review");
+                    }
+                  }, 500);
+                }
+              };
+
+              video.addEventListener("timeupdate", handleTimeUpdate);
+            })
+            .catch((error) => {
+              console.error("Error playing video after show answer:", error);
+              // Re-enable auto-pause on error
+              setShouldAutoPause(true);
+              
+              // Still move to next even if video fails
+              setTimeout(() => {
+                if (currentReviewIndex < reviewItems.length - 1) {
+                  setCurrentReviewIndex((prev) => prev + 1);
+                  setUserAnswer("");
+                  setIsCorrect(null);
+                  setShowAnswer(false);
+                  setShowMarkAsKnown(false);
+                } else {
+                  alert("Review session completed!");
+                  setReviewStarted(false);
+                  setCurrentReviewIndex(0);
+                  setUserAnswer("");
+                  setIsCorrect(null);
+                  setShowAnswer(false);
+                  setShowMarkAsKnown(false);
+                  setShownAnswerItems(new Set());
+                  setLocation("/vocabulary-review");
+                }
+              }, 500);
+            });
+        }
+      }
+      // INCORRECT: Stay on current word - don't move to next
+      // User can retry or click "Mark as Known"
+      
+      return; // Exit early - no DB update in either case
     }
 
-    // Play video and move to next only if correct (regardless of whether answer was shown)
+    // Normal flow: update database only if answer wasn't shown
+    try {
+      if (currentReview.id) {
+        await vocabularyApi.updateReviewWithResult(
+          currentReview.id,
+          isAnswerCorrect,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating review:", error);
+    }
+
+    // Play video and move to next only if correct and answer wasn't shown
     if (isAnswerCorrect) {
       console.log("Answer is correct, attempting to play video");
       // Play the current sentence automatically
@@ -517,6 +623,13 @@ export default function VocabularyReview() {
   };
 
   const handleSkip = () => {
+    // Clean up any ongoing audio recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+    setIsProcessingAudio(false);
+    
     if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
       setUserAnswer("");

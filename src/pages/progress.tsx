@@ -90,35 +90,46 @@ function calculateDayStreak(vocabulary: any[]): number {
 function calculateAverageAccuracy(vocabulary: any[]): number {
   if (!vocabulary || vocabulary.length === 0) return 0;
 
-  // Filter items that have been reviewed
+  // For calculating accuracy, we need to look at the actual review data
+  // Since the frontend vocabulary doesn't have the real review_count and consecutive_correct,
+  // we'll need to estimate based on review stage progress
+  // A word at stage N has been reviewed correctly N times (with the spaced repetition algorithm)
+  
   const reviewedItems = vocabulary.filter(
-    (item) => item.reviewCount !== undefined && item.reviewCount > 0,
+    (item) => item.reviewCount > 0 // reviewCount is actually review_stage
   );
 
-  if (reviewedItems.length === 0) return 0;
+  if (reviewedItems.length === 0) return 100; // No reviews yet, show 100%
 
-  // Calculate total correct reviews
-  const totalCorrect = reviewedItems.reduce((sum, item) => {
-    // Use consecutive_correct from the API data
-    const correct = item.dictionaryResponse
-      ? (item.reviewCount || 0) -
-        Math.max(
-          0,
-          item.difficulty === "hard" ? 2 : item.difficulty === "medium" ? 1 : 0,
-        )
-      : 0;
-    return sum + Math.max(0, correct);
-  }, 0);
+  // Calculate accuracy based on review stage progression
+  // If a word reaches stage 5, it means it was answered correctly 5 times
+  // We estimate total attempts by adding some incorrect attempts based on difficulty
+  let totalCorrect = 0;
+  let totalAttempts = 0;
 
-  // Calculate total reviews
-  const totalReviews = reviewedItems.reduce(
-    (sum, item) => sum + (item.reviewCount || 0),
-    0,
-  );
+  reviewedItems.forEach((item) => {
+    const stage = item.reviewCount; // This is actually review_stage
+    // Each stage represents a correct answer
+    const correctAnswers = stage;
+    
+    // Estimate total attempts based on how many times it might have been answered incorrectly
+    // Words that are "hard" likely had more incorrect attempts
+    let incorrectAttempts = 0;
+    if (item.difficulty === "hard") {
+      incorrectAttempts = Math.floor(stage * 0.3); // 30% error rate for hard words
+    } else if (item.difficulty === "medium") {
+      incorrectAttempts = Math.floor(stage * 0.15); // 15% error rate for medium words
+    } else {
+      incorrectAttempts = Math.floor(stage * 0.05); // 5% error rate for easy words
+    }
+    
+    totalCorrect += correctAnswers;
+    totalAttempts += correctAnswers + incorrectAttempts;
+  });
 
-  if (totalReviews === 0) return 0;
+  if (totalAttempts === 0) return 100;
 
-  return Math.round((totalCorrect / totalReviews) * 100 * 10) / 10; // Round to 1 decimal
+  return Math.round((totalCorrect / totalAttempts) * 100 * 10) / 10; // Round to 1 decimal
 }
 
 // Calculate vocabulary growth over time
@@ -174,43 +185,53 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
   if (!vocabulary || vocabulary.length === 0) return [];
 
   // Group reviews by date and calculate daily accuracy
-  const accuracyMap = new Map<string, { correct: number; total: number }>();
+  const dailyWords = new Map<string, any[]>();
 
+  // Group vocabulary by last reviewed date
   vocabulary.forEach((item) => {
-    if (item.reviewCount && item.reviewCount > 0 && item.lastReviewed) {
+    if (item.reviewCount > 0 && item.lastReviewed) {
       const date = new Date(item.lastReviewed).toISOString().split("T")[0];
-
-      if (!accuracyMap.has(date)) {
-        accuracyMap.set(date, { correct: 0, total: 0 });
+      
+      if (!dailyWords.has(date)) {
+        dailyWords.set(date, []);
       }
-
-      const stats = accuracyMap.get(date)!;
-      // Estimate correct reviews based on difficulty
-      const correctCount = Math.max(
-        0,
-        item.reviewCount -
-          (item.difficulty === "hard"
-            ? 2
-            : item.difficulty === "medium"
-              ? 1
-              : 0),
-      );
-
-      stats.correct += correctCount;
-      stats.total += item.reviewCount;
+      
+      dailyWords.get(date)!.push(item);
     }
   });
 
-  // Convert to array format for chart
-  const trendData = Array.from(accuracyMap.entries())
+  // Calculate accuracy for each day
+  const trendData = Array.from(dailyWords.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, stats]) => ({
-      date,
-      accuracy:
-        stats.total > 0
-          ? Math.round((stats.correct / stats.total) * 100 * 10) / 10
-          : 0,
-    }));
+    .map(([date, words]) => {
+      let totalCorrect = 0;
+      let totalAttempts = 0;
+
+      words.forEach((item) => {
+        const stage = item.reviewCount; // This is actually review_stage
+        const correctAnswers = stage;
+        
+        // Estimate incorrect attempts based on difficulty
+        let incorrectAttempts = 0;
+        if (item.difficulty === "hard") {
+          incorrectAttempts = Math.floor(stage * 0.3);
+        } else if (item.difficulty === "medium") {
+          incorrectAttempts = Math.floor(stage * 0.15);
+        } else {
+          incorrectAttempts = Math.floor(stage * 0.05);
+        }
+        
+        totalCorrect += correctAnswers;
+        totalAttempts += correctAnswers + incorrectAttempts;
+      });
+
+      return {
+        date,
+        accuracy: totalAttempts > 0
+          ? Math.round((totalCorrect / totalAttempts) * 100 * 10) / 10
+          : 100,
+      };
+    });
 
   // If we have data, ensure we show at least the last 6 data points
   if (trendData.length > 6) {
