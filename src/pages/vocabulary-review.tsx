@@ -59,6 +59,7 @@ export default function VocabularyReview() {
     number | null
   >(null);
   const [isModelDownloading, setIsModelDownloading] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -104,6 +105,7 @@ export default function VocabularyReview() {
       }
       setIsListening(false);
       setIsProcessingAudio(false);
+      setCountdown(null);
     };
   }, []);
 
@@ -205,6 +207,7 @@ export default function VocabularyReview() {
     }
     setIsListening(false);
     setIsProcessingAudio(false);
+    setCountdown(null);
     
     if (section === "home") {
       setLocation("/");
@@ -458,6 +461,29 @@ export default function VocabularyReview() {
 
   const handleVoiceInput = async () => {
     try {
+      // Start countdown
+      setCountdown(3);
+      
+      // Countdown timer
+      const countdownInterval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            // Start recording after countdown
+            startRecording();
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      console.error("Voice input error:", error);
+      setCountdown(null);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
       // Check if model is available
       const modelName = "vosk-model-en-us-0.22-lgraph";
       const hasModel = await speechApi.checkWhisperModel(modelName);
@@ -596,6 +622,7 @@ export default function VocabularyReview() {
     } catch (error) {
       console.error("Voice input error:", error);
       setIsListening(false);
+      setCountdown(null);
 
       if (error instanceof DOMException && error.name === "NotAllowedError") {
         alert(
@@ -620,6 +647,7 @@ export default function VocabularyReview() {
       setIsListening(false);  // Immediately update UI
       mediaRecorderRef.current.stop();
     }
+    setCountdown(null);  // Clear countdown if active
   };
 
   const handleSkip = () => {
@@ -629,6 +657,7 @@ export default function VocabularyReview() {
     }
     setIsListening(false);
     setIsProcessingAudio(false);
+    setCountdown(null);
     
     if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
@@ -1026,7 +1055,7 @@ export default function VocabularyReview() {
                     />
 
                     <div className="flex space-x-2">
-                      {!isListening && !isProcessingAudio ? (
+                      {!isListening && !isProcessingAudio && countdown === null ? (
                         <button
                           onClick={handleVoiceInput}
                           disabled={isModelDownloading}
@@ -1037,6 +1066,16 @@ export default function VocabularyReview() {
                             {isModelDownloading
                               ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
                               : t("voiceInput")}
+                          </span>
+                        </button>
+                      ) : countdown !== null ? (
+                        <button
+                          disabled
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed"
+                        >
+                          <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
+                          <span className="text-sm font-medium">
+                            {countdown === 0 ? (t("speakNow") || "Speak now!") : `${t("getReady") || "Get ready"} ${countdown}...`}
                           </span>
                         </button>
                       ) : isListening ? (
