@@ -85,9 +85,10 @@ export function useVocabulary() {
       const masteredWords = backendVocabulary.filter(item => 
         (item.review_stage || 0) >= 5
       ).length;
-      // Count overdue words - words that were ever overdue
+      // Count overdue words - words that are currently past their scheduled review time
       const overdueWords = backendVocabulary.filter(item => 
-        item.ever_overdue === true
+        new Date(item.next_review_at) < now && 
+        (item.review_stage || 0) < 6  // Not yet mastered
       ).length;
       
       setStats({
