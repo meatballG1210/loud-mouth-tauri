@@ -349,32 +349,6 @@ export default function VocabularyDetail() {
             </div>
           </div>
 
-          {/* Context Subtitles */}
-          {selectedWordId && contextSubtitles.length > 0 && (
-            <div className="bg-gray-800 text-white p-4 max-h-32 overflow-y-auto">
-              <h4 className="text-sm font-medium text-gray-300 mb-2">
-                Context Subtitles
-              </h4>
-              <div className="space-y-1">
-                {contextSubtitles.map((subtitle) => (
-                  <div key={subtitle.id} className="text-sm">
-                    <span className="text-gray-400 text-xs mr-2">
-                      {formatTime(subtitle.start)}
-                    </span>
-                    <span
-                      className={
-                        subtitle.language === "chinese"
-                          ? "text-yellow-300"
-                          : "text-white"
-                      }
-                    >
-                      {subtitle.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right Side - Word List */}
