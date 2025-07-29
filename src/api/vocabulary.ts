@@ -24,6 +24,7 @@ export interface VocabularyItem {
   consecutive_correct?: number;
   was_late?: boolean;
   ever_overdue?: boolean;
+  correct_count?: number;
 }
 
 export interface CreateVocabularyRequest {
@@ -41,6 +42,13 @@ export interface CreateVocabularyRequest {
   dictionary_response?: string;
   next_review_at: string;
   is_phrase?: boolean;
+}
+
+export interface AccuracyStats {
+  total_reviews: number;
+  total_correct: number;
+  accuracy_percentage: number;
+  words_reviewed: number;
 }
 
 export const vocabularyApi = {
@@ -74,5 +82,9 @@ export const vocabularyApi = {
 
   async getOverdue(userId: string): Promise<VocabularyItem[]> {
     return await invoke<VocabularyItem[]>("get_overdue_vocabulary", { userId });
+  },
+
+  async getAccuracyStats(userId: string): Promise<AccuracyStats> {
+    return await invoke<AccuracyStats>("get_vocabulary_accuracy_stats", { userId });
   }
 };

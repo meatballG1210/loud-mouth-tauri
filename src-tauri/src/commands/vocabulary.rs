@@ -6,6 +6,15 @@ use crate::{
     error::{AppError, Result},
     models::vocabulary::{CreateVocabularyRequest, Vocabulary},
 };
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct AccuracyStats {
+    pub total_reviews: i32,
+    pub total_correct: i32,
+    pub accuracy_percentage: f64,
+    pub words_reviewed: i32,
+}
 
 #[tauri::command]
 pub fn create_vocabulary(request: CreateVocabularyRequest) -> Result<Vocabulary> {
@@ -172,6 +181,13 @@ pub fn update_vocabulary_review_with_result(
             0
         };
         
+        // Update correct count
+        let new_correct_count = if is_correct {
+            vocab.correct_count.unwrap_or(0) + 1
+        } else {
+            vocab.correct_count.unwrap_or(0)
+        };
+        
         // Determine if this item should be marked as ever_overdue
         // Once marked as overdue, it stays overdue forever
         let should_mark_overdue = is_late || vocab.ever_overdue;
@@ -187,6 +203,7 @@ pub fn update_vocabulary_review_with_result(
                 vocabulary::consecutive_correct.eq(new_consecutive_correct),
                 vocabulary::was_late.eq(is_late),
                 vocabulary::ever_overdue.eq(should_mark_overdue),
+                vocabulary::correct_count.eq(new_correct_count),
             ))
             .execute(conn)?;
         
@@ -209,4 +226,45 @@ pub fn get_overdue_vocabulary(user_id: String) -> Result<Vec<Vocabulary>> {
         .order(vocabulary::last_reviewed_at.desc())
         .load(&mut *conn)
         .map_err(|e| AppError::new("VOCABULARY_FETCH_ERROR", "Failed to fetch overdue vocabulary").with_details(e.to_string()))
+}
+
+#[tauri::command]
+pub fn get_vocabulary_accuracy_stats(user_id: String) -> Result<AccuracyStats> {
+    use crate::schema::vocabulary;
+
+    let mut conn = establish_connection()?;
+    
+    // Get all vocabulary items with review data
+    let vocabulary_items: Vec<Vocabulary> = vocabulary::table
+        .filter(vocabulary::user_id.eq(user_id))
+        .filter(vocabulary::review_count.gt(0))
+        .load(&mut *conn)
+        .map_err(|e| AppError::new("VOCABULARY_FETCH_ERROR", "Failed to fetch vocabulary for accuracy stats").with_details(e.to_string()))?;
+    
+    // Calculate totals
+    let mut total_reviews = 0;
+    let mut total_correct = 0;
+    let words_reviewed = vocabulary_items.len() as i32;
+    
+    for item in vocabulary_items {
+        let reviews = item.review_count.unwrap_or(0);
+        let correct = item.correct_count.unwrap_or(0);
+        
+        total_reviews += reviews;
+        total_correct += correct;
+    }
+    
+    // Calculate accuracy percentage as integer
+    let accuracy_percentage = if total_reviews > 0 {
+        ((total_correct as f64 / total_reviews as f64) * 100.0).round()
+    } else {
+        100.0 // No reviews yet, show 100%
+    };
+    
+    Ok(AccuracyStats {
+        total_reviews,
+        total_correct,
+        accuracy_percentage,
+        words_reviewed,
+    })
 }

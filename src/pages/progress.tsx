@@ -39,6 +39,9 @@ import { useLanguage } from "@/lib/i18n";
 import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useStudyTime } from "@/hooks/use-study-time";
+import { vocabularyApi } from "@/api/vocabulary";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 // Default weekly goal in hours
 const DEFAULT_WEEKLY_GOAL = 8;
@@ -49,9 +52,9 @@ function calculateDayStreak(vocabulary: any[]): number {
 
   // Get all review dates
   const reviewDates = vocabulary
-    .filter((item) => item.lastReviewed)
+    .filter((item) => item.last_reviewed_at)
     .map((item) => {
-      const date = new Date(item.lastReviewed);
+      const date = new Date(item.last_reviewed_at);
       return date.toDateString();
     })
     .filter((date, index, self) => self.indexOf(date) === index) // unique dates
@@ -90,46 +93,27 @@ function calculateDayStreak(vocabulary: any[]): number {
 function calculateAverageAccuracy(vocabulary: any[]): number {
   if (!vocabulary || vocabulary.length === 0) return 0;
 
-  // For calculating accuracy, we need to look at the actual review data
-  // Since the frontend vocabulary doesn't have the real review_count and consecutive_correct,
-  // we'll need to estimate based on review stage progress
-  // A word at stage N has been reviewed correctly N times (with the spaced repetition algorithm)
-  
+  // Calculate accuracy using real data if available
   const reviewedItems = vocabulary.filter(
-    (item) => item.reviewCount > 0 // reviewCount is actually review_stage
+    (item) => item.review_count > 0
   );
 
-  if (reviewedItems.length === 0) return 100; // No reviews yet, show 100%
+  if (reviewedItems.length === 0) return 0; // No reviews yet, show 0%
 
-  // Calculate accuracy based on review stage progression
-  // If a word reaches stage 5, it means it was answered correctly 5 times
-  // We estimate total attempts by adding some incorrect attempts based on difficulty
   let totalCorrect = 0;
   let totalAttempts = 0;
 
   reviewedItems.forEach((item) => {
-    const stage = item.reviewCount; // This is actually review_stage
-    // Each stage represents a correct answer
-    const correctAnswers = stage;
+    const reviews = item.review_count || 0;
+    const correct = item.correct_count || 0;
     
-    // Estimate total attempts based on how many times it might have been answered incorrectly
-    // Words that are "hard" likely had more incorrect attempts
-    let incorrectAttempts = 0;
-    if (item.difficulty === "hard") {
-      incorrectAttempts = Math.floor(stage * 0.3); // 30% error rate for hard words
-    } else if (item.difficulty === "medium") {
-      incorrectAttempts = Math.floor(stage * 0.15); // 15% error rate for medium words
-    } else {
-      incorrectAttempts = Math.floor(stage * 0.05); // 5% error rate for easy words
-    }
-    
-    totalCorrect += correctAnswers;
-    totalAttempts += correctAnswers + incorrectAttempts;
+    totalAttempts += reviews;
+    totalCorrect += correct;
   });
 
-  if (totalAttempts === 0) return 100;
+  if (totalAttempts === 0) return 0;
 
-  return Math.round((totalCorrect / totalAttempts) * 100 * 10) / 10; // Round to 1 decimal
+  return Math.round((totalCorrect / totalAttempts) * 100); // Round to integer
 }
 
 // Calculate vocabulary growth over time
@@ -141,8 +125,8 @@ function calculateVocabularyGrowth(vocabulary: any[]): any[] {
 
   // Sort vocabulary by creation date
   const sortedVocab = [...vocabulary].sort((a, b) => {
-    const dateA = new Date(a.lastReviewed || Date.now());
-    const dateB = new Date(b.lastReviewed || Date.now());
+    const dateA = new Date(a.last_reviewed_at || a.created_at || Date.now());
+    const dateB = new Date(b.last_reviewed_at || b.created_at || Date.now());
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -150,7 +134,7 @@ function calculateVocabularyGrowth(vocabulary: any[]): any[] {
   const growthData: any[] = [];
 
   sortedVocab.forEach((item) => {
-    const date = new Date(item.lastReviewed || Date.now());
+    const date = new Date(item.last_reviewed_at || item.created_at || Date.now());
     const dateStr = date.toISOString().split("T")[0];
 
     if (!growthMap.has(dateStr)) {
@@ -189,8 +173,8 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
 
   // Group vocabulary by last reviewed date
   vocabulary.forEach((item) => {
-    if (item.reviewCount > 0 && item.lastReviewed) {
-      const date = new Date(item.lastReviewed).toISOString().split("T")[0];
+    if (item.review_count > 0 && item.last_reviewed_at) {
+      const date = new Date(item.last_reviewed_at).toISOString().split("T")[0];
       
       if (!dailyWords.has(date)) {
         dailyWords.set(date, []);
@@ -208,27 +192,17 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
       let totalAttempts = 0;
 
       words.forEach((item) => {
-        const stage = item.reviewCount; // This is actually review_stage
-        const correctAnswers = stage;
+        const reviews = item.review_count || 0;
+        const correct = item.correct_count || 0;
         
-        // Estimate incorrect attempts based on difficulty
-        let incorrectAttempts = 0;
-        if (item.difficulty === "hard") {
-          incorrectAttempts = Math.floor(stage * 0.3);
-        } else if (item.difficulty === "medium") {
-          incorrectAttempts = Math.floor(stage * 0.15);
-        } else {
-          incorrectAttempts = Math.floor(stage * 0.05);
-        }
-        
-        totalCorrect += correctAnswers;
-        totalAttempts += correctAnswers + incorrectAttempts;
+        totalCorrect += correct;
+        totalAttempts += reviews;
       });
 
       return {
         date,
         accuracy: totalAttempts > 0
-          ? Math.round((totalCorrect / totalAttempts) * 100 * 10) / 10
+          ? Math.round((totalCorrect / totalAttempts) * 100)
           : 100,
       };
     });
@@ -266,6 +240,27 @@ export default function Progress() {
   } = useStudyTime();
   const [activeSection, setActiveSection] = useState("progress");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Fetch real accuracy stats from backend
+  const { data: accuracyStats, refetch: refetchAccuracyStats } = useQuery({
+    queryKey: ['accuracy-stats'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const stats = await vocabularyApi.getAccuracyStats(user.id);
+      return stats;
+    },
+    enabled: !!vocabulary.length, // Only fetch if we have vocabulary
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    staleTime: 0, // Always fetch fresh data
+  });
+
+  // Refetch accuracy stats when component mounts or vocabulary changes
+  useEffect(() => {
+    if (vocabulary.length > 0) {
+      refetchAccuracyStats();
+    }
+  }, [vocabulary.length, refetchAccuracyStats]);
 
   const handleSaveGoal = () => {
     const goalValue = parseFloat(newGoal);
@@ -307,7 +302,8 @@ export default function Progress() {
 
   // Calculate real-time statistics
   const currentStreak = calculateDayStreak(vocabulary);
-  const averageAccuracy = calculateAverageAccuracy(vocabulary);
+  // Use backend accuracy stats if available, otherwise calculate from frontend data
+  const averageAccuracy = accuracyStats?.accuracy_percentage ?? calculateAverageAccuracy(vocabulary);
   const vocabularyGrowth = calculateVocabularyGrowth(vocabulary);
   const accuracyTrend = calculateAccuracyTrend(vocabulary);
 
@@ -316,7 +312,7 @@ export default function Progress() {
     const wordsByDay = new Map<string, number>();
 
     vocabulary.forEach((item) => {
-      const date = new Date(item.lastReviewed || Date.now());
+      const date = new Date(item.last_reviewed_at || item.created_at || Date.now());
       const dateStr = date.toISOString().split("T")[0];
       wordsByDay.set(dateStr, (wordsByDay.get(dateStr) || 0) + 1);
     });
@@ -333,7 +329,7 @@ export default function Progress() {
   const weeklyStudyData = getWeeklyStudyData().map((day) => {
     // Count words added on this day
     const dayWords = vocabulary.filter((item) => {
-      const itemDate = new Date(item.lastReviewed || Date.now());
+      const itemDate = new Date(item.last_reviewed_at || item.created_at || Date.now());
       return itemDate.toISOString().split("T")[0] === day.date;
     }).length;
 

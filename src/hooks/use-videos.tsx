@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Video, VideoLibraryStats } from '@/types/video';
 import { invoke } from '@tauri-apps/api/core';
 import { vocabularyApi } from '@/api/vocabulary';
+import { useAuth } from '@/components/SupabaseAuthProvider';
 
 interface VideoMetadata {
   id: string;
@@ -62,6 +63,7 @@ export function useVideos() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [stats, setStats] = useState<VideoLibraryStats>({ totalVideos: 0, totalVocabulary: 0, dueReviews: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   const fetchVideos = async () => {
     try {
@@ -121,7 +123,16 @@ export function useVideos() {
       
       // Fetch real vocabulary stats
       try {
-        const vocabularyItems = await vocabularyApi.getAll('demo-user'); // TODO: Get actual user ID
+        if (!user?.id) {
+          setStats({
+            totalVideos: formattedVideos.length,
+            totalVocabulary: 0,
+            dueReviews: 0,
+          });
+          return;
+        }
+        
+        const vocabularyItems = await vocabularyApi.getAll(user.id);
         const now = new Date();
         const dueForReview = vocabularyItems.filter(item => 
           new Date(item.next_review_at) <= now
@@ -157,7 +168,7 @@ export function useVideos() {
 
   useEffect(() => {
     fetchVideos();
-  }, []);
+  }, [user?.id]);
 
   const refreshVideos = async () => {
     await fetchVideos();

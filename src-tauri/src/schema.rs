@@ -112,6 +112,7 @@ diesel::table! {
         consecutive_correct -> Nullable<Integer>,
         was_late -> Nullable<Bool>,
         ever_overdue -> Bool,
+        correct_count -> Nullable<Integer>,
     }
 }
 

@@ -32,6 +32,9 @@ export interface VocabularyItem {
   nextReview: string;
   isStarred: boolean;
   dictionaryResponse?: string;
+  // Additional fields for accuracy calculation
+  review_count?: number;
+  correct_count?: number;
 }
 
 export interface VocabularyStats {

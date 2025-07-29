@@ -17,6 +17,7 @@ import ReactMarkdown from "react-markdown";
 import { vocabularyApi } from "@/api/vocabulary";
 import { videoProgressApi } from "@/api/video-progress";
 import { VideoErrorBoundary, SubtitleErrorBoundary } from "@/components/video/video-error-boundary";
+import { useAuth } from "@/components/SupabaseAuthProvider";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
@@ -24,6 +25,7 @@ export default function VideoPlayer() {
   const [, params] = useRoute("/video/:videoId");
   const [, setLocation] = useLocation();
   const { videos, isLoading } = useVideos();
+  const { user } = useAuth();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -469,7 +471,7 @@ Write a natural and authentic English sentence using the phrase, followed by a f
 
       // Create vocabulary item
       await vocabularyApi.create({
-        user_id: "demo-user", // TODO: Get from auth context
+        user_id: user?.id || "", // Use authenticated user ID
         video_id: currentVideo.id,
         word: selectedWords.join(" "),
         timestamp: Math.floor(currentSub.start * 1000), // Convert subtitle start time to milliseconds

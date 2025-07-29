@@ -21,6 +21,8 @@ import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
 import { areStringsSimilar } from "@/utils/string-similarity";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/SupabaseAuthProvider";
 
 interface SubtitleLine {
   id: string;
@@ -34,11 +36,13 @@ interface SubtitleLine {
 export default function VocabularyReview() {
   const [location, setLocation] = useLocation();
   const { stats: videoStats, refreshVideos } = useVideos();
-  const { stats } = useVocabulary();
+  const { stats, updateReviewWithResult } = useVocabulary();
   const videoRef = useRef<HTMLVideoElement>(null);
   const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState("reviews");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Check if we're in an active review session based on URL
   const isActiveSession = location === "/vocabulary-review/session";
@@ -53,6 +57,7 @@ export default function VocabularyReview() {
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
   const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(new Set());
+  const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
   // Speech recognition state
   const [modelDownloadProgress, setModelDownloadProgress] = useState<
@@ -78,10 +83,15 @@ export default function VocabularyReview() {
   // Load vocabulary items due for review
   useEffect(() => {
     const loadReviewItems = async () => {
+      if (!user?.id) {
+        setReviewItems([]);
+        setIsLoadingReviews(false);
+        return;
+      }
+      
       try {
         setIsLoadingReviews(true);
-        // TODO: Get actual user ID from auth context
-        const userId = "demo-user";
+        const userId = user.id;
         const items = await vocabularyApi.getDueForReview(userId);
         setReviewItems(items);
       } catch (error) {
@@ -256,6 +266,7 @@ export default function VocabularyReview() {
     setShowAnswer(false);
     setShowMarkAsKnown(false);
     setShownAnswerItems(new Set());
+    setHasSubmittedReview(false);
     setLocation("/vocabulary-review/session");
   };
 
@@ -279,6 +290,14 @@ export default function VocabularyReview() {
     // Show "Mark as Known" button only when answer is incorrect
     if (!isAnswerCorrect) {
       setShowMarkAsKnown(true);
+    }
+
+    // Track the review if this is the first submission and not after showing answer
+    if (!hasSubmittedReview && !showAnswer && currentReview.id) {
+      await updateReviewWithResult(currentReview.id, isAnswerCorrect);
+      setHasSubmittedReview(true);
+      // Invalidate accuracy stats to force refresh
+      queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
     }
 
     // If answer was shown, handle differently
@@ -377,16 +396,7 @@ export default function VocabularyReview() {
     }
 
     // Normal flow: update database only if answer wasn't shown
-    try {
-      if (currentReview.id) {
-        await vocabularyApi.updateReviewWithResult(
-          currentReview.id,
-          isAnswerCorrect,
-        );
-      }
-    } catch (error) {
-      console.error("Error updating review:", error);
-    }
+    // This is now handled earlier in the function with hasSubmittedReview check
 
     // Play video and move to next only if correct and answer wasn't shown
     if (isAnswerCorrect) {
@@ -426,6 +436,7 @@ export default function VocabularyReview() {
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
+                    setHasSubmittedReview(false);
                   } else {
                     // Review completed
                     console.log("Review session completed");
@@ -437,6 +448,7 @@ export default function VocabularyReview() {
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
+                    setHasSubmittedReview(false);
                     setLocation("/vocabulary-review");
                   }
                 }, 500);
@@ -665,6 +677,7 @@ export default function VocabularyReview() {
       setIsCorrect(null);
       setShowAnswer(false);
       setShowMarkAsKnown(false);
+      setHasSubmittedReview(false);
     } else {
       setReviewStarted(false);
       setCurrentReviewIndex(0);
@@ -682,8 +695,11 @@ export default function VocabularyReview() {
 
     try {
       // Update the vocabulary item as correct in the database
-      if (currentReview.id) {
-        await vocabularyApi.updateReviewWithResult(currentReview.id, true);
+      if (currentReview.id && !hasSubmittedReview) {
+        await updateReviewWithResult(currentReview.id, true);
+        setHasSubmittedReview(true);
+        // Invalidate accuracy stats to force refresh
+        queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
       }
 
       // Play the current sentence automatically before moving to next
@@ -711,6 +727,7 @@ export default function VocabularyReview() {
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
+                    setHasSubmittedReview(false);
                     setShowMarkAsKnown(false);
                   } else {
                     // Review completed
@@ -722,6 +739,7 @@ export default function VocabularyReview() {
                     setShowAnswer(false);
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
+                    setHasSubmittedReview(false);
                     setLocation("/vocabulary-review");
                   }
                 }, 500);
@@ -768,6 +786,38 @@ export default function VocabularyReview() {
   const handleCopyAnswer = () => {
     if (currentReview) {
       setUserAnswer(currentReview.target_en);
+    }
+  };
+
+  // Helper function to move to next question and handle failed reviews
+  const moveToNextQuestion = async () => {
+    // If answer was shown but not marked as known, record as failed review
+    if (showAnswer && !hasSubmittedReview && currentReview?.id) {
+      await updateReviewWithResult(currentReview.id, false);
+      setHasSubmittedReview(true);
+      // Invalidate accuracy stats to force refresh
+      queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
+    }
+
+    if (currentReviewIndex < reviewItems.length - 1) {
+      setCurrentReviewIndex((prev) => prev + 1);
+      setUserAnswer("");
+      setIsCorrect(null);
+      setShowAnswer(false);
+      setShowMarkAsKnown(false);
+      setHasSubmittedReview(false);
+    } else {
+      // Review completed
+      alert("Review session completed!");
+      setReviewStarted(false);
+      setCurrentReviewIndex(0);
+      setUserAnswer("");
+      setIsCorrect(null);
+      setShowAnswer(false);
+      setShowMarkAsKnown(false);
+      setShownAnswerItems(new Set());
+      setHasSubmittedReview(false);
+      setLocation("/vocabulary-review");
     }
   };
 

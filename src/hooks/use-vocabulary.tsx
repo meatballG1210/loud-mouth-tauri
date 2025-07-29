@@ -3,6 +3,7 @@ import { VocabularyItem, VocabularyStats } from '@/types/video';
 import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabulary';
 import { useVideos } from './use-videos';
 import { getStageLabel } from '@/utils/review-scheduler';
+import { useAuth } from '@/components/SupabaseAuthProvider';
 
 // Extract Chinese translation from dictionary response
 function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
@@ -44,7 +45,10 @@ function convertToFrontendVocabulary(item: any, videos: any[]): VocabularyItem {
     lastReviewed: item.last_reviewed_at || item.created_at || new Date().toISOString().split('T')[0],
     nextReview: item.next_review_at ? item.next_review_at.split('T')[0] : new Date().toISOString().split('T')[0],
     isStarred: false, // Backend doesn't track this yet
-    dictionaryResponse: item.dictionary_response
+    dictionaryResponse: item.dictionary_response,
+    // Add the actual review and correct counts for accuracy calculation
+    review_count: item.review_count || 0,
+    correct_count: item.correct_count || 0
   };
 }
 
@@ -58,17 +62,29 @@ export function useVocabulary() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const { videos } = useVideos();
+  const { user } = useAuth();
 
-  // Fetch vocabulary data on mount and when videos change
+  // Fetch vocabulary data on mount and when videos or user changes
   useEffect(() => {
     fetchVocabulary();
-  }, [videos]);
+  }, [videos, user?.id]);
 
   const fetchVocabulary = async () => {
+    if (!user?.id) {
+      setVocabulary([]);
+      setStats({
+        totalWords: 0,
+        wordsToReview: 0,
+        masteredWords: 0,
+        overdueWords: 0
+      });
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       setIsLoading(true);
-      // TODO: Get actual user ID from auth context
-      const userId = 'demo-user';
+      const userId = user.id;
       
       const backendVocabulary = await vocabularyApi.getAll(userId);
       const convertedVocabulary = backendVocabulary.map(item => 
@@ -164,9 +180,11 @@ export function useVocabulary() {
     }
   };
 
-  const getDueForReview = async (userId: string): Promise<ApiVocabularyItem[]> => {
+  const getDueForReview = async (): Promise<ApiVocabularyItem[]> => {
+    if (!user?.id) return [];
+    
     try {
-      return await vocabularyApi.getDueForReview(userId);
+      return await vocabularyApi.getDueForReview(user.id);
     } catch (error) {
       console.error('Error getting due reviews:', error);
       return [];
