@@ -57,6 +57,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    video_progress (id) {
+        id -> Text,
+        user_id -> Integer,
+        video_id -> Text,
+        position -> Integer,
+        duration -> Integer,
+        updated_at -> Text,
+    }
+}
+
+diesel::table! {
     videos (id) {
         id -> Text,
         user_id -> Integer,
@@ -108,6 +119,8 @@ diesel::joinable!(file_integrity_checks -> videos (video_id));
 diesel::joinable!(subtitles -> videos (video_id));
 diesel::joinable!(user_profiles -> users (user_id));
 diesel::joinable!(user_settings -> users (user_id));
+diesel::joinable!(video_progress -> users (user_id));
+diesel::joinable!(video_progress -> videos (video_id));
 diesel::joinable!(videos -> users (user_id));
 diesel::joinable!(vocabulary -> videos (video_id));
 
@@ -117,6 +130,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_profiles,
     user_settings,
     users,
+    video_progress,
     videos,
     vocabulary,
 );

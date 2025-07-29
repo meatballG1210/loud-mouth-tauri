@@ -15,6 +15,7 @@ import { Video } from "@/types/video";
 import { parseWebVTT } from "@/utils/subtitle-parser";
 import ReactMarkdown from "react-markdown";
 import { vocabularyApi } from "@/api/vocabulary";
+import { videoProgressApi } from "@/api/video-progress";
 import { VideoErrorBoundary, SubtitleErrorBoundary } from "@/components/video/video-error-boundary";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
@@ -46,6 +47,8 @@ export default function VideoPlayer() {
   const [englishSubtitles, setEnglishSubtitles] = useState<SubtitleLine[]>([]);
   const [chineseSubtitles, setChineseSubtitles] = useState<SubtitleLine[]>([]);
   const [subtitlesLoading, setSubtitlesLoading] = useState(false);
+  const [lastSavedPosition, setLastSavedPosition] = useState(0);
+  const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (params?.videoId && !isLoading) {
@@ -120,6 +123,99 @@ export default function VideoPlayer() {
 
     loadSubtitles();
   }, [currentVideo]);
+
+  // Load saved progress when video changes
+  useEffect(() => {
+    if (!currentVideo) return;
+
+    const loadProgress = async () => {
+      try {
+        const userId = 1; // TODO: Get from auth context
+        const progress = await videoProgressApi.get(userId, currentVideo.id);
+        
+        if (progress && progress.position > 0 && videoRef.current) {
+          // Wait for video to be ready before seeking
+          const seekToPosition = () => {
+            if (videoRef.current && videoRef.current.readyState >= 3) {
+              videoRef.current.currentTime = progress.position;
+              setCurrentTime(progress.position);
+              setLastSavedPosition(progress.position);
+              console.log(`Restored playback position to ${progress.position}s`);
+            }
+          };
+
+          if (videoRef.current.readyState >= 3) {
+            seekToPosition();
+          } else {
+            videoRef.current.addEventListener('loadeddata', seekToPosition, { once: true });
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load video progress:", error);
+      }
+    };
+
+    loadProgress();
+  }, [currentVideo]);
+
+  // Save progress periodically when playing
+  useEffect(() => {
+    if (!currentVideo || !isPlaying) {
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+        progressSaveIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const saveProgress = async () => {
+      if (!videoRef.current || Math.abs(currentTime - lastSavedPosition) < 1) {
+        return; // Don't save if position hasn't changed significantly
+      }
+
+      try {
+        const userId = 1; // TODO: Get from auth context
+        await videoProgressApi.save({
+          user_id: userId,
+          video_id: currentVideo.id,
+          position: Math.floor(currentTime),
+          duration: Math.floor(duration),
+        });
+        setLastSavedPosition(currentTime);
+        console.log(`Saved playback position: ${Math.floor(currentTime)}s`);
+      } catch (error) {
+        console.error("Failed to save video progress:", error);
+      }
+    };
+
+    // Save immediately when starting to play
+    saveProgress();
+
+    // Then save every 5 seconds
+    progressSaveIntervalRef.current = setInterval(saveProgress, 5000);
+
+    return () => {
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+        progressSaveIntervalRef.current = null;
+      }
+    };
+  }, [currentVideo, isPlaying, currentTime, duration, lastSavedPosition]);
+
+  // Save progress when component unmounts or video changes
+  useEffect(() => {
+    return () => {
+      if (currentVideo && videoRef.current && currentTime > 0) {
+        const userId = 1; // TODO: Get from auth context
+        videoProgressApi.save({
+          user_id: userId,
+          video_id: currentVideo.id,
+          position: Math.floor(currentTime),
+          duration: Math.floor(duration),
+        }).catch(console.error);
+      }
+    };
+  }, [currentVideo, currentTime, duration]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -401,6 +497,19 @@ Write a natural and authentic English sentence using the phrase, followed by a f
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
+    
+    // Save progress when pausing
+    if (isPlaying && currentVideo && currentTime > 0) {
+      const userId = 1; // TODO: Get from auth context
+      videoProgressApi.save({
+        user_id: userId,
+        video_id: currentVideo.id,
+        position: Math.floor(currentTime),
+        duration: Math.floor(duration),
+      }).then(() => {
+        console.log(`Saved playback position on pause: ${Math.floor(currentTime)}s`);
+      }).catch(console.error);
+    }
   };
 
   const handleVolumeToggle = () => {

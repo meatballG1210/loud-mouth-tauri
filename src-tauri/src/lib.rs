@@ -84,7 +84,10 @@ pub fn run() {
             commands::transcribe_audio,
             commands::check_whisper_model,
             commands::download_whisper_model,
-            commands::get_available_whisper_models
+            commands::get_available_whisper_models,
+            commands::save_video_progress,
+            commands::get_video_progress,
+            commands::delete_video_progress
         ])
         .register_uri_scheme_protocol("stream", |_app, request| {
             // Get the path from the URL
