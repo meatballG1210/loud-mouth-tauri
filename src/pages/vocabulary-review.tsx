@@ -56,7 +56,9 @@ export default function VocabularyReview() {
   const [isListening, setIsListening] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
-  const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(new Set());
+  const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(
+    new Set(),
+  );
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
   // Speech recognition state
@@ -88,7 +90,7 @@ export default function VocabularyReview() {
         setIsLoadingReviews(false);
         return;
       }
-      
+
       try {
         setIsLoadingReviews(true);
         const userId = user.id;
@@ -110,7 +112,10 @@ export default function VocabularyReview() {
   // Cleanup effect - stop any recording when component unmounts
   useEffect(() => {
     return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state === "recording"
+      ) {
         mediaRecorderRef.current.stop();
       }
       setIsListening(false);
@@ -210,15 +215,18 @@ export default function VocabularyReview() {
   // Navigation functions
   const handleNavigate = (section: string) => {
     console.log("Navigate to:", section);
-    
+
     // Clean up any ongoing audio recording
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.stop();
     }
     setIsListening(false);
     setIsProcessingAudio(false);
     setCountdown(null);
-    
+
     if (section === "home") {
       setLocation("/");
     } else if (section === "vocabulary-review" || section === "back") {
@@ -286,7 +294,7 @@ export default function VocabularyReview() {
     );
 
     setIsCorrect(isAnswerCorrect);
-    
+
     // Show "Mark as Known" button only when answer is incorrect
     if (!isAnswerCorrect) {
       setShowMarkAsKnown(true);
@@ -297,15 +305,15 @@ export default function VocabularyReview() {
       await updateReviewWithResult(currentReview.id, isAnswerCorrect);
       setHasSubmittedReview(true);
       // Invalidate accuracy stats to force refresh
-      queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
+      queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
     }
 
     // If answer was shown, handle differently
     if (showAnswer && currentReview.id) {
       // Add to end of queue for re-review
-      setReviewItems(prev => [...prev, currentReview]);
-      setShownAnswerItems(prev => new Set(prev).add(currentReview.id!));
-      
+      setReviewItems((prev) => [...prev, currentReview]);
+      setShownAnswerItems((prev) => new Set(prev).add(currentReview.id!));
+
       // Handle based on correctness
       if (isAnswerCorrect) {
         // CORRECT: Play video then move to next
@@ -322,7 +330,9 @@ export default function VocabularyReview() {
           video
             .play()
             .then(() => {
-              console.log("Video started playing successfully (after show answer)");
+              console.log(
+                "Video started playing successfully (after show answer)",
+              );
               // Set up a one-time event listener to stop at the end time
               const handleTimeUpdate = () => {
                 if (video.currentTime >= endTime) {
@@ -365,7 +375,7 @@ export default function VocabularyReview() {
               console.error("Error playing video after show answer:", error);
               // Re-enable auto-pause on error
               setShouldAutoPause(true);
-              
+
               // Still move to next even if video fails
               setTimeout(() => {
                 if (currentReviewIndex < reviewItems.length - 1) {
@@ -391,7 +401,7 @@ export default function VocabularyReview() {
       }
       // INCORRECT: Stay on current word - don't move to next
       // User can retry or click "Mark as Known"
-      
+
       return; // Exit early - no DB update in either case
     }
 
@@ -475,7 +485,7 @@ export default function VocabularyReview() {
     try {
       // Start countdown
       setCountdown(3);
-      
+
       // Countdown timer
       const countdownInterval = setInterval(() => {
         setCountdown((prev) => {
@@ -656,21 +666,24 @@ export default function VocabularyReview() {
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "recording"
     ) {
-      setIsListening(false);  // Immediately update UI
+      setIsListening(false); // Immediately update UI
       mediaRecorderRef.current.stop();
     }
-    setCountdown(null);  // Clear countdown if active
+    setCountdown(null); // Clear countdown if active
   };
 
   const handleSkip = () => {
     // Clean up any ongoing audio recording
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.stop();
     }
     setIsListening(false);
     setIsProcessingAudio(false);
     setCountdown(null);
-    
+
     if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
       setUserAnswer("");
@@ -699,7 +712,7 @@ export default function VocabularyReview() {
         await updateReviewWithResult(currentReview.id, true);
         setHasSubmittedReview(true);
         // Invalidate accuracy stats to force refresh
-        queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
+        queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
       }
 
       // Play the current sentence automatically before moving to next
@@ -710,8 +723,9 @@ export default function VocabularyReview() {
 
         setShouldAutoPause(false);
         video.currentTime = startTime;
-        
-        video.play()
+
+        video
+          .play()
           .then(() => {
             const handleTimeUpdate = () => {
               if (video.currentTime >= endTime) {
@@ -751,7 +765,7 @@ export default function VocabularyReview() {
           .catch((error) => {
             console.error("Error playing video after marking as known:", error);
             setShouldAutoPause(true);
-            
+
             // Still move to next even if video fails
             if (currentReviewIndex < reviewItems.length - 1) {
               setCurrentReviewIndex((prev) => prev + 1);
@@ -796,7 +810,7 @@ export default function VocabularyReview() {
       await updateReviewWithResult(currentReview.id, false);
       setHasSubmittedReview(true);
       // Invalidate accuracy stats to force refresh
-      queryClient.invalidateQueries({ queryKey: ['accuracy-stats'] });
+      queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
     }
 
     if (currentReviewIndex < reviewItems.length - 1) {
@@ -961,267 +975,275 @@ export default function VocabularyReview() {
       <ReviewErrorBoundary>
         <div className="h-screen bg-white flex flex-col macos-body">
           <div className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Header */}
-          <div
-            className="bg-white border-b px-6 py-4"
-            style={{ borderColor: "var(--macos-border)" }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleNavigate("vocabulary-review")}
-                  className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm font-medium">{t("back")}</span>
-                </button>
-                <div>
-                  <h1 className="text-xl macos-title text-gray-900">
-                    {t("vocabularyReview")}
-                  </h1>
-                  <p className="text-sm text-gray-500 macos-body">
-                    {`${currentReviewIndex + 1} of ${reviewItems.length}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="flex items-center space-x-4">
-                <div className="w-32 macos-progress">
-                  <div
-                    className="macos-progress-fill"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <span className="text-sm text-gray-500 font-medium macos-body">
-                  {Math.round(progress)}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Review Interface */}
-          <div className="flex flex-1 overflow-hidden">
-            {/* Left Side - Video Player */}
-            <div className="w-2/3 bg-black flex flex-col">
-              {/* Video */}
-              <div className="flex-1 relative">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-contain"
-                  src={(() => {
-                    const video =
-                      currentReview &&
-                      videos.find((v) => v.id === currentReview.video_id);
-                    if (!video?.path) return "";
-
-                    // Use same format as video-player.tsx
-                    const encodedPath = video.path
-                      .split("/")
-                      .map((segment) => encodeURIComponent(segment))
-                      .join("/");
-                    return `stream://localhost/${encodedPath}`;
-                  })()}
-                  onClick={togglePlayPause}
-                />
-
-                {/* Play/Pause Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+            {/* Header */}
+            <div
+              className="bg-white border-b px-6 py-4"
+              style={{ borderColor: "var(--macos-border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
                   <button
-                    onClick={togglePlayPause}
-                    className="bg-white bg-opacity-80 rounded-full p-4 hover:bg-opacity-100 transition-all"
+                    onClick={() => handleNavigate("vocabulary-review")}
+                    className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
                   >
-                    {isPlaying ? (
-                      <Pause className="w-8 h-8 text-gray-800" />
-                    ) : (
-                      <Play className="w-8 h-8 text-gray-800 ml-1" />
-                    )}
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="text-sm font-medium">{t("back")}</span>
                   </button>
-                </div>
-              </div>
-
-              {/* Subtitles */}
-              <div className="p-4 space-y-2 bg-gray-50 border-t border-gray-200">
-                {subtitles
-                  .filter((s) => s.language === "english")
-                  .map((subtitle) => (
-                    <div
-                      key={subtitle.id}
-                      className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
-                        subtitle.position === "current"
-                          ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
-                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
-                      }`}
-                    >
-                      {subtitle.position === "current"
-                        ? subtitles.find((s) => s.id === "3-zh")?.text ||
-                          subtitle.text
-                        : subtitle.text}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Right Side - Review Interface */}
-            <div className="w-1/3 bg-white flex flex-col border-l border-gray-200">
-              <div className="p-6 space-y-4 flex-1">
-                {/* Feedback */}
-                {isCorrect !== null && (
-                  <div
-                    className={`p-4 rounded-lg border ${
-                      isCorrect
-                        ? "bg-green-50 border-green-200 text-green-800"
-                        : "bg-red-50 border-red-200 text-red-800"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      {isCorrect ? (
-                        <Check className="w-5 h-5 text-green-600" />
-                      ) : (
-                        <X className="w-5 h-5 text-red-600" />
-                      )}
-                      <span className="font-medium macos-body">
-                        {isCorrect ? t("correct") : t("incorrect")}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm macos-body">
-                      {isCorrect ? t("wellDone") : t("tryAgain")}
+                  <div>
+                    <h1 className="text-xl macos-title text-gray-900">
+                      {t("vocabularyReview")}
+                    </h1>
+                    <p className="text-sm text-gray-500 macos-body">
+                      {`${currentReviewIndex + 1} of ${reviewItems.length}`}
                     </p>
                   </div>
-                )}
+                </div>
 
-                {/* Input Section */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                    {t("listenAndType")}
-                  </h4>
-                  <div className="space-y-3">
-                    <textarea
-                      value={userAnswer}
-                      onChange={(e) => setUserAnswer(e.target.value)}
-                      placeholder={t("typeEnglishSentence")}
-                      className="w-full macos-input resize-none macos-body"
-                      rows={3}
+                {/* Progress Bar */}
+                <div className="flex items-center space-x-4">
+                  <div className="w-32 macos-progress">
+                    <div
+                      className="macos-progress-fill"
+                      style={{ width: `${progress}%` }}
                     />
+                  </div>
+                  <span className="text-sm text-gray-500 font-medium macos-body">
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+              </div>
+            </div>
 
-                    <div className="flex space-x-2">
-                      {!isListening && !isProcessingAudio && countdown === null ? (
-                        <button
-                          onClick={handleVoiceInput}
-                          disabled={isModelDownloading}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
-                        >
-                          <Mic className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {isModelDownloading
-                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
-                              : t("voiceInput")}
-                          </span>
-                        </button>
-                      ) : countdown !== null ? (
-                        <button
-                          disabled
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed"
-                        >
-                          <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
-                          <span className="text-sm font-medium">
-                            {countdown === 0 ? (t("speakNow") || "Speak now!") : `${t("getReady") || "Get ready"} ${countdown}...`}
-                          </span>
-                        </button>
-                      ) : isListening ? (
-                        <button
-                          onClick={stopVoiceRecording}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse"
-                        >
-                          <div className="w-4 h-4 bg-white rounded-full" />
-                          <span className="text-sm font-medium">
-                            {t("stopRecording") || "Stop Recording"}
-                          </span>
-                        </button>
+            {/* Review Interface */}
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left Side - Video Player */}
+              <div className="w-2/3 bg-black flex flex-col">
+                {/* Video */}
+                <div className="flex-1 relative">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-contain"
+                    src={(() => {
+                      const video =
+                        currentReview &&
+                        videos.find((v) => v.id === currentReview.video_id);
+                      if (!video?.path) return "";
+
+                      // Use same format as video-player.tsx
+                      const encodedPath = video.path
+                        .split("/")
+                        .map((segment) => encodeURIComponent(segment))
+                        .join("/");
+                      return `stream://localhost/${encodedPath}`;
+                    })()}
+                    onClick={togglePlayPause}
+                  />
+
+                  {/* Play/Pause Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={togglePlayPause}
+                      className="bg-white bg-opacity-80 rounded-full p-4 hover:bg-opacity-100 transition-all"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-8 h-8 text-gray-800" />
                       ) : (
-                        <button
-                          disabled
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed"
-                        >
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                          <span className="text-sm font-medium">
-                            {t("processing") || "Processing..."}
-                          </span>
-                        </button>
+                        <Play className="w-8 h-8 text-gray-800 ml-1" />
                       )}
-                      <button
-                        onClick={handleSkip}
-                        className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t("skip")}</span>
-                      </button>
-                      <button
-                        onClick={handleShowAnswer}
-                        className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {t("showAnswer")}
-                        </span>
-                      </button>
-                      {showMarkAsKnown && isCorrect === false && (
-                        <button
-                          onClick={handleMarkAsKnown}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600"
-                        >
-                          <Check className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {t("markAsKnown")}
-                          </span>
-                        </button>
-                      )}
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* Show Answer */}
-                {showAnswer && (
+                {/* Subtitles */}
+                <div className="p-4 space-y-2 bg-gray-50 border-t border-gray-200">
+                  {subtitles
+                    .filter((s) => s.language === "english")
+                    .map((subtitle) => (
+                      <div
+                        key={subtitle.id}
+                        className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
+                          subtitle.position === "current"
+                            ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
+                            : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
+                        }`}
+                      >
+                        {subtitle.position === "current"
+                          ? subtitles.find((s) => s.id === "3-zh")?.text ||
+                            subtitle.text
+                          : subtitle.text}
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Right Side - Review Interface */}
+              <div className="w-1/3 bg-white flex flex-col border-l border-gray-200">
+                <div className="p-6 space-y-4 flex-1">
+                  {/* Feedback */}
+                  {isCorrect !== null && (
+                    <div
+                      className={`p-4 rounded-lg border ${
+                        isCorrect
+                          ? "bg-green-50 border-green-200 text-green-800"
+                          : "bg-red-50 border-red-200 text-red-800"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        {isCorrect ? (
+                          <Check className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <X className="w-5 h-5 text-red-600" />
+                        )}
+                        <span className="font-medium macos-body">
+                          {isCorrect ? t("correct") : t("incorrect")}
+                        </span>
+                      </div>
+                      {isCorrect && currentReview?.target_en && (
+                        <p className="mt-2 text-sm text-green-700 italic macos-body">
+                          "{currentReview.target_en}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Input Section */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                      {t("correctAnswerFull")}
+                      {t("listenAndType")}
                     </h4>
-                    <div className="bg-white rounded-md p-3 border border-gray-200 min-h-[60px]">
-                      <p className="text-gray-800 italic macos-body leading-relaxed break-words">
-                        "{currentReview?.target_en}"
-                      </p>
-                    </div>
                     <div className="space-y-3">
-                      <button
-                        onClick={handleCopyAnswer}
-                        className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
-                      >
-                        <Copy className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {t("copyAnswerToInput")}
-                        </span>
-                      </button>
-                      <div className="text-xs text-gray-500 macos-body">
-                        {t("practiceTyping")}
+                      <textarea
+                        value={userAnswer}
+                        onChange={(e) => setUserAnswer(e.target.value)}
+                        placeholder={t("typeEnglishSentence")}
+                        className="w-full macos-input resize-none macos-body"
+                        rows={3}
+                      />
+
+                      <div className="flex space-x-2">
+                        {!isListening &&
+                        !isProcessingAudio &&
+                        countdown === null ? (
+                          <button
+                            onClick={handleVoiceInput}
+                            disabled={isModelDownloading}
+                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
+                          >
+                            <Mic className="w-4 h-4" />
+                            <span className="text-sm font-medium">
+                              {isModelDownloading
+                                ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
+                                : t("voiceInput")}
+                            </span>
+                          </button>
+                        ) : countdown !== null ? (
+                          <button
+                            disabled
+                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed"
+                          >
+                            <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
+                            <span className="text-sm font-medium">
+                              {countdown === 0
+                                ? t("speakNow") || "Speak now!"
+                                : `${t("getReady") || "Get ready"} ${countdown}...`}
+                            </span>
+                          </button>
+                        ) : isListening ? (
+                          <button
+                            onClick={stopVoiceRecording}
+                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                          >
+                            <div className="w-4 h-4 bg-white rounded-full" />
+                            <span className="text-sm font-medium">
+                              {t("stopRecording") || "Stop Recording"}
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed"
+                          >
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                            <span className="text-sm font-medium">
+                              {t("processing") || "Processing..."}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          onClick={handleSkip}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {t("skip")}
+                          </span>
+                        </button>
+                        <button
+                          onClick={handleShowAnswer}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {t("showAnswer")}
+                          </span>
+                        </button>
+                        {showMarkAsKnown && isCorrect === false && (
+                          <button
+                            onClick={handleMarkAsKnown}
+                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span className="text-sm font-medium">
+                              {t("markAsKnown")}
+                            </span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* Submit Button */}
-                <button
-                  onClick={handleSubmitAnswer}
-                  disabled={!userAnswer.trim()}
-                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  <span className="text-sm font-medium">
-                    {t("submitAnswer")}
-                  </span>
-                </button>
+                  {/* Show Answer */}
+                  {showAnswer && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
+                        {t("correctAnswerFull")}
+                      </h4>
+                      <div className="bg-white rounded-md p-3 border border-gray-200 min-h-[60px]">
+                        <p className="text-gray-800 italic macos-body leading-relaxed break-words">
+                          "{currentReview?.target_en}"
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        <button
+                          onClick={handleCopyAnswer}
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
+                        >
+                          <Copy className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {t("copyAnswerToInput")}
+                          </span>
+                        </button>
+                        <div className="text-xs text-gray-500 macos-body">
+                          {t("practiceTyping")}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitAnswer}
+                    disabled={!userAnswer.trim()}
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-sm font-medium">
+                      {t("submitAnswer")}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       </ReviewErrorBoundary>
     );
@@ -1246,68 +1268,70 @@ export default function VocabularyReview() {
           <ReviewErrorBoundary>
             {/* Content Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {t("vocabularyReview")}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">{t("readyToStart")}</p>
-            </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center max-w-lg mx-auto">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Volume2 className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {t("vocabularyReview")}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("readyToStart")}
+                </p>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {t("readyToStart")}?
-              </h2>
-              <p className="text-gray-600 mb-8">
-                {t("reviewDescription").replace(
-                  "{count}",
-                  stats.wordsToReview.toString(),
-                )}
-              </p>
+            </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-8">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  {t("reviewStatistics")}
-                </h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {stats.wordsToReview}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-lg mx-auto">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Volume2 className="w-8 h-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  {t("readyToStart")}?
+                </h2>
+                <p className="text-gray-600 mb-8">
+                  {t("reviewDescription").replace(
+                    "{count}",
+                    stats.wordsToReview.toString(),
+                  )}
+                </p>
+
+                <div className="bg-gray-50 rounded-lg p-4 mb-8">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {t("reviewStatistics")}
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {stats.wordsToReview}
+                      </div>
+                      <div className="text-gray-500">{t("wordsToReview")}</div>
                     </div>
-                    <div className="text-gray-500">{t("wordsToReview")}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {stats.masteredWords}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {stats.masteredWords}
+                      </div>
+                      <div className="text-gray-500">{t("masteredWords")}</div>
                     </div>
-                    <div className="text-gray-500">{t("masteredWords")}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {stats.overdueWords}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {stats.overdueWords}
+                      </div>
+                      <div className="text-gray-500">{t("overdueWords")}</div>
                     </div>
-                    <div className="text-gray-500">{t("overdueWords")}</div>
                   </div>
                 </div>
-              </div>
 
-              <button
-                onClick={startReview}
-                disabled={stats.wordsToReview === 0}
-                className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                <span className="text-sm font-medium">
-                  {stats.wordsToReview > 0
-                    ? t("startReview")
-                    : t("noReviewsDue")}
-                </span>
-              </button>
+                <button
+                  onClick={startReview}
+                  disabled={stats.wordsToReview === 0}
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  <span className="text-sm font-medium">
+                    {stats.wordsToReview > 0
+                      ? t("startReview")
+                      : t("noReviewsDue")}
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
           </ReviewErrorBoundary>
         </div>
       </div>
