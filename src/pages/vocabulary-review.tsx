@@ -23,6 +23,7 @@ import { areStringsSimilar } from "@/utils/string-similarity";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
+import { ReviewCompletionDialog } from "@/components/vocabulary/review-completion-dialog";
 
 interface SubtitleLine {
   id: string;
@@ -46,6 +47,9 @@ export default function VocabularyReview() {
 
   // Check if we're in an active review session based on URL
   const isActiveSession = location === "/vocabulary-review/session";
+  
+  // Completion dialog state
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   // Review state
   const [reviewStarted, setReviewStarted] = useState(isActiveSession);
@@ -355,7 +359,7 @@ export default function VocabularyReview() {
                     } else {
                       // Review completed
                       console.log("Review session completed");
-                      alert("Review session completed!");
+                      setShowCompletionDialog(true);
                       setReviewStarted(false);
                       setCurrentReviewIndex(0);
                       setUserAnswer("");
@@ -385,7 +389,7 @@ export default function VocabularyReview() {
                   setShowAnswer(false);
                   setShowMarkAsKnown(false);
                 } else {
-                  alert("Review session completed!");
+                  setShowCompletionDialog(true);
                   setReviewStarted(false);
                   setCurrentReviewIndex(0);
                   setUserAnswer("");
@@ -450,7 +454,7 @@ export default function VocabularyReview() {
                   } else {
                     // Review completed
                     console.log("Review session completed");
-                    alert("Review session completed!");
+                    setShowCompletionDialog(true);
                     setReviewStarted(false);
                     setCurrentReviewIndex(0);
                     setUserAnswer("");
@@ -745,7 +749,7 @@ export default function VocabularyReview() {
                     setShowMarkAsKnown(false);
                   } else {
                     // Review completed
-                    alert("Review session completed!");
+                    setShowCompletionDialog(true);
                     setReviewStarted(false);
                     setCurrentReviewIndex(0);
                     setUserAnswer("");
@@ -774,7 +778,7 @@ export default function VocabularyReview() {
               setShowAnswer(false);
               setShowMarkAsKnown(false);
             } else {
-              alert("Review session completed!");
+              setShowCompletionDialog(true);
               setReviewStarted(false);
               setCurrentReviewIndex(0);
               setUserAnswer("");
@@ -822,7 +826,7 @@ export default function VocabularyReview() {
       setHasSubmittedReview(false);
     } else {
       // Review completed
-      alert("Review session completed!");
+      setShowCompletionDialog(true);
       setReviewStarted(false);
       setCurrentReviewIndex(0);
       setUserAnswer("");
@@ -1335,6 +1339,12 @@ export default function VocabularyReview() {
           </ReviewErrorBoundary>
         </div>
       </div>
+      
+      {/* Review Completion Dialog */}
+      <ReviewCompletionDialog
+        open={showCompletionDialog}
+        onOpenChange={setShowCompletionDialog}
+      />
     </div>
   );
 }
