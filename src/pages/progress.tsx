@@ -52,9 +52,9 @@ function calculateDayStreak(vocabulary: any[]): number {
 
   // Get all review dates
   const reviewDates = vocabulary
-    .filter((item) => item.last_reviewed_at)
+    .filter((item) => item.lastReviewed)
     .map((item) => {
-      const date = new Date(item.last_reviewed_at);
+      const date = new Date(item.lastReviewed);
       return date.toDateString();
     })
     .filter((date, index, self) => self.indexOf(date) === index) // unique dates
@@ -125,8 +125,8 @@ function calculateVocabularyGrowth(vocabulary: any[]): any[] {
 
   // Sort vocabulary by creation date
   const sortedVocab = [...vocabulary].sort((a, b) => {
-    const dateA = new Date(a.last_reviewed_at || a.created_at || Date.now());
-    const dateB = new Date(b.last_reviewed_at || b.created_at || Date.now());
+    const dateA = new Date(a.lastReviewed || Date.now());
+    const dateB = new Date(b.lastReviewed || Date.now());
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -134,7 +134,7 @@ function calculateVocabularyGrowth(vocabulary: any[]): any[] {
   const growthData: any[] = [];
 
   sortedVocab.forEach((item) => {
-    const date = new Date(item.last_reviewed_at || item.created_at || Date.now());
+    const date = new Date(item.lastReviewed || Date.now());
     const dateStr = date.toISOString().split("T")[0];
 
     if (!growthMap.has(dateStr)) {
@@ -173,8 +173,8 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
 
   // Group vocabulary by last reviewed date
   vocabulary.forEach((item) => {
-    if (item.review_count > 0 && item.last_reviewed_at) {
-      const date = new Date(item.last_reviewed_at).toISOString().split("T")[0];
+    if (item.review_count > 0 && item.lastReviewed) {
+      const date = new Date(item.lastReviewed).toISOString().split("T")[0];
       
       if (!dailyWords.has(date)) {
         dailyWords.set(date, []);
@@ -312,7 +312,7 @@ export default function Progress() {
     const wordsByDay = new Map<string, number>();
 
     vocabulary.forEach((item) => {
-      const date = new Date(item.last_reviewed_at || item.created_at || Date.now());
+      const date = new Date(item.lastReviewed || Date.now());
       const dateStr = date.toISOString().split("T")[0];
       wordsByDay.set(dateStr, (wordsByDay.get(dateStr) || 0) + 1);
     });
@@ -329,7 +329,7 @@ export default function Progress() {
   const weeklyStudyData = getWeeklyStudyData().map((day) => {
     // Count words added on this day
     const dayWords = vocabulary.filter((item) => {
-      const itemDate = new Date(item.last_reviewed_at || item.created_at || Date.now());
+      const itemDate = new Date(item.lastReviewed || Date.now());
       return itemDate.toISOString().split("T")[0] === day.date;
     }).length;
 
