@@ -156,6 +156,9 @@ export const translations = {
     chooseHours: 'Choose how many hours you want to study each week.',
     hoursPerWeek: 'Hours per week',
     recommendedHours: 'Recommended: 5-10 hours per week for steady progress',
+    overview: 'Overview',
+    vocabularyProgress: 'Vocabulary Progress',
+    performance: 'Performance',
     
     // Vocabulary Review
     vocabularyReview: 'Vocabulary Review',
@@ -430,6 +433,9 @@ export const translations = {
     chooseHours: '选择您每周要学习的小时数。',
     hoursPerWeek: '每周小时数',
     recommendedHours: '建议：每周5-10小时稳步进步',
+    overview: '概览',
+    vocabularyProgress: '词汇进度',
+    performance: '表现',
     
     // Vocabulary Review
     vocabularyReview: '词汇复习',
