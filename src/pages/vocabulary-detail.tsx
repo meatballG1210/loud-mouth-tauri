@@ -186,13 +186,13 @@ export default function VocabularyDetail() {
     if (videoRef.current && videoReady) {
       // Pause the video first to ensure smooth seeking
       videoRef.current.pause();
-      
+
       // Set the current time
       videoRef.current.currentTime = word.timestamp;
-      
+
       // Wait a moment for the seek to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Play the video
       try {
         await videoRef.current.play();
@@ -274,28 +274,31 @@ export default function VocabularyDetail() {
               {currentVideo?.path ? (
                 <video
                   ref={videoRef}
-                className="w-full h-full object-contain"
-                src={(() => {
-                  // Use stream protocol for video playback
-                  const encodedPath = currentVideo.path
-                    .split("/")
-                    .map((segment) => encodeURIComponent(segment))
-                    .join("/");
-                  const streamUrl = `stream://localhost/${encodedPath}`;
-                  console.log("Video stream URL:", streamUrl);
-                  return streamUrl;
-                })()}
-                onClick={togglePlayPause}
-                onLoadedMetadata={(e) => {
-                  const video = e.currentTarget;
-                  setDuration(video.duration);
-                  setVideoReady(true);
-                  console.log("Video metadata loaded, duration:", video.duration);
-                }}
-                onError={(e) => {
-                  console.error("Video playback error:", e);
-                  setVideoReady(false);
-                }}
+                  className="w-full h-full object-contain"
+                  src={(() => {
+                    // Use stream protocol for video playback
+                    const encodedPath = currentVideo.path
+                      .split("/")
+                      .map((segment) => encodeURIComponent(segment))
+                      .join("/");
+                    const streamUrl = `stream://localhost/${encodedPath}`;
+                    console.log("Video stream URL:", streamUrl);
+                    return streamUrl;
+                  })()}
+                  onClick={togglePlayPause}
+                  onLoadedMetadata={(e) => {
+                    const video = e.currentTarget;
+                    setDuration(video.duration);
+                    setVideoReady(true);
+                    console.log(
+                      "Video metadata loaded, duration:",
+                      video.duration,
+                    );
+                  }}
+                  onError={(e) => {
+                    console.error("Video playback error:", e);
+                    setVideoReady(false);
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white">
@@ -348,7 +351,6 @@ export default function VocabularyDetail() {
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Right Side - Word List */}
@@ -357,155 +359,134 @@ export default function VocabularyDetail() {
             {/* Controls */}
             <div className="border-b border-gray-200 px-6 py-3">
               <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleBack}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Vocabulary Words
-                  </h2>
-                  <p className="text-sm text-gray-500">{videoTitle}</p>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleBack}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Vocabulary Words
+                    </h2>
+                    <p className="text-sm text-gray-500">{videoTitle}</p>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-500">
+                  {filteredWords.length} words
                 </div>
               </div>
-
-              <div className="text-sm text-gray-500">
-                {filteredWords.length} words
-              </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="all">All Words</option>
-                <option value="starred">Starred Only</option>
-                <option value="due">Due for Review</option>
-              </select>
+            {/* Word List */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                {filteredWords.map((word) => (
+                  <div
+                    key={word.id}
+                    className={`bg-white border border-gray-200 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                      selectedWordId === word.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "hover:border-gray-300"
+                    }`}
+                    onClick={() => handleWordClick(word)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {word.word}
+                          </h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleStar(word.id);
+                            }}
+                            className={`p-1 rounded-full transition-colors ${
+                              word.isStarred
+                                ? "text-yellow-500 hover:text-yellow-600"
+                                : "text-gray-400 hover:text-yellow-500"
+                            }`}
+                            disabled={isLoading}
+                          >
+                            <Star
+                              className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
+                            />
+                          </button>
+                        </div>
 
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="timestamp">Sort by Timeline</option>
-                <option value="word">Sort by Word</option>
-              </select>
-            </div>
-          </div>
+                        <p className="text-gray-700 mb-3">{word.translation}</p>
 
-          {/* Word List */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-4">
-              {filteredWords.map((word) => (
-                <div
-                  key={word.id}
-                  className={`bg-white border border-gray-200 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
-                    selectedWordId === word.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "hover:border-gray-300"
-                  }`}
-                  onClick={() => handleWordClick(word)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {word.word}
-                        </h3>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <p className="text-sm text-gray-800 italic">
+                            "{word.context}"
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-4">
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatTime(word.timestamp)}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Target className="w-3 h-3" />
+                              <span>Reviewed {word.reviewCount}x</span>
+                            </span>
+                          </div>
+                          {isWordDue(word.nextReview) && (
+                            <span className="text-red-600 font-medium">
+                              Due for Review
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleToggleStar(word.id);
+                            setDetailWordId(word.id);
                           }}
-                          className={`p-1 rounded-full transition-colors ${
-                            word.isStarred
-                              ? "text-yellow-500 hover:text-yellow-600"
-                              : "text-gray-400 hover:text-yellow-500"
-                          }`}
+                          className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                          title="View details"
                           disabled={isLoading}
                         >
-                          <Star
-                            className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
-                          />
+                          <Info className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteWord(word.id);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete word"
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-
-                      <p className="text-gray-700 mb-3">{word.translation}</p>
-
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <p className="text-sm text-gray-800 italic">
-                          "{word.context}"
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center space-x-4">
-                          <span className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatTime(word.timestamp)}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Target className="w-3 h-3" />
-                            <span>Reviewed {word.reviewCount}x</span>
-                          </span>
-                        </div>
-                        {isWordDue(word.nextReview) && (
-                          <span className="text-red-600 font-medium">
-                            Due for Review
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDetailWordId(word.id);
-                        }}
-                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                        title="View details"
-                        disabled={isLoading}
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteWord(word.id);
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Delete word"
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {filteredWords.length === 0 && (
-                <div className="text-center py-12">
-                  <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No vocabulary words found
-                  </h3>
-                  <p className="text-gray-500">
-                    {filterBy === "all"
-                      ? "No vocabulary has been saved for this video yet."
-                      : `No ${filterBy} vocabulary words found. Try changing the filter.`}
-                  </p>
-                </div>
-              )}
+                {filteredWords.length === 0 && (
+                  <div className="text-center py-12">
+                    <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No vocabulary words found
+                    </h3>
+                    <p className="text-gray-500">
+                      {filterBy === "all"
+                        ? "No vocabulary has been saved for this video yet."
+                        : `No ${filterBy} vocabulary words found. Try changing the filter.`}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
           </VocabularyErrorBoundary>
         </div>
       </div>
