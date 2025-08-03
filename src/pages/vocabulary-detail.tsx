@@ -269,6 +269,16 @@ export default function VocabularyDetail() {
 
   const handleWordClick = async (word: VocabularyItem) => {
     setSelectedWordId(word.id);
+    // Start looping the sentence instead of just playing from timestamp
+    if (loopingWordId === word.id) {
+      exitLoop();
+    } else {
+      await startLoop(word);
+    }
+  };
+
+  const jumpToTimestamp = async (word: VocabularyItem) => {
+    setSelectedWordId(word.id);
     if (videoRef.current && videoReady) {
       // Pause the video first to ensure smooth seeking
       videoRef.current.pause();
@@ -541,7 +551,7 @@ export default function VocabularyDetail() {
                         )}
                       </div>
 
-                      <div className="flex items-center space-x-1 ml-4">
+                      <div className="flex items-center space-x-2 ml-4">
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -553,19 +563,19 @@ export default function VocabularyDetail() {
                               await startLoop(word);
                             }
                           }}
-                          className={`p-2 transition-colors rounded-lg hover:bg-gray-100 ${
+                          className={`p-2 transition-all rounded-lg font-medium ${
                             loopingWordId === word.id
-                              ? "text-blue-500 hover:text-blue-600"
-                              : "text-gray-400 hover:text-blue-500"
+                              ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                              : "bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600"
                           }`}
-                          title={loopingWordId === word.id ? "Pause loop" : "Loop sentence"}
+                          title={loopingWordId === word.id ? "Stop loop" : "Loop sentence"}
                           disabled={isLoading}
                           type="button"
                         >
                           {loopingWordId === word.id ? (
-                            <Pause className="w-4 h-4" />
+                            <Pause className="w-5 h-5" />
                           ) : (
-                            <RotateCw className="w-4 h-4" />
+                            <RotateCw className="w-5 h-5" />
                           )}
                         </button>
                         <button
@@ -573,22 +583,22 @@ export default function VocabularyDetail() {
                             e.stopPropagation();
                             setDetailWordId(word.id);
                           }}
-                          className="p-2 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100"
+                          className="p-2 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700 transition-all rounded-lg font-medium"
                           title="View details"
                           disabled={isLoading}
                         >
-                          <Info className="w-4 h-4" />
+                          <Info className="w-5 h-5" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteWord(word.id);
                           }}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100"
+                          className="p-2 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-all rounded-lg font-medium"
                           title="Delete word"
                           disabled={isLoading}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -730,7 +740,7 @@ export default function VocabularyDetail() {
                     <div className="flex space-x-3 pt-4 border-t border-gray-200">
                       <button
                         onClick={async () => {
-                          await handleWordClick(detailWord);
+                          await jumpToTimestamp(detailWord);
                           setDetailWordId(null);
                         }}
                         className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
