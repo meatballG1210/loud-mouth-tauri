@@ -21,6 +21,11 @@ import { VocabularyErrorBoundary } from "@/components/vocabulary/vocabulary-erro
 import { VideoErrorBoundary } from "@/components/video/video-error-boundary";
 import { invoke } from "@tauri-apps/api/core";
 import { parseWebVTT, SubtitleLine } from "@/utils/subtitle-parser";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function VocabularyDetail() {
   const [match, params] = useRoute("/vocabulary-list/:videoId");
@@ -578,17 +583,48 @@ export default function VocabularyDetail() {
                             <RotateCw className="w-5 h-5" />
                           )}
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDetailWordId(word.id);
-                          }}
-                          className="p-2 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700 transition-all rounded-lg font-medium"
-                          title="View details"
-                          disabled={isLoading}
-                        >
-                          <Info className="w-5 h-5" />
-                        </button>
+                        <Popover open={detailWordId === word.id} onOpenChange={(open) => setDetailWordId(open ? word.id : null)}>
+                          <PopoverTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              className="p-2 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700 transition-all rounded-lg font-medium"
+                              title="View details"
+                              disabled={isLoading}
+                            >
+                              <Info className="w-5 h-5" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" align="end">
+                            <div>
+                              <div className="flex items-start justify-between mb-3">
+                                <h3 className="text-lg font-bold text-gray-900">
+                                  {word.word}
+                                </h3>
+                                <button
+                                  onClick={() => setDetailWordId(null)}
+                                  className="p-1 hover:bg-gray-100 rounded transition-colors -mr-1 -mt-1"
+                                >
+                                  <X className="w-4 h-4 text-gray-500" />
+                                </button>
+                              </div>
+                              {word.dictionaryResponse ? (
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                    {word.dictionaryResponse}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                  <p className="text-sm text-gray-500 text-center italic">
+                                    No dictionary definition available
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -624,147 +660,6 @@ export default function VocabularyDetail() {
         </div>
       </div>
 
-      {/* Word Details Modal */}
-      {detailWordId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
-            {(() => {
-              const detailWord = filteredWords.find(
-                (w) => w.id === detailWordId,
-              );
-              if (!detailWord) return null;
-
-              return (
-                <>
-                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Word Details
-                    </h2>
-                    <button
-                      onClick={() => setDetailWordId(null)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-600" />
-                    </button>
-                  </div>
-
-                  <div className="p-6 space-y-6">
-                    {/* Word and Translation */}
-                    <div>
-                      <div className="flex items-center space-x-3 mb-3">
-                        <h3 className="text-2xl font-bold text-gray-900">
-                          {detailWord.word}
-                        </h3>
-                        <button
-                          onClick={() => handleToggleStar(detailWord.id)}
-                          className={`p-2 rounded-full transition-colors ${
-                            detailWord.isStarred
-                              ? "text-yellow-500 hover:text-yellow-600"
-                              : "text-gray-400 hover:text-yellow-500"
-                          }`}
-                          disabled={isLoading}
-                        >
-                          <Star
-                            className={`w-5 h-5 ${detailWord.isStarred ? "fill-current" : ""}`}
-                          />
-                        </button>
-                      </div>
-                      <p className="text-lg text-gray-700">
-                        {detailWord.translation}
-                      </p>
-                    </div>
-
-                    {/* Context */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                        Context
-                      </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-800 italic">
-                          "{detailWord.context}"
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Dictionary Response */}
-                    {detailWord.dictionaryResponse && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                          Dictionary Definition
-                        </h4>
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {detailWord.dictionaryResponse}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Learning Progress */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                        Learning Progress
-                      </h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">
-                            Review Count
-                          </span>
-                          <span className="font-medium">
-                            {detailWord.reviewCount} times
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">
-                            Last Reviewed
-                          </span>
-                          <span className="font-medium">
-                            {detailWord.lastReviewed}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">
-                            Next Review
-                          </span>
-                          <span
-                            className={`font-medium ${isWordDue(detailWord.nextReview) ? "text-red-600" : "text-green-600"}`}
-                          >
-                            {detailWord.nextReview}
-                            {isWordDue(detailWord.nextReview) && " (Due)"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3 pt-4 border-t border-gray-200">
-                      <button
-                        onClick={async () => {
-                          await jumpToTimestamp(detailWord);
-                          setDetailWordId(null);
-                        }}
-                        className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Jump to Video
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDeleteWord(detailWord.id);
-                          setDetailWordId(null);
-                        }}
-                        className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                        disabled={isLoading}
-                      >
-                        Delete Word
-                      </button>
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
