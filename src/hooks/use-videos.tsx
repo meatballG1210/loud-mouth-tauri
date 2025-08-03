@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Video, VideoLibraryStats } from '@/types/video';
 import { invoke } from '@tauri-apps/api/core';
 import { vocabularyApi } from '@/api/vocabulary';
+import { videoProgressApi } from '@/api/video-progress';
 import { useAuth } from '@/components/SupabaseAuthProvider';
 
 interface VideoMetadata {
@@ -119,7 +120,24 @@ export function useVideos() {
         })
       );
       
-      setVideos(formattedVideos);
+      // Fetch progress for each video
+      const videosWithProgress = await Promise.all(
+        formattedVideos.map(async (video) => {
+          try {
+            const progress = await videoProgressApi.get(userId, video.id);
+            if (progress && progress.duration > 0) {
+              const percentage = Math.min(100, Math.round((progress.position / progress.duration) * 100));
+              return { ...video, progress: percentage };
+            }
+          } catch (error) {
+            // Ignore errors, just no progress shown
+            console.log(`No progress data for video ${video.id}`);
+          }
+          return video;
+        })
+      );
+      
+      setVideos(videosWithProgress);
       
       // Fetch real vocabulary stats
       try {

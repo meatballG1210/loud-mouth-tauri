@@ -101,6 +101,13 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUpl
                   <div className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded">
                     {video.duration}
                   </div>
+                  
+                  {/* Progress bar */}
+                  {video.progress && video.progress > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                      <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${video.progress}%` }}></div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex-1 ml-4 min-w-0">

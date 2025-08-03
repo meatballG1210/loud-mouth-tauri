@@ -75,6 +75,13 @@ export function VideoCard({ video, onPlay, onDelete }: VideoCardProps) {
           </div>
         </div>
         
+        {/* Progress bar */}
+        {video.progress && video.progress > 0 && (
+          <div className="h-1 bg-gray-200">
+            <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${video.progress}%` }}></div>
+          </div>
+        )}
+        
         <div className="p-4">
           <h3 className="font-semibold text-gray-900 text-sm mb-2 line-clamp-2">
             {video.title}

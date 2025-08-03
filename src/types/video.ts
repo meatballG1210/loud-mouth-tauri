@@ -10,6 +10,7 @@ export interface Video {
     chinese: boolean;
   };
   path?: string; // Path to the video file
+  progress?: number; // Percentage watched (0-100)
 }
 
 export interface VideoLibraryStats {
