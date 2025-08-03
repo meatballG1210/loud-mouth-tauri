@@ -479,69 +479,73 @@ export default function VocabularyDetail() {
                 {filteredWords.map((word) => (
                   <div
                     key={word.id}
-                    className={`bg-white border border-gray-200 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                    className={`bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md ${
                       selectedWordId === word.id
                         ? "border-blue-500 bg-blue-50"
                         : "hover:border-gray-300"
                     }`}
                     onClick={() => handleWordClick(word)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {word.word}
-                          </h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleStar(word.id);
-                            }}
-                            className={`p-1 rounded-full transition-colors ${
-                              word.isStarred
-                                ? "text-yellow-500 hover:text-yellow-600"
-                                : "text-gray-400 hover:text-yellow-500"
-                            }`}
-                            disabled={isLoading}
-                          >
-                            <Star
-                              className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
-                            />
-                          </button>
-                        </div>
-
-                        <p className="text-gray-700 mb-3">{word.translation}</p>
-
-                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                          <p className="text-sm text-gray-800 italic">
-                            "{word.context}"
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center space-x-4">
-                            <span className="flex items-center space-x-1">
-                              <Clock className="w-3 h-3" />
-                              <span>{formatTime(word.timestamp)}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Target className="w-3 h-3" />
-                              <span>Reviewed {word.reviewCount}x</span>
-                            </span>
+                    {/* Card Header */}
+                    <div className="p-4 pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {word.word}
+                            </h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleStar(word.id);
+                              }}
+                              className={`p-1 rounded-full transition-colors ${
+                                word.isStarred
+                                  ? "text-yellow-500 hover:text-yellow-600"
+                                  : "text-gray-400 hover:text-yellow-500"
+                              }`}
+                              disabled={isLoading}
+                            >
+                              <Star
+                                className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
+                              />
+                            </button>
                           </div>
-                          {isWordDue(word.nextReview) && (
-                            <span className="text-red-600 font-medium">
-                              Due for Review
-                            </span>
-                          )}
+                          <p className="text-gray-700">{word.translation}</p>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="flex items-center space-x-1">
+                    {/* Context Sentence - Full Width Background */}
+                    <div className="bg-gray-50 px-4 py-3">
+                      <p className="text-sm text-gray-800 italic">
+                        "{word.context}"
+                      </p>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatTime(word.timestamp)}</span>
+                        </span>
+                        <span className="flex items-center space-x-1">
+                          <Target className="w-3 h-3" />
+                          <span>Reviewed {word.reviewCount}x</span>
+                        </span>
+                        {isWordDue(word.nextReview) && (
+                          <span className="text-red-600 font-medium">
+                            Due for Review
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-1 ml-4">
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            e.preventDefault(); // Prevent any default button behavior
+                            e.preventDefault();
                             
                             if (loopingWordId === word.id) {
                               exitLoop();
@@ -549,7 +553,7 @@ export default function VocabularyDetail() {
                               await startLoop(word);
                             }
                           }}
-                          className={`p-2 transition-colors ${
+                          className={`p-2 transition-colors rounded-lg hover:bg-gray-100 ${
                             loopingWordId === word.id
                               ? "text-blue-500 hover:text-blue-600"
                               : "text-gray-400 hover:text-blue-500"
@@ -569,7 +573,7 @@ export default function VocabularyDetail() {
                             e.stopPropagation();
                             setDetailWordId(word.id);
                           }}
-                          className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                          className="p-2 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100"
                           title="View details"
                           disabled={isLoading}
                         >
@@ -580,7 +584,7 @@ export default function VocabularyDetail() {
                             e.stopPropagation();
                             handleDeleteWord(word.id);
                           }}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100"
                           title="Delete word"
                           disabled={isLoading}
                         >
