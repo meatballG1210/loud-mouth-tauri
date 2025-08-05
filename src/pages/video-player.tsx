@@ -290,25 +290,21 @@ export default function VideoPlayer() {
     }
 
     const text = words.join(" ");
-    const prompt = `Please act as a professional English teacher and explain "${text}", follow this structured format exactly:
+    const prompt = `Analyze "${text}" precisely:
 
-**Chinese Translation**
+### ${text}
+**中文**: [直译]
 
-Provide the most natural and context-appropriate Chinese translation that accurately conveys the original meaning.
+${words.length > 1 ? `**解析**:
+- 词组原型: [提取基础形式，如 "rip one's heart out"]
+- 成分分析: [解释关键词含义和词性，如: rip (撕裂/动词), out (副词小品词/表示完全、彻底)]
+- 使用场景: [具体使用情境，不要泛泛而谈]` : '**词性**: [词性] | **核心含义**: [最重要的1-2个意思]'}
 
-**Usage Explanation**
+**例句**  
+> [含有该词的句子]  
+> *[中文翻译]*
 
-Please write in Chinese.
-Explain fixed expressions, sentence patterns, or phrase usage (e.g., "have sb do sth", "quite the…").
-
-If the phrase is slang or idiomatic, also include:
-- Explain its literal meaning and how it evolved into its figurative meaning
-- Describe the origin or metaphor (e.g., from sports, war, pop culture, historical references, etc.)
-- If relevant, add its timeline or usage trend (e.g., 1990s school slang, AAVE, etc.)
-
-**Example Sentence**
-
-Write a natural and authentic English sentence using the phrase, followed by a fluent and accurate Chinese translation.`;
+只提供有价值的信息，删除所有重复、冗余的描述。`;
 
     try {
       const response = await fetch(
@@ -327,8 +323,8 @@ Write a natural and authentic English sentence using the phrase, followed by a f
                 content: prompt,
               },
             ],
-            temperature: 0.7,
-            max_tokens: 500,
+            temperature: 0.3,
+            max_tokens: 200,
           }),
         },
       );
