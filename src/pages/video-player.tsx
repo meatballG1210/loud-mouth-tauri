@@ -9,6 +9,7 @@ import {
   Pause,
   RotateCcw,
   RotateCw,
+  Check,
 } from "lucide-react";
 import { useVideos } from "@/hooks/use-videos";
 import { Video } from "@/types/video";
@@ -699,7 +700,7 @@ ${words.length > 1 ? `**解析**:
             <SubtitleErrorBoundary>
               {currentSubtitle && (
                 <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20" onClick={(e) => e.stopPropagation()}>
-                  <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center">
+                  <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center relative">
                     <div className="text-white text-lg leading-relaxed">
                       {currentSubtitle.text.split(" ").map((word, index) => (
                         <span
@@ -718,6 +719,39 @@ ${words.length > 1 ? `**解析**:
                         </span>
                       ))}
                     </div>
+                    {/* Subtle checkmark button for confirming selection */}
+                    {selectedWords.length > 0 && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (selectionTimer) {
+                            clearTimeout(selectionTimer);
+                          }
+                          
+                          // Set lookup position based on subtitle container
+                          const subtitleContainer = e.currentTarget.parentElement;
+                          if (subtitleContainer) {
+                            const rect = subtitleContainer.getBoundingClientRect();
+                            setLookupPosition({
+                              x: rect.left + rect.width / 2,
+                              y: rect.top - 10,
+                            });
+                          }
+                          
+                          setIsLoadingLookup(true);
+                          setShowLookupPopup(true);
+                          const wordInfo = await fetchWordInfo(selectedWords);
+                          if (wordInfo) {
+                            setLookupData(wordInfo);
+                          }
+                          setIsLoadingLookup(false);
+                        }}
+                        className="absolute -right-12 top-1/2 transform -translate-y-1/2 p-2 bg-transparent hover:bg-white hover:bg-opacity-10 rounded-full transition-all duration-200"
+                        title="Confirm selection"
+                      >
+                        <Check className="w-4 h-4 text-white opacity-70 hover:opacity-100" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
