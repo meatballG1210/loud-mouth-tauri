@@ -921,7 +921,7 @@ ${words.length > 1 ? `**解析**:
       {/* Word Lookup Popup */}
       {showLookupPopup && selectedWords.length > 0 && (
         <div
-          className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50 max-w-md"
+          className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50 max-w-md select-text"
           style={{
             left: `${lookupPosition.x}px`,
             top: `${lookupPosition.y}px`,
@@ -947,7 +947,7 @@ ${words.length > 1 ? `**解析**:
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : lookupData ? (
-            <div className="prose prose-sm max-w-none">
+            <div className="prose prose-sm max-w-none select-text">
               <ReactMarkdown>{lookupData}</ReactMarkdown>
             </div>
           ) : (
