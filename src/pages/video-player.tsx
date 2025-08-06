@@ -22,6 +22,12 @@ import { useAuth } from "@/components/SupabaseAuthProvider";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
+type SelectedWord = {
+  text: string;      // cleaned word without punctuation
+  index: number;     // position in the subtitle
+  original: string;  // original word with punctuation
+};
+
 export default function VideoPlayer() {
   const [, params] = useRoute("/video/:videoId");
   const [, setLocation] = useLocation();
@@ -37,7 +43,7 @@ export default function VideoPlayer() {
     "english" | "chinese" | "off"
   >("english");
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [selectedWords, setSelectedWords] = useState<string[]>([]);
+  const [selectedWords, setSelectedWords] = useState<SelectedWord[]>([]);
   const [selectionTimer, setSelectionTimer] = useState<NodeJS.Timeout | null>(
     null,
   );
@@ -273,6 +279,26 @@ export default function VideoPlayer() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const cleanWordForSelection = (word: string): string => {
+    // Step 1: Normalize quotes and apostrophes
+    let cleaned = word
+      .replace(/["""`]/g, '"')     // Normalize quotes
+      .replace(/[''`]/g, "'");      // Normalize apostrophes
+    
+    // Step 2: Remove surrounding punctuation but keep internal apostrophes
+    cleaned = cleaned
+      .replace(/^[^\w]+/, '')       // Remove leading punctuation
+      .replace(/[^\w']+$/, '');     // Remove trailing (keep apostrophes)
+    
+    // Step 3: Handle special cases
+    if (cleaned.endsWith("'s") || cleaned.endsWith("'")) {
+      // Keep possessives and contractions intact
+      return cleaned;
+    }
+    
+    return cleaned;
+  };
+
   const getCurrentSubtitle = () => {
     if (activeLanguage === "off") return null;
     const subtitles =
@@ -283,20 +309,24 @@ export default function VideoPlayer() {
     );
   };
 
-  const fetchWordInfo = async (words: string[]) => {
+  const fetchWordInfo = async (words: SelectedWord[]) => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     if (!apiKey || apiKey === "your_openai_api_key_here") {
       console.error("OpenAI API key not configured");
       return null;
     }
 
-    const text = words.join(" ");
+    // Extract just the cleaned text for API, sorted by position
+    const wordTexts = words
+      .sort((a, b) => a.index - b.index)
+      .map(w => w.text);
+    const text = wordTexts.join(" ");
     const prompt = `Analyze "${text}" precisely:
 
 ### ${text}
 **中文**: [直译]
 
-${words.length > 1 ? `**解析**:
+${wordTexts.length > 1 ? `**解析**:
 - 词组原型: [提取基础形式，如 "rip one's heart out"]
 - 成分分析: [解释关键词含义和词性，如: rip (撕裂/动词), out (副词小品词/表示完全、彻底)]
 - 使用场景: [具体使用情境，不要泛泛而谈]` : '**词性**: [词性] | **核心含义**: [最重要的1-2个意思]'}
@@ -342,7 +372,7 @@ ${words.length > 1 ? `**解析**:
     }
   };
 
-  const handleWordClick = (word: string, event: React.MouseEvent) => {
+  const handleWordClick = (word: string, index: number, event: React.MouseEvent) => {
     const rect = (event.target as HTMLElement).getBoundingClientRect();
 
     // Clear existing timer
@@ -354,15 +384,20 @@ ${words.length > 1 ? `**解析**:
     setShowLookupPopup(false);
 
     // Toggle word selection and calculate new word list
-    const cleanWord = word.replace(/[.,!?;:]$/, ""); // Remove punctuation
-    let newSelectedWords: string[] = [];
+    const cleanWord = cleanWordForSelection(word);
+    let newSelectedWords: SelectedWord[] = [];
 
     setSelectedWords((prev) => {
-      const isSelected = prev.includes(cleanWord);
-      if (isSelected) {
-        newSelectedWords = prev.filter((w) => w !== cleanWord);
+      const existingIndex = prev.findIndex(
+        w => w.text === cleanWord && w.index === index
+      );
+      
+      if (existingIndex >= 0) {
+        // Remove this specific instance
+        newSelectedWords = prev.filter((_, i) => i !== existingIndex);
       } else {
-        newSelectedWords = [...prev, cleanWord];
+        // Add this specific instance
+        newSelectedWords = [...prev, { text: cleanWord, index, original: word }];
       }
       return newSelectedWords;
     });
@@ -467,10 +502,15 @@ ${words.length > 1 ? `**解析**:
       console.log("VVVVVVVVVVideo current time: ", currentTime);
 
       // Create vocabulary item
+      const wordPhrase = selectedWords
+        .sort((a, b) => a.index - b.index)  // Keep word order
+        .map(w => w.text)
+        .join(" ");
+      
       await vocabularyApi.create({
         user_id: user?.id || "", // Use authenticated user ID
         video_id: currentVideo.id,
-        word: selectedWords.join(" "),
+        word: wordPhrase,
         timestamp: Math.floor(currentSub.start * 1000), // Convert subtitle start time to milliseconds
         before_2_en: before2En || undefined,
         before_2_zh: before2Zh || undefined,
@@ -702,22 +742,27 @@ ${words.length > 1 ? `**解析**:
                 <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20" onClick={(e) => e.stopPropagation()}>
                   <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center relative">
                     <div className="text-white text-lg leading-relaxed">
-                      {currentSubtitle.text.split(" ").map((word, index) => (
-                        <span
-                          key={index}
-                          className={`hover:bg-yellow-400 hover:text-black px-1 rounded cursor-pointer transition-colors ${
-                            selectedWords.includes(word.replace(/[.,!?;:]$/, ""))
-                              ? "bg-yellow-400 text-black"
-                              : ""
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleWordClick(word, e);
-                          }}
-                        >
-                          {word}{" "}
-                        </span>
-                      ))}
+                      {currentSubtitle.text.split(" ").map((word, index) => {
+                        const cleanWord = cleanWordForSelection(word);
+                        const isSelected = selectedWords.some(
+                          w => w.text === cleanWord && w.index === index
+                        );
+                        
+                        return (
+                          <span
+                            key={`${index}-${word}`}
+                            className={`hover:bg-yellow-400 hover:text-black px-1 rounded cursor-pointer transition-colors ${
+                              isSelected ? "bg-yellow-400 text-black" : ""
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleWordClick(word, index, e);
+                            }}
+                          >
+                            {word}{" "}
+                          </span>
+                        );
+                      })}
                     </div>
                     {/* Subtle checkmark button for confirming selection */}
                     {selectedWords.length > 0 && (
@@ -932,7 +977,10 @@ ${words.length > 1 ? `**解析**:
         >
           <div className="flex justify-between items-start mb-3">
             <h3 className="font-bold text-lg text-gray-900">
-              {selectedWords.join(" ")}
+              {selectedWords
+                .sort((a, b) => a.index - b.index)
+                .map(w => w.text)
+                .join(" ")}
             </h3>
             <button
               onClick={closeLookupPopup}
