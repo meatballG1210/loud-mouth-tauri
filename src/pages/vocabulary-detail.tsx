@@ -26,6 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import ReactMarkdown from "react-markdown";
 
 export default function VocabularyDetail() {
   const [match, params] = useRoute("/vocabulary-list/:videoId");
@@ -596,24 +597,19 @@ export default function VocabularyDetail() {
                               <Info className="w-5 h-5" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80" align="end">
-                            <div>
-                              <div className="flex items-start justify-between mb-3">
-                                <h3 className="text-lg font-bold text-gray-900">
-                                  {word.word}
-                                </h3>
-                                <button
-                                  onClick={() => setDetailWordId(null)}
-                                  className="p-1 hover:bg-gray-100 rounded transition-colors -mr-1 -mt-1"
-                                >
-                                  <X className="w-4 h-4 text-gray-500" />
-                                </button>
-                              </div>
+                          <PopoverContent className="w-96 max-h-[80vh] overflow-y-auto" align="end">
+                            <div className="relative">
+                              <button
+                                onClick={() => setDetailWordId(null)}
+                                className="absolute top-0 right-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                              >
+                                <X className="w-4 h-4 text-gray-500" />
+                              </button>
                               {word.dictionaryResponse ? (
-                                <div className="bg-gray-50 rounded-lg p-3">
-                                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                <div className="prose prose-sm max-w-none pr-8">
+                                  <ReactMarkdown>
                                     {word.dictionaryResponse}
-                                  </div>
+                                  </ReactMarkdown>
                                 </div>
                               ) : (
                                 <div className="bg-gray-50 rounded-lg p-3">
