@@ -76,6 +76,10 @@ export const vocabularyApi = {
     return await invoke<VocabularyItem[]>("get_vocabulary_due_for_review", { userId });
   },
 
+  async getDueForReviewByVideo(userId: string, videoId: string): Promise<VocabularyItem[]> {
+    return await invoke<VocabularyItem[]>("get_vocabulary_due_for_review_by_video", { userId, videoId });
+  },
+
   async updateReviewWithResult(vocabularyId: string, isCorrect: boolean): Promise<VocabularyItem> {
     return await invoke<VocabularyItem>("update_vocabulary_review_with_result", { vocabularyId, isCorrect });
   },

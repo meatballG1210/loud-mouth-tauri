@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import {
   ArrowLeft,
   Play,
@@ -36,6 +36,11 @@ interface SubtitleLine {
 
 export default function VocabularyReview() {
   const [location, setLocation] = useLocation();
+  const [matchSession, paramsSession] = useRoute("/vocabulary-review/:videoId/session");
+  const [matchSetup, paramsSetup] = useRoute("/vocabulary-review/:videoId");
+  // Filter out "session" as a videoId since it's a route keyword
+  const rawVideoId = paramsSession?.videoId || paramsSetup?.videoId;
+  const reviewVideoId = (rawVideoId && rawVideoId !== "session") ? rawVideoId : undefined;
   const { stats: videoStats, refreshVideos } = useVideos();
   const { stats, updateReviewWithResult } = useVocabulary();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,7 +51,8 @@ export default function VocabularyReview() {
   const { user } = useAuth();
 
   // Check if we're in an active review session based on URL
-  const isActiveSession = location === "/vocabulary-review/session";
+  const isActiveSession = location === "/vocabulary-review/session" || matchSession;
+  const isGeneralReviewSession = location === "/vocabulary-review/session" && !reviewVideoId;
   
   // Completion dialog state
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -85,6 +91,10 @@ export default function VocabularyReview() {
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [subtitles, setSubtitles] = useState<SubtitleLine[]>([]);
   const { videos } = useVideos();
+  
+  // For general review setup page - count of available reviews
+  const [generalReviewCount, setGeneralReviewCount] = useState(0);
+  const [isLoadingGeneralCount, setIsLoadingGeneralCount] = useState(true);
 
   // Load vocabulary items due for review
   useEffect(() => {
@@ -98,7 +108,17 @@ export default function VocabularyReview() {
       try {
         setIsLoadingReviews(true);
         const userId = user.id;
-        const items = await vocabularyApi.getDueForReview(userId);
+        const items = reviewVideoId 
+          ? await vocabularyApi.getDueForReviewByVideo(userId, reviewVideoId)
+          : await vocabularyApi.getDueForReview(userId);
+        if (items.length > 0) {
+          console.log('Sample item:', {
+            word: items[0].word,
+            next_review_at: items[0].next_review_at,
+            video_id: items[0].video_id
+          });
+        }
+        
         setReviewItems(items);
       } catch (error) {
         console.error("Error loading review items:", error);
@@ -108,10 +128,38 @@ export default function VocabularyReview() {
       }
     };
 
-    if (reviewStarted || isActiveSession) {
+    // Load items for active session, video-specific review, or when explicitly started
+    if (reviewStarted || isActiveSession || reviewVideoId) {
       loadReviewItems();
     }
-  }, [reviewStarted, isActiveSession]);
+  }, [reviewStarted, isActiveSession, reviewVideoId, user?.id]);
+
+  // Load review count for general review setup page
+  useEffect(() => {
+    const loadGeneralReviewCount = async () => {
+      if (!user?.id || reviewVideoId || isActiveSession) {
+        setIsLoadingGeneralCount(false);
+        return;
+      }
+      
+      try {
+        setIsLoadingGeneralCount(true);
+        const userId = user.id;
+        const items = await vocabularyApi.getDueForReview(userId);
+        setGeneralReviewCount(items.length);
+      } catch (error) {
+        console.error("Error loading general review count:", error);
+        setGeneralReviewCount(0);
+      } finally {
+        setIsLoadingGeneralCount(false);
+      }
+    };
+    
+    // Only load for general review page (not video-specific or active session)
+    if (!reviewVideoId && !isActiveSession) {
+      loadGeneralReviewCount();
+    }
+  }, [user?.id, reviewVideoId, isActiveSession]);
 
   // Cleanup effect - stop any recording when component unmounts
   useEffect(() => {
@@ -242,7 +290,12 @@ export default function VocabularyReview() {
       setShowAnswer(false);
       setShowMarkAsKnown(false);
       setShownAnswerItems(new Set());
-      setLocation("/vocabulary-review");
+      // If we have a video ID, go back to vocabulary detail page instead
+      if (reviewVideoId && section === "back") {
+        setLocation(`/vocabulary-list/${reviewVideoId}`);
+      } else {
+        setLocation("/vocabulary-review");
+      }
     } else if (section === "vocabulary") {
       setLocation("/vocabulary-list");
     } else if (section === "reviews") {
@@ -279,7 +332,10 @@ export default function VocabularyReview() {
     setShowMarkAsKnown(false);
     setShownAnswerItems(new Set());
     setHasSubmittedReview(false);
-    setLocation("/vocabulary-review/session");
+    const reviewPath = reviewVideoId 
+      ? `/vocabulary-review/${reviewVideoId}/session`
+      : "/vocabulary-review/session";
+    setLocation(reviewPath);
   };
 
   const handleSubmitAnswer = async () => {
@@ -367,7 +423,12 @@ export default function VocabularyReview() {
                       setShowAnswer(false);
                       setShowMarkAsKnown(false);
                       setShownAnswerItems(new Set());
-                      setLocation("/vocabulary-review");
+                      // If we have a video ID, go back to vocabulary detail page
+                      if (reviewVideoId) {
+                        setLocation(`/vocabulary-list/${reviewVideoId}`);
+                      } else {
+                        setLocation("/vocabulary-review");
+                      }
                     }
                   }, 500);
                 }
@@ -397,7 +458,12 @@ export default function VocabularyReview() {
                   setShowAnswer(false);
                   setShowMarkAsKnown(false);
                   setShownAnswerItems(new Set());
-                  setLocation("/vocabulary-review");
+                  // If we have a video ID, go back to vocabulary detail page
+                  if (reviewVideoId) {
+                    setLocation(`/vocabulary-list/${reviewVideoId}`);
+                  } else {
+                    setLocation("/vocabulary-review");
+                  }
                 }
               }, 500);
             });
@@ -463,7 +529,12 @@ export default function VocabularyReview() {
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
                     setHasSubmittedReview(false);
-                    setLocation("/vocabulary-review");
+                    // If we have a video ID, go back to vocabulary detail page
+                    if (reviewVideoId) {
+                      setLocation(`/vocabulary-list/${reviewVideoId}`);
+                    } else {
+                      setLocation("/vocabulary-review");
+                    }
                   }
                 }, 500);
               }
@@ -703,7 +774,12 @@ export default function VocabularyReview() {
       setShowAnswer(false);
       setShowMarkAsKnown(false);
       setShownAnswerItems(new Set());
-      setLocation("/vocabulary-review");
+      // If we have a video ID, go back to vocabulary detail page
+      if (reviewVideoId) {
+        setLocation(`/vocabulary-list/${reviewVideoId}`);
+      } else {
+        setLocation("/vocabulary-review");
+      }
     }
   };
 
@@ -758,7 +834,12 @@ export default function VocabularyReview() {
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
                     setHasSubmittedReview(false);
-                    setLocation("/vocabulary-review");
+                    // If we have a video ID, go back to vocabulary detail page
+                    if (reviewVideoId) {
+                      setLocation(`/vocabulary-list/${reviewVideoId}`);
+                    } else {
+                      setLocation("/vocabulary-review");
+                    }
                   }
                 }, 500);
               }
@@ -786,7 +867,12 @@ export default function VocabularyReview() {
               setShowAnswer(false);
               setShowMarkAsKnown(false);
               setShownAnswerItems(new Set());
-              setLocation("/vocabulary-review");
+              // If we have a video ID, go back to vocabulary detail page
+              if (reviewVideoId) {
+                setLocation(`/vocabulary-list/${reviewVideoId}`);
+              } else {
+                setLocation("/vocabulary-review");
+              }
             }
           });
       }
@@ -835,7 +921,12 @@ export default function VocabularyReview() {
       setShowMarkAsKnown(false);
       setShownAnswerItems(new Set());
       setHasSubmittedReview(false);
-      setLocation("/vocabulary-review");
+      // If we have a video ID, go back to vocabulary detail page
+      if (reviewVideoId) {
+        setLocation(`/vocabulary-list/${reviewVideoId}`);
+      } else {
+        setLocation("/vocabulary-review");
+      }
     }
   };
 
@@ -936,7 +1027,7 @@ export default function VocabularyReview() {
   }, [currentReview, reviewStarted, videos]);
 
   // For active session, keep the original layout without sidebar
-  if (isActiveSession && reviewStarted) {
+  if (isActiveSession) {
     // Show loading state
     if (isLoadingReviews) {
       return (
@@ -961,9 +1052,13 @@ export default function VocabularyReview() {
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 {t("noReviewsDue")}
               </h2>
-              <p className="text-gray-600 mb-6">{t("allCaughtUp")}</p>
+              <p className="text-gray-600 mb-6">
+                {reviewVideoId && videos.find(v => v.id === reviewVideoId) 
+                  ? `No words due for review from "${videos.find(v => v.id === reviewVideoId)?.title}"`
+                  : t("allCaughtUp")}
+              </p>
               <button
-                onClick={() => handleNavigate("vocabulary-review")}
+                onClick={() => handleNavigate("back")}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 mx-auto"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -987,7 +1082,7 @@ export default function VocabularyReview() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <button
-                    onClick={() => handleNavigate("vocabulary-review")}
+                    onClick={() => handleNavigate("back")}
                     className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -1254,6 +1349,88 @@ export default function VocabularyReview() {
   }
 
   // For non-session setup page, add sidebar layout
+  // Video-specific review setup
+  if (reviewVideoId && !isActiveSession) {
+    const currentVideo = videos.find(v => v.id === reviewVideoId);
+    
+    return (
+      <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
+            <ReviewErrorBoundary>
+              {/* Content Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setLocation(`/vocabulary-list/${reviewVideoId}`)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {t("vocabularyReview")}
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {currentVideo?.title || "Unknown Video"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center">
+                {isLoadingReviews ? (
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">{t("loadingReviews")}</p>
+                  </div>
+                ) : (
+                  <div className="text-center max-w-lg mx-auto">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Volume2 className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                      {t("readyToStart")}?
+                    </h2>
+                    <p className="text-gray-600 mb-8">
+                      {reviewItems.length > 0 
+                        ? `You have ${reviewItems.length} words to review from "${currentVideo?.title}"`
+                        : `No words due for review from "${currentVideo?.title}"`}
+                    </p>
+
+                    {reviewItems.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4 mb-8">
+                        <h3 className="font-semibold text-gray-900 mb-2">
+                          Video Review Statistics
+                        </h3>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {reviewItems.length}
+                          </div>
+                          <div className="text-gray-500">Words to Review</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={reviewItems.length > 0 ? startReview : () => setLocation(`/vocabulary-list/${reviewVideoId}`)}
+                      className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      <span className="text-sm font-medium">
+                        {reviewItems.length > 0 ? t("startReview") : "Back to Vocabulary"}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </ReviewErrorBoundary>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // General review page with sidebar
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
       <div className="flex flex-1 overflow-hidden">
@@ -1291,45 +1468,50 @@ export default function VocabularyReview() {
                   {t("readyToStart")}?
                 </h2>
                 <p className="text-gray-600 mb-8">
-                  {t("reviewDescription").replace(
-                    "{count}",
-                    stats.wordsToReview.toString(),
-                  )}
+                  {isLoadingGeneralCount
+                    ? "Loading review items..."
+                    : generalReviewCount > 0
+                    ? `You have ${generalReviewCount} words to review`
+                    : "No words are currently due for review"}
                 </p>
 
-                <div className="bg-gray-50 rounded-lg p-4 mb-8">
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    {t("reviewStatistics")}
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {stats.wordsToReview}
+                {!isLoadingGeneralCount && generalReviewCount > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4 mb-8">
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      {t("reviewStatistics")}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {generalReviewCount}
+                        </div>
+                        <div className="text-gray-500">{t("wordsToReview")}</div>
                       </div>
-                      <div className="text-gray-500">{t("wordsToReview")}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {stats.masteredWords}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {stats.masteredWords}
+                        </div>
+                        <div className="text-gray-500">{t("masteredWords")}</div>
                       </div>
-                      <div className="text-gray-500">{t("masteredWords")}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {stats.overdueWords}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {stats.overdueWords}
+                        </div>
+                        <div className="text-gray-500">{t("overdueWords")}</div>
                       </div>
-                      <div className="text-gray-500">{t("overdueWords")}</div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   onClick={startReview}
-                  disabled={stats.wordsToReview === 0}
+                  disabled={isLoadingGeneralCount || generalReviewCount === 0}
                   className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <span className="text-sm font-medium">
-                    {stats.wordsToReview > 0
+                    {isLoadingGeneralCount
+                      ? "Loading..."
+                      : generalReviewCount > 0
                       ? t("startReview")
                       : t("noReviewsDue")}
                   </span>

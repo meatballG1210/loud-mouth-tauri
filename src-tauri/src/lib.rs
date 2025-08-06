@@ -80,6 +80,7 @@ pub fn run() {
             commands::update_vocabulary_review_with_result,
             commands::delete_vocabulary,
             commands::get_vocabulary_due_for_review,
+            commands::get_vocabulary_due_for_review_by_video,
             commands::get_overdue_vocabulary,
             commands::get_vocabulary_accuracy_stats,
             commands::transcribe_audio,

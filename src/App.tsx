@@ -63,6 +63,8 @@ function Router() {
       <Route path="/vocabulary-list/:videoId" component={VocabularyDetail} />
       <Route path="/vocabulary-review" component={VocabularyReview} />
       <Route path="/vocabulary-review/session" component={VocabularyReview} />
+      <Route path="/vocabulary-review/:videoId/session" component={VocabularyReview} />
+      <Route path="/vocabulary-review/:videoId" component={VocabularyReview} />
       <Route path="/progress" component={Progress} />
       <Route path="/settings" component={Settings} />
       <Route path="/error" component={ErrorPage} />

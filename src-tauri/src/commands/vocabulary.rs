@@ -117,6 +117,30 @@ pub fn get_vocabulary_due_for_review(user_id: String) -> Result<Vec<Vocabulary>>
         .map_err(|e| AppError::new("VOCABULARY_FETCH_ERROR", "Failed to fetch vocabulary due for review").with_details(e.to_string()))
 }
 
+#[tauri::command]
+pub fn get_vocabulary_due_for_review_by_video(user_id: String, video_id: String) -> Result<Vec<Vocabulary>> {
+    use crate::schema::vocabulary;
+    use chrono::{Utc, Timelike};
+
+    let mut conn = establish_connection()?;
+    // Get today's date at midnight UTC
+    let today_midnight = Utc::now()
+        .with_hour(0).unwrap()
+        .with_minute(0).unwrap()
+        .with_second(0).unwrap()
+        .with_nanosecond(0).unwrap();
+    // Add one day to get tomorrow at midnight
+    let tomorrow_midnight = today_midnight + Duration::days(1);
+    
+    vocabulary::table
+        .filter(vocabulary::user_id.eq(user_id))
+        .filter(vocabulary::video_id.eq(video_id))
+        .filter(vocabulary::next_review_at.lt(tomorrow_midnight.to_rfc3339()))
+        .order(vocabulary::next_review_at.asc())
+        .load(&mut *conn)
+        .map_err(|e| AppError::new("VOCABULARY_FETCH_ERROR", "Failed to fetch vocabulary due for review by video").with_details(e.to_string()))
+}
+
 // Helper function to get review interval in days based on stage
 fn get_review_interval_days(stage: i32) -> i32 {
     match stage {

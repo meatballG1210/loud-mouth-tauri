@@ -13,6 +13,7 @@ import {
   Info,
   X,
   RotateCw,
+  GraduationCap,
 } from "lucide-react";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { VocabularyItem } from "@/types/video";
@@ -52,6 +53,7 @@ export default function VocabularyDetail() {
   const [englishSubtitles, setEnglishSubtitles] = useState<SubtitleLine[]>([]);
   const [chineseSubtitles, setChineseSubtitles] = useState<SubtitleLine[]>([]);
   const [subtitlesLoading, setSubtitlesLoading] = useState(false);
+  const [dueWordsCount, setDueWordsCount] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   if (!match || !params?.videoId) {
@@ -68,7 +70,6 @@ export default function VocabularyDetail() {
     if (!currentVideo) return;
 
     const loadSubtitles = async () => {
-      console.log("Loading subtitles for video:", currentVideo);
       setSubtitlesLoading(true);
 
       const tryLoadSubtitles = async (language: "english" | "chinese") => {
@@ -79,7 +80,6 @@ export default function VocabularyDetail() {
           });
           return parseWebVTT(vtt, language);
         } catch (error) {
-          console.log(`No ${language} subtitles found:`, error);
           return [];
         }
       };
@@ -92,12 +92,10 @@ export default function VocabularyDetail() {
 
         if (englishSubs.length > 0) {
           setEnglishSubtitles(englishSubs);
-          console.log("Loaded English subtitles:", englishSubs.length, "lines");
         }
 
         if (chineseSubs.length > 0) {
           setChineseSubtitles(chineseSubs);
-          console.log("Loaded Chinese subtitles:", chineseSubs.length, "lines");
         }
       } catch (error) {
         console.error("Error loading subtitles:", error);
@@ -115,7 +113,7 @@ export default function VocabularyDetail() {
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
-      
+
       // Check if we're looping and reached the end of the subtitle
       if (loopSubtitle && video.currentTime >= loopSubtitle.end) {
         video.currentTime = loopSubtitle.start;
@@ -161,7 +159,19 @@ export default function VocabularyDetail() {
   const filteredWords = videoWords
     .filter((word) => {
       if (filterBy === "starred") return word.isStarred;
-      if (filterBy === "due") return new Date(word.nextReview) <= new Date();
+      if (filterBy === "due") {
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+        );
+        const reviewDate = new Date(word.nextReview + "T23:59:59");
+        return reviewDate <= today;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -175,75 +185,85 @@ export default function VocabularyDetail() {
       }
     });
 
+  // Calculate due words count
+  useEffect(() => {
+    const now = new Date();
+    const today = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+    ); // End of today
+
+    const dueCount = videoWords.filter((word) => {
+      // nextReview is in YYYY-MM-DD format, parse it properly
+      const reviewDate = new Date(word.nextReview + "T23:59:59"); // End of review day
+      return reviewDate <= today;
+    }).length;
+
+    setDueWordsCount(dueCount);
+  }, [videoWords]);
+
   const findContainingSubtitle = (timestamp: number): SubtitleLine | null => {
     // Timestamp is already in seconds (converted in useVocabulary hook)
     const timestampInSeconds = timestamp;
-    
+
     // Combine all subtitles for searching
     const allSubtitles = [...englishSubtitles, ...chineseSubtitles];
-    
+
     // First check if timestamp matches the start of any subtitle (prefer this for boundary cases)
     const startMatch = allSubtitles.find(
-      (sub) => Math.abs(timestampInSeconds - sub.start) < 0.01 // Within 10ms tolerance
+      (sub) => Math.abs(timestampInSeconds - sub.start) < 0.01, // Within 10ms tolerance
     );
-    
+
     if (startMatch) return startMatch;
-    
+
     // Then try to find subtitle that contains the timestamp
     const exactMatch = allSubtitles.find(
-      (sub) => timestampInSeconds > sub.start && timestampInSeconds < sub.end
+      (sub) => timestampInSeconds > sub.start && timestampInSeconds < sub.end,
     );
-    
+
     if (exactMatch) return exactMatch;
-    
+
     // If no exact match, find the nearest subtitle
     let nearestSub: SubtitleLine | null = null;
     let minDistance = Infinity;
-    
+
     for (const sub of allSubtitles) {
       const distanceToStart = Math.abs(timestampInSeconds - sub.start);
       const distanceToEnd = Math.abs(timestampInSeconds - sub.end);
       const minDist = Math.min(distanceToStart, distanceToEnd);
-      
+
       if (minDist < minDistance) {
         minDistance = minDist;
         nearestSub = sub;
       }
     }
-    
+
     // Only return nearest if within 10 seconds
     return minDistance <= 10 ? nearestSub : null;
   };
 
   const startLoop = async (word: VocabularyItem) => {
-    console.log("StartLoop called for word:", word.word, "timestamp (seconds):", word.timestamp);
-    console.log("Available subtitles:", {
-      english: englishSubtitles.length,
-      chinese: chineseSubtitles.length,
-      firstFewEnglish: englishSubtitles.slice(0, 3),
-      firstFewChinese: chineseSubtitles.slice(0, 3)
-    });
-    
     const subtitle = findContainingSubtitle(word.timestamp);
-    console.log("Found subtitle:", subtitle);
-    
+
     if (subtitle && videoRef.current && videoReady) {
       setLoopingWordId(word.id);
       setLoopSubtitle(subtitle);
-      
+
       // Small delay to ensure UI state updates and avoid focus issues
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       if (videoRef.current) {
         // Seek to the start of the subtitle
-        console.log("Setting video currentTime to:", subtitle.start);
         videoRef.current.currentTime = subtitle.start;
-        
+
         // Start playing
         try {
           await videoRef.current.play();
           setIsPlaying(true);
-          console.log("Video started playing at time:", videoRef.current.currentTime, "loop active for:", word.word);
         } catch (error) {
           console.error("Failed to play video:", error);
           setLoopingWordId(null);
@@ -251,12 +271,6 @@ export default function VocabularyDetail() {
         }
       }
     } else {
-      console.log("Cannot start loop - missing requirements:", {
-        subtitle: !!subtitle,
-        videoRef: !!videoRef.current,
-        videoReady,
-        subtitlesLoaded: englishSubtitles.length > 0 || chineseSubtitles.length > 0
-      });
     }
   };
 
@@ -334,7 +348,7 @@ export default function VocabularyDetail() {
     // Timestamp is already in seconds (converted in useVocabulary hook)
     const timestampInSeconds = selectedWord.timestamp;
     const contextWindow = 5; // seconds
-    
+
     // Combine all subtitles for context
     const allSubtitles = [...englishSubtitles, ...chineseSubtitles];
 
@@ -366,7 +380,17 @@ export default function VocabularyDetail() {
   };
 
   const isWordDue = (nextReview: string) => {
-    return new Date(nextReview) <= new Date();
+    const now = new Date();
+    const today = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+    );
+    const reviewDate = new Date(nextReview + "T23:59:59");
+    return reviewDate <= today;
   };
 
   const contextSubtitles = getContextSubtitles();
@@ -391,7 +415,6 @@ export default function VocabularyDetail() {
                       .map((segment) => encodeURIComponent(segment))
                       .join("/");
                     const streamUrl = `stream://localhost/${encodedPath}`;
-                    console.log("Video stream URL:", streamUrl);
                     return streamUrl;
                   })()}
                   onClick={togglePlayPause}
@@ -399,10 +422,6 @@ export default function VocabularyDetail() {
                     const video = e.currentTarget;
                     setDuration(video.duration);
                     setVideoReady(true);
-                    console.log(
-                      "Video metadata loaded, duration:",
-                      video.duration,
-                    );
                   }}
                   onError={(e) => {
                     console.error("Video playback error:", e);
@@ -483,8 +502,24 @@ export default function VocabularyDetail() {
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-500">
-                  {filteredWords.length} words
+                <div className="flex items-center space-x-4">
+                  {dueWordsCount > 0 && (
+                    <button
+                      onClick={() =>
+                        setLocation(`/vocabulary-review/${params.videoId}`)
+                      }
+                      className="flex flex-col items-center space-y-1 transition-colors"
+                      title={`Review ${dueWordsCount} words due`}
+                    >
+                      <div className="relative p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                        <GraduationCap className="w-5 h-5" />
+                        <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">
+                          {dueWordsCount}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500 font-medium">Review</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -562,7 +597,7 @@ export default function VocabularyDetail() {
                           onClick={async (e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            
+
                             if (loopingWordId === word.id) {
                               exitLoop();
                             } else {
@@ -574,7 +609,11 @@ export default function VocabularyDetail() {
                               ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
                               : "bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600"
                           }`}
-                          title={loopingWordId === word.id ? "Stop loop" : "Loop sentence"}
+                          title={
+                            loopingWordId === word.id
+                              ? "Stop loop"
+                              : "Loop sentence"
+                          }
                           disabled={isLoading}
                           type="button"
                         >
@@ -584,7 +623,12 @@ export default function VocabularyDetail() {
                             <RotateCw className="w-5 h-5" />
                           )}
                         </button>
-                        <Popover open={detailWordId === word.id} onOpenChange={(open) => setDetailWordId(open ? word.id : null)}>
+                        <Popover
+                          open={detailWordId === word.id}
+                          onOpenChange={(open) =>
+                            setDetailWordId(open ? word.id : null)
+                          }
+                        >
                           <PopoverTrigger asChild>
                             <button
                               onClick={(e) => {
@@ -597,7 +641,10 @@ export default function VocabularyDetail() {
                               <Info className="w-5 h-5" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-96 max-h-[80vh] overflow-y-auto" align="end">
+                          <PopoverContent
+                            className="w-96 max-h-[80vh] overflow-y-auto"
+                            align="end"
+                          >
                             <div className="relative">
                               <button
                                 onClick={() => setDetailWordId(null)}
@@ -655,7 +702,6 @@ export default function VocabularyDetail() {
           </VocabularyErrorBoundary>
         </div>
       </div>
-
     </div>
   );
 }
