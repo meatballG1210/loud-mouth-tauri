@@ -506,7 +506,7 @@ export default function VocabularyDetail() {
                   {dueWordsCount > 0 && (
                     <button
                       onClick={() =>
-                        setLocation(`/vocabulary-review/${params.videoId}`)
+                        setLocation(`/vocabulary-review/${params.videoId}/session?from=detail`)
                       }
                       className="flex flex-col items-center space-y-1 transition-colors"
                       title={`Review ${dueWordsCount} words due`}
