@@ -9,8 +9,8 @@ import { useAuth } from '@/components/SupabaseAuthProvider';
 function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
   if (!dictionaryResponse) return '无翻译';
   
-  // Look for the Chinese translation after "**Chinese Translation**"
-  const translationMatch = dictionaryResponse.match(/\*\*Chinese Translation\*\*\s*\n\s*(.+?)(?:\n|$)/);
+  // Look for the Chinese translation after "**中文**:"
+  const translationMatch = dictionaryResponse.match(/\*\*中文\*\*:\s*(.+?)(?:\n|$)/);
   if (translationMatch && translationMatch[1]) {
     return translationMatch[1].trim();
   }
