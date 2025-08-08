@@ -559,7 +559,7 @@ export default function VocabularyReview() {
   const handleVoiceInput = async () => {
     try {
       // Start countdown
-      setCountdown(3);
+      setCountdown(1);
 
       // Countdown timer
       const countdownInterval = setInterval(() => {
@@ -582,7 +582,7 @@ export default function VocabularyReview() {
   const startRecording = async () => {
     try {
       // Check if model is available
-      const modelName = "vosk-model-en-us-0.22-lgraph";
+      const modelName = "ggml-small.bin";
       const hasModel = await speechApi.checkWhisperModel(modelName);
 
       if (!hasModel) {

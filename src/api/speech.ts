@@ -10,14 +10,18 @@ export const speechApi = {
    * Check if a Whisper model is available
    */
   async checkWhisperModel(modelName?: string): Promise<boolean> {
-    return await invoke<boolean>("check_whisper_model", { modelName });
+    return await invoke<boolean>("check_whisper_model", { 
+      modelName: modelName || "ggml-small.bin" 
+    });
   },
 
   /**
    * Download a Whisper model
    */
   async downloadWhisperModel(modelName?: string): Promise<void> {
-    return await invoke<void>("download_whisper_model", { modelName });
+    return await invoke<void>("download_whisper_model", { 
+      modelName: modelName || "ggml-small.bin" 
+    });
   },
 
   /**
@@ -36,7 +40,7 @@ export const speechApi = {
   ): Promise<TranscriptionResult> {
     return await invoke<TranscriptionResult>("transcribe_audio", {
       audioBase64,
-      modelName,
+      modelName: modelName || "ggml-small.bin",
     });
   },
 };
@@ -60,7 +64,7 @@ export async function audioToBase64(blob: Blob): Promise<string> {
 
 /**
  * Convert MediaRecorder webm audio to WAV format
- * This is necessary because whisper-rs requires WAV format
+ * This is necessary because Whisper requires WAV format
  */
 export async function convertWebmToWav(webmBlob: Blob): Promise<Blob> {
   const audioContext = new AudioContext();

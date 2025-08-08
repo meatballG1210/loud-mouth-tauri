@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
-use vosk::{Model, Recognizer};
+use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 use hound;
 use tauri::Emitter;
 
@@ -14,54 +14,56 @@ pub struct TranscriptionResult {
     pub language: Option<String>,
 }
 
-/// Get the path to store Vosk models
+/// Get the path to store Whisper models
 fn get_model_path() -> Result<PathBuf, AppError> {
-    // In Tauri v2, we use the home directory or a temporary directory
     let home_dir = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| app_error!("PATH_ERROR", "Failed to get home directory"))?;
     
     let app_dir = PathBuf::from(home_dir).join(".loud-mouth");
-    let model_dir = app_dir.join("models");
+    let model_dir = app_dir.join("whisper-models");
     fs::create_dir_all(&model_dir)?;
     
     Ok(model_dir)
 }
 
-/// Check if a Vosk model is available
+/// Check if a Whisper model is available
 #[tauri::command]
 pub async fn check_whisper_model(model_name: Option<String>) -> Result<bool, AppError> {
-    let model = model_name.unwrap_or_else(|| "vosk-model-en-us-0.22-lgraph".to_string());
+    let model = model_name.unwrap_or_else(|| "ggml-small.bin".to_string());
     let model_path = get_model_path()?.join(&model);
     
-    Ok(model_path.exists() && model_path.is_dir())
+    Ok(model_path.exists() && model_path.is_file())
 }
 
-/// Download a Vosk model
+/// Download a Whisper model
 #[tauri::command]
 pub async fn download_whisper_model(
     model_name: Option<String>,
     window: tauri::Window,
 ) -> Result<(), AppError> {
-    let model = model_name.unwrap_or_else(|| "vosk-model-en-us-0.22-lgraph".to_string());
+    let model = model_name.unwrap_or_else(|| "ggml-small.bin".to_string());
     let model_path = get_model_path()?.join(&model);
     
     if model_path.exists() {
         return Ok(());
     }
     
-    // Model URLs from the official Vosk models page
-    let model_url = format!(
-        "https://alphacephei.com/vosk/models/{}.zip",
-        model
-    );
+    // Model URLs from Hugging Face
+    let model_url = match model.as_str() {
+        "ggml-tiny.bin" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        "ggml-base.bin" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        "ggml-small.bin" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+        "ggml-medium.bin" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        _ => return Err(app_error!("MODEL_ERROR", "Unknown model name", model)),
+    };
     
     // Emit download progress events
     window.emit("whisper-model-download-start", &model)
         .map_err(|e| app_error!("EVENT_ERROR", "Failed to emit event", e.to_string()))?;
     
     // Download the model file
-    let response = reqwest::get(&model_url).await
+    let response = reqwest::get(model_url).await
         .map_err(|e| app_error!("DOWNLOAD_ERROR", "Failed to download model", e.to_string()))?;
     let total_size = response.content_length().unwrap_or(0);
     
@@ -87,40 +89,8 @@ pub async fn download_whisper_model(
             .map_err(|e| app_error!("EVENT_ERROR", "Failed to emit progress", e.to_string()))?;
     }
     
-    // Extract the zip file
-    let temp_zip = model_path.with_extension("zip");
-    fs::write(&temp_zip, &file_content)?;
-    
-    // Extract zip
-    let file = fs::File::open(&temp_zip)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| app_error!("ZIP_ERROR", "Failed to open zip archive", e.to_string()))?;
-    
-    // Extract to parent directory
-    let extract_path = model_path.parent().unwrap();
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
-            .map_err(|e| app_error!("ZIP_ERROR", "Failed to read zip entry", e.to_string()))?;
-        let outpath = match file.enclosed_name() {
-            Some(path) => extract_path.join(path),
-            None => continue,
-        };
-        
-        if file.name().ends_with('/') {
-            fs::create_dir_all(&outpath)?;
-        } else {
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    fs::create_dir_all(&p)?;
-                }
-            }
-            let mut outfile = fs::File::create(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)?;
-        }
-    }
-    
-    // Remove temporary zip file
-    fs::remove_file(&temp_zip)?;
+    // Save the model file
+    fs::write(&model_path, &file_content)?;
     
     window.emit("whisper-model-download-complete", &model)
         .map_err(|e| app_error!("EVENT_ERROR", "Failed to emit complete event", e.to_string()))?;
@@ -128,35 +98,8 @@ pub async fn download_whisper_model(
     Ok(())
 }
 
-/// Preprocess audio samples to improve recognition accuracy
-fn preprocess_audio(samples: &mut Vec<i16>) -> Result<(), AppError> {
-    // 1. Normalize audio levels to prevent clipping and improve consistency
-    let max_amplitude = samples.iter().map(|&s| s.abs()).max().unwrap_or(1) as f32;
-    if max_amplitude > 0.0 {
-        // Scale to 95% of maximum to leave headroom
-        let scale_factor = 32767.0 / max_amplitude * 0.95;
-        for sample in samples.iter_mut() {
-            *sample = (*sample as f32 * scale_factor) as i16;
-        }
-    }
-    
-    // 2. Apply high-pass filter to remove low-frequency noise (cutoff ~100Hz at 16kHz)
-    let alpha = 0.98f32;
-    let mut prev_sample = 0i16;
-    let mut prev_filtered = 0f32;
-    
-    for sample in samples.iter_mut() {
-        let filtered = alpha * (prev_filtered + (*sample - prev_sample) as f32);
-        prev_sample = *sample;
-        prev_filtered = filtered;
-        *sample = filtered.clamp(-32768.0, 32767.0) as i16;
-    }
-    
-    Ok(())
-}
-
-/// Convert audio data to format required by Vosk (16kHz mono)
-fn convert_to_vosk_format(audio_data: &[u8]) -> Result<Vec<i16>, AppError> {
+/// Convert audio data to format required by Whisper (16kHz mono f32)
+fn convert_to_whisper_format(audio_data: &[u8]) -> Result<Vec<f32>, AppError> {
     let cursor = std::io::Cursor::new(audio_data);
     let reader = hound::WavReader::new(cursor)
         .map_err(|e| app_error!("AUDIO_ERROR", "Failed to read WAV data", e.to_string()))?;
@@ -202,10 +145,16 @@ fn convert_to_vosk_format(audio_data: &[u8]) -> Result<Vec<i16>, AppError> {
         mono_samples
     };
     
-    Ok(resampled)
+    // Convert i16 samples to f32 normalized to [-1, 1]
+    let float_samples: Vec<f32> = resampled
+        .iter()
+        .map(|&s| s as f32 / 32768.0)
+        .collect();
+    
+    Ok(float_samples)
 }
 
-/// Transcribe audio data using Vosk
+/// Transcribe audio data using Whisper
 #[tauri::command]
 pub async fn transcribe_audio(
     audio_base64: String,
@@ -217,45 +166,62 @@ pub async fn transcribe_audio(
         .map_err(|e| app_error!("DECODE_ERROR", "Failed to decode audio data", e.to_string()))?;
     
     // Get model path
-    let model = model_name.unwrap_or_else(|| "vosk-model-en-us-0.22-lgraph".to_string());
+    let model = model_name.unwrap_or_else(|| "ggml-small.bin".to_string());
     let model_path = get_model_path()?.join(&model);
     
     if !model_path.exists() {
         return Err(app_error!(
             "MODEL_NOT_FOUND",
-            "Vosk model not found. Please download it first.",
+            "Whisper model not found. Please download it first.",
             format!("Model '{}' is not available", model)
         ));
     }
     
-    // Convert audio to Vosk format
-    let mut audio_samples = convert_to_vosk_format(&audio_data)?;
+    // Convert audio to Whisper format
+    let audio_samples = convert_to_whisper_format(&audio_data)?;
     
-    // Preprocess audio for better recognition
-    preprocess_audio(&mut audio_samples)?;
+    // Initialize Whisper context
+    let ctx = WhisperContext::new_with_params(
+        model_path.to_str().unwrap(),
+        WhisperContextParameters::default()
+    ).map_err(|e| app_error!("MODEL_LOAD_ERROR", "Failed to load Whisper model", e.to_string()))?;
     
-    // Initialize Vosk model and recognizer
-    let model = Model::new(model_path.to_str().unwrap())
-        .ok_or_else(|| app_error!("MODEL_LOAD_ERROR", "Failed to load Vosk model"))?;
+    // Set up parameters for transcription
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     
-    let mut recognizer = Recognizer::new(&model, 16000.0)
-        .ok_or_else(|| app_error!("RECOGNIZER_ERROR", "Failed to create recognizer"))?;
+    // Configure parameters for better accuracy
+    params.set_n_threads(4);
+    params.set_translate(false);
+    params.set_language(Some("en"));
+    params.set_print_special(false);
+    params.set_print_progress(false);
+    params.set_print_realtime(false);
+    params.set_print_timestamps(false);
+    params.set_suppress_blank(true);
+    params.set_suppress_non_speech_tokens(true);
     
-    // Enable word-level timing and partial results for better accuracy
-    recognizer.set_words(true);
-    recognizer.set_partial_words(true);
+    // Create a state for transcription
+    let mut state = ctx.create_state()
+        .map_err(|e| app_error!("STATE_ERROR", "Failed to create whisper state", e.to_string()))?;
     
-    // Process audio in chunks
-    let chunk_size = 8000; // 0.5 seconds of audio at 16kHz
-    for chunk in audio_samples.chunks(chunk_size) {
-        let _ = recognizer.accept_waveform(chunk);
+    // Run the transcription
+    state.full(params, &audio_samples)
+        .map_err(|e| app_error!("TRANSCRIPTION_ERROR", "Failed to transcribe audio", e.to_string()))?;
+    
+    // Get the transcribed text
+    let num_segments = state.full_n_segments()
+        .map_err(|_| app_error!("TRANSCRIPTION_ERROR", "Failed to get number of segments"))?;
+    
+    let mut text = String::new();
+    for i in 0..num_segments {
+        let segment = state.full_get_segment_text(i)
+            .map_err(|_| app_error!("TRANSCRIPTION_ERROR", "Failed to get segment text"))?;
+        text.push_str(&segment);
+        text.push(' ');
     }
     
-    // Get the final result
-    let result = recognizer.final_result();
-    
-    // Get the text from the result
-    let text = result.single().map(|r| r.text).unwrap_or_default().to_string();
+    // Trim and clean up the text
+    let text = text.trim().to_string();
     
     Ok(TranscriptionResult {
         text,
@@ -263,13 +229,13 @@ pub async fn transcribe_audio(
     })
 }
 
-/// Get available Vosk models
+/// Get available Whisper models
 #[tauri::command]
 pub fn get_available_whisper_models() -> Vec<&'static str> {
     vec![
-        "vosk-model-en-us-0.22-lgraph",    // 128 MB - Better accuracy (default)
-        "vosk-model-small-en-us-0.15",     // 40 MB - Basic accuracy, fast
-        "vosk-model-en-us-0.22",           // 1.8 GB - Best accuracy
-        "vosk-model-small-en-gb-0.15",     // 41 MB - British English
+        "ggml-tiny.bin",    // 39 MB - Fastest, lower accuracy
+        "ggml-base.bin",    // 74 MB - Good balance
+        "ggml-small.bin",   // 244 MB - Best accuracy for most use cases (default)
+        "ggml-medium.bin",  // 769 MB - Even better accuracy, slower
     ]
 }
