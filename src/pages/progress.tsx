@@ -273,7 +273,6 @@ export default function Progress() {
   };
 
   const handleNavigate = (section: string) => {
-    console.log("Navigate to:", section);
     if (section === "vocabulary") {
       setLocation("/vocabulary-list");
     } else if (section === "reviews") {
@@ -291,13 +290,11 @@ export default function Progress() {
   };
 
   const handleUploadVideo = () => {
-    console.log("Upload video clicked");
     setLocation("/upload");
   };
 
   const handleViewModeChange = (mode: "grid" | "list") => {
     setViewMode(mode);
-    console.log("View mode changed to:", mode);
   };
 
   // Calculate real-time statistics
@@ -684,34 +681,6 @@ export default function Progress() {
                   </Card>
                 </TabsContent>
               </Tabs>
-
-              {/* Debug Section - Only show in development */}
-              {process.env.NODE_ENV === 'development' && (
-                <Card className="mt-4 border-gray-200 bg-gray-50">
-                  <CardHeader>
-                    <CardTitle className="text-sm text-gray-600">Debug Tools</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-xs text-gray-500">
-                        Session: {isTracking ? 'Active' : 'Inactive'}
-                      </div>
-                      <Button
-                        onClick={forceEndSession}
-                        size="sm"
-                        variant="outline"
-                        disabled={!isTracking}
-                        className="text-xs"
-                      >
-                        Force End Session
-                      </Button>
-                      <div className="text-xs text-gray-500">
-                        Today: {studyTimeStats.todayMinutes}min
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
         </div>
