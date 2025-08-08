@@ -28,15 +28,38 @@
 [x]视频增加进度条显示
 [x]查询内容不可复制
 [x]字幕选择不可选择相同但不一样的单词
+[x]vocabulary detail 中单词的详细信息mark down格式没有正常显示，被选择单词会重复出现两次
+[x]分视频复习，在单词学习完之后再去逐个复习
+[x]语音识别准确度 vosk换成whisper
+[x]debug相关代码清除 比如过程页的
 
 
-[]语音识别准确度 换成api调用 测试准确率和效果
-[]debug相关代码清楚 比如过程页的
+[]视频格式要求要写在网站里
+[]复习页面增加分视频复习
 
 
 []i18n
 []产品宣传网站
+卖点：learn what you love /learn what you use/
 []产品图标打包
+
+打包相关
+1. 🎨 Required Icon Sizes
+  Core Sizes (Must Have):
+  - 32x32.png - Small icon for window title bars
+  - 128x128.png - Standard application icon
+  - 256x256.png (128x128@2x.png) - Retina/high-DPI displays
+  - icon.ico - Windows icon (contains multiple sizes: 16x16, 32x32, 48x48,
+  256x256)
+  - icon.icns - macOS icon bundle (contains all macOS sizes)
+  - icon.png - Base PNG (typically 512x512 or 1024x1024)
+2. Create legal documents - LICENSE, Privacy Policy, Terms of Service
+3. Write documentation - Proper README, user manual, changelog
+4. Prepare marketing materials - Screenshots, descriptions, demo video
+5. Set up code signing - Certificates for Windows and macOS
+6. Configure builds - Update package.json, set up auto-updater
+7. Establish support channels - Contact methods, bug reporting
+8. Clean up for production - Remove dev files, optimize builds
 
 # Minimal Step-by-Step Implementation Plan with Checkpoints
 

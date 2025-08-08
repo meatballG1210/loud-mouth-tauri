@@ -33,7 +33,7 @@ export default function UploadForm() {
     
     // In Tauri, we cannot access file paths from drag events due to security restrictions
     // Show a message to use the file picker instead
-    alert("Please use the 'Select MP4 Video' button to choose a file. Drag and drop is not supported for security reasons.");
+    alert("Please use the 'Select Video' button to choose a file. Drag and drop is not supported for security reasons.");
   };
 
   const handleFileSelect = async () => {
@@ -42,7 +42,7 @@ export default function UploadForm() {
         multiple: false,
         filters: [{
           name: 'Video',
-          extensions: ['mp4']
+          extensions: ['mp4', 'avi', 'mkv', 'mov', 'webm']
         }]
       });
       
@@ -160,14 +160,14 @@ export default function UploadForm() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Upload Video</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Upload your MP4 video file. The system will automatically
-                extract bilingual subtitles if available.
+                Upload your video file. The system will automatically extract
+                embedded English and Chinese subtitles if available.
               </p>
             </div>
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 overflow-y-auto p-8">
+          <div className="flex-1 flex items-center justify-center overflow-y-auto p-8">
             <div className="max-w-2xl mx-auto">
               {/* Upload Area */}
               <div
@@ -252,7 +252,7 @@ export default function UploadForm() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        Upload MP4 Video
+                        Upload Video
                       </h3>
                       <p className="text-gray-600 mb-4">
                         Drag and drop your video file here, or click to browse
@@ -261,68 +261,11 @@ export default function UploadForm() {
                         onClick={handleFileSelect}
                         className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                       >
-                        Select MP4 Video
+                        Select Video
                       </button>
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Features Section */}
-              <div className="mt-12">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                  Supported Features
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        MP4 H.264 Encoding
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Optimized for high-quality video playback
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-green-600 rounded-full mt-2"></div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        Automatic Subtitle Extraction
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Extract embedded subtitle tracks automatically
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-purple-600 rounded-full mt-2"></div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        Bilingual Support
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Support for both English and Chinese subtitle tracks
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-orange-600 rounded-full mt-2"></div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        Thumbnail Generation
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Automatic thumbnail creation for easier video
-                        identification
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* File Requirements */}
@@ -334,13 +277,12 @@ export default function UploadForm() {
                       File Requirements
                     </h4>
                     <ul className="text-sm text-yellow-800 mt-1 space-y-1">
-                      <li>• Maximum file size: 2GB</li>
-                      <li>• Supported format: MP4 with H.264 encoding</li>
-                      <li>• Recommended resolution: 720p or higher</li>
+                      <li>• Maximum file size: 4GB</li>
+                      <li>• Supported formats: MP4, AVI, MKV, MOV, WebM</li>
                       <li>
-                        • Subtitle tracks will be automatically detected if
-                        embedded
+                        • Embedded English and Chinese subtitles will be automatically extracted if present
                       </li>
+                      <li>• Thumbnail will be automatically generated from the video</li>
                     </ul>
                   </div>
                 </div>
