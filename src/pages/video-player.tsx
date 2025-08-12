@@ -340,7 +340,6 @@ export default function VideoPlayer() {
       wordTexts.length > 1
         ? `"${text}":
 中文: 直译
-词组原型: 基础形式+翻译
 场景: 使用情境
 例句: 原句
 译文: 中文`
@@ -380,11 +379,6 @@ export default function VideoPlayer() {
 
       const data = await response.json();
       let content = data.choices[0].message.content;
-      // Remove first line which contains the duplicated word/phrase
-      const firstNewlineIndex = content.indexOf('\n');
-      if (firstNewlineIndex > -1) {
-        content = content.substring(firstNewlineIndex + 1).trim();
-      }
       return content;
     } catch (error) {
       console.error("Error fetching word info:", error);
