@@ -17,15 +17,18 @@ import { parseWebVTT } from "@/utils/subtitle-parser";
 import ReactMarkdown from "react-markdown";
 import { vocabularyApi } from "@/api/vocabulary";
 import { videoProgressApi } from "@/api/video-progress";
-import { VideoErrorBoundary, SubtitleErrorBoundary } from "@/components/video/video-error-boundary";
+import {
+  VideoErrorBoundary,
+  SubtitleErrorBoundary,
+} from "@/components/video/video-error-boundary";
 import { useAuth } from "@/components/SupabaseAuthProvider";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
 type SelectedWord = {
-  text: string;      // cleaned word without punctuation
-  index: number;     // position in the subtitle
-  original: string;  // original word with punctuation
+  text: string; // cleaned word without punctuation
+  index: number; // position in the subtitle
+  original: string; // original word with punctuation
 };
 
 export default function VideoPlayer() {
@@ -141,7 +144,7 @@ export default function VideoPlayer() {
       try {
         const userId = 1; // TODO: Get from auth context
         const progress = await videoProgressApi.get(userId, currentVideo.id);
-        
+
         if (progress && progress.position > 0 && videoRef.current) {
           // Wait for video to be ready before seeking
           const seekToPosition = () => {
@@ -149,14 +152,18 @@ export default function VideoPlayer() {
               videoRef.current.currentTime = progress.position;
               setCurrentTime(progress.position);
               setLastSavedPosition(progress.position);
-              console.log(`Restored playback position to ${progress.position}s`);
+              console.log(
+                `Restored playback position to ${progress.position}s`,
+              );
             }
           };
 
           if (videoRef.current.readyState >= 3) {
             seekToPosition();
           } else {
-            videoRef.current.addEventListener('loadeddata', seekToPosition, { once: true });
+            videoRef.current.addEventListener("loadeddata", seekToPosition, {
+              once: true,
+            });
           }
         }
       } catch (error) {
@@ -216,12 +223,14 @@ export default function VideoPlayer() {
     return () => {
       if (currentVideo && videoRef.current && currentTime > 0) {
         const userId = 1; // TODO: Get from auth context
-        videoProgressApi.save({
-          user_id: userId,
-          video_id: currentVideo.id,
-          position: Math.floor(currentTime),
-          duration: Math.floor(duration),
-        }).catch(console.error);
+        videoProgressApi
+          .save({
+            user_id: userId,
+            video_id: currentVideo.id,
+            position: Math.floor(currentTime),
+            duration: Math.floor(duration),
+          })
+          .catch(console.error);
       }
     };
   }, [currentVideo, currentTime, duration]);
@@ -242,34 +251,40 @@ export default function VideoPlayer() {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Check if the target is an input element to avoid interference
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
-      
-      if (e.code === 'Space' || e.key === ' ') {
+
+      if (e.code === "Space" || e.key === " ") {
         e.preventDefault(); // Prevent page scroll
-        setIsPlaying(prev => !prev);
-      } else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
+        setIsPlaying((prev) => !prev);
+      } else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
         if (videoRef.current) {
           const newTime = Math.max(0, videoRef.current.currentTime - 4);
           videoRef.current.currentTime = newTime;
           setCurrentTime(newTime);
         }
-      } else if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
+      } else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
         if (videoRef.current) {
-          const newTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 4);
+          const newTime = Math.min(
+            videoRef.current.duration,
+            videoRef.current.currentTime + 4,
+          );
           videoRef.current.currentTime = newTime;
           setCurrentTime(newTime);
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyPress);
-    
+    document.addEventListener("keydown", handleKeyPress);
+
     return () => {
-      document.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener("keydown", handleKeyPress);
     };
   }, []);
 
@@ -282,20 +297,20 @@ export default function VideoPlayer() {
   const cleanWordForSelection = (word: string): string => {
     // Step 1: Normalize quotes and apostrophes
     let cleaned = word
-      .replace(/["""`]/g, '"')     // Normalize quotes
-      .replace(/[''`]/g, "'");      // Normalize apostrophes
-    
+      .replace(/["""`]/g, '"') // Normalize quotes
+      .replace(/[''`]/g, "'"); // Normalize apostrophes
+
     // Step 2: Remove surrounding punctuation but keep internal apostrophes
     cleaned = cleaned
-      .replace(/^[^\w]+/, '')       // Remove leading punctuation
-      .replace(/[^\w']+$/, '');     // Remove trailing (keep apostrophes)
-    
+      .replace(/^[^\w]+/, "") // Remove leading punctuation
+      .replace(/[^\w']+$/, ""); // Remove trailing (keep apostrophes)
+
     // Step 3: Handle special cases
     if (cleaned.endsWith("'s") || cleaned.endsWith("'")) {
       // Keep possessives and contractions intact
       return cleaned;
     }
-    
+
     return cleaned;
   };
 
@@ -319,21 +334,22 @@ export default function VideoPlayer() {
     // Extract just the cleaned text for API, sorted by position
     const wordTexts = words
       .sort((a, b) => a.index - b.index)
-      .map(w => w.text);
+      .map((w) => w.text);
     const text = wordTexts.join(" ");
-    const prompt = wordTexts.length > 1 
-      ? `"${text}":
-中文: [直译]
-词组原型: [基础形式]
-成分: [词性分析]
-场景: [使用情境]
-例句: [原句]
-译文: [中文]`
-      : `"${text}":
-中文: [直译]
-词性: [类型] | 含义: [1-2个]
-例句: [原句]
-译文: [中文]`;
+    const prompt =
+      wordTexts.length > 1
+        ? `"${text}":
+中文: 直译
+词组原型: 基础形式+翻译
+场景: 使用情境
+例句: 原句
+译文: 中文`
+        : `"${text}":
+中文: 直译
+词性: 类型
+含义: 1-2个
+例句: 原句
+译文: 中文`;
 
     try {
       const response = await fetch(
@@ -363,14 +379,24 @@ export default function VideoPlayer() {
       }
 
       const data = await response.json();
-      return data.choices[0].message.content;
+      let content = data.choices[0].message.content;
+      // Remove first line which contains the duplicated word/phrase
+      const firstNewlineIndex = content.indexOf('\n');
+      if (firstNewlineIndex > -1) {
+        content = content.substring(firstNewlineIndex + 1).trim();
+      }
+      return content;
     } catch (error) {
       console.error("Error fetching word info:", error);
       return null;
     }
   };
 
-  const handleWordClick = (word: string, index: number, event: React.MouseEvent) => {
+  const handleWordClick = (
+    word: string,
+    index: number,
+    event: React.MouseEvent,
+  ) => {
     const rect = (event.target as HTMLElement).getBoundingClientRect();
 
     // Clear existing timer
@@ -387,15 +413,18 @@ export default function VideoPlayer() {
 
     setSelectedWords((prev) => {
       const existingIndex = prev.findIndex(
-        w => w.text === cleanWord && w.index === index
+        (w) => w.text === cleanWord && w.index === index,
       );
-      
+
       if (existingIndex >= 0) {
         // Remove this specific instance
         newSelectedWords = prev.filter((_, i) => i !== existingIndex);
       } else {
         // Add this specific instance
-        newSelectedWords = [...prev, { text: cleanWord, index, original: word }];
+        newSelectedWords = [
+          ...prev,
+          { text: cleanWord, index, original: word },
+        ];
       }
       return newSelectedWords;
     });
@@ -501,10 +530,10 @@ export default function VideoPlayer() {
 
       // Create vocabulary item
       const wordPhrase = selectedWords
-        .sort((a, b) => a.index - b.index)  // Keep word order
-        .map(w => w.text)
+        .sort((a, b) => a.index - b.index) // Keep word order
+        .map((w) => w.text)
         .join(" ");
-      
+
       await vocabularyApi.create({
         user_id: user?.id || "", // Use authenticated user ID
         video_id: currentVideo.id,
@@ -534,18 +563,23 @@ export default function VideoPlayer() {
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
-    
+
     // Save progress when pausing
     if (isPlaying && currentVideo && currentTime > 0) {
       const userId = 1; // TODO: Get from auth context
-      videoProgressApi.save({
-        user_id: userId,
-        video_id: currentVideo.id,
-        position: Math.floor(currentTime),
-        duration: Math.floor(duration),
-      }).then(() => {
-        console.log(`Saved playback position on pause: ${Math.floor(currentTime)}s`);
-      }).catch(console.error);
+      videoProgressApi
+        .save({
+          user_id: userId,
+          video_id: currentVideo.id,
+          position: Math.floor(currentTime),
+          duration: Math.floor(duration),
+        })
+        .then(() => {
+          console.log(
+            `Saved playback position on pause: ${Math.floor(currentTime)}s`,
+          );
+        })
+        .catch(console.error);
     }
   };
 
@@ -611,89 +645,92 @@ export default function VideoPlayer() {
             style={{ minHeight: "400px" }}
             onClick={() => setIsPlaying(!isPlaying)}
           >
-            <VideoErrorBoundary videoId={currentVideo.id} onRetry={() => window.location.reload()}>
+            <VideoErrorBoundary
+              videoId={currentVideo.id}
+              onRetry={() => window.location.reload()}
+            >
               {currentVideo.path ? (
                 <video
                   ref={videoRef}
-                src={(() => {
-                  // Try different approaches based on platform
-                  const useStreamProtocol = true; // Toggle this to test different approaches
+                  src={(() => {
+                    // Try different approaches based on platform
+                    const useStreamProtocol = true; // Toggle this to test different approaches
 
-                  if (useStreamProtocol) {
-                    // Use custom stream protocol for video playback
-                    // Don't encode slashes - only encode other special characters
-                    const encodedPath = currentVideo.path
-                      .split("/")
-                      .map((segment) => encodeURIComponent(segment))
-                      .join("/");
-                    const streamUrl = `stream://localhost/${encodedPath}`;
-                    console.log("Using stream protocol");
-                    console.log("Original path:", currentVideo.path);
-                    console.log("Stream URL:", streamUrl);
-                    return streamUrl;
-                  } else {
-                    // Use convertFileSrc
-                    const assetUrl = convertFileSrc(currentVideo.path);
-                    console.log("Using convertFileSrc");
-                    console.log("Original path:", currentVideo.path);
-                    console.log("Asset URL:", assetUrl);
-                    return assetUrl;
-                  }
-                })()}
-                className="absolute inset-0 w-full h-full"
-                style={{
-                  backgroundColor: "transparent",
-                  objectFit: "contain",
-                  zIndex: 10,
-                }}
-                controls={false}
-                autoPlay={false}
-                playsInline
-                onLoadStart={() => {
-                  console.log("Video load started");
-                }}
-                onLoadedData={() => {
-                  console.log("Video data loaded");
-                }}
-                onLoadedMetadata={(e) => {
-                  const video = e.currentTarget;
-                  setDuration(video.duration);
-                  console.log(
-                    "Video metadata loaded - dimensions:",
-                    video.videoWidth,
-                    "x",
-                    video.videoHeight,
-                  );
-                  console.log("Video duration:", video.duration);
-                  console.log("Video ready state:", video.readyState);
-                }}
-                onTimeUpdate={(e) => {
-                  const video = e.currentTarget;
-                  setCurrentTime(video.currentTime);
-                }}
-                onError={(e) => {
-                  const video = e.currentTarget as HTMLVideoElement;
-                  console.error("Video playback error:", e);
-                  console.error("Video element src:", video.src);
-                  console.error("Video network state:", video.networkState);
-                  console.error("Video error:", video.error);
-                }}
-                onCanPlay={() => {
-                  console.log("Video can play");
-                  setVideoReady(true);
-                }}
-                onCanPlayThrough={() => {
-                  console.log("Video can play through");
-                }}
-                onStalled={() => {
-                  console.log("Video stalled");
-                }}
-                onWaiting={() => {
-                  console.log("Video waiting");
-                }}
-                onEmptied={() => {
-                  console.log("Video emptied");
-                }}
+                    if (useStreamProtocol) {
+                      // Use custom stream protocol for video playback
+                      // Don't encode slashes - only encode other special characters
+                      const encodedPath = currentVideo.path
+                        .split("/")
+                        .map((segment) => encodeURIComponent(segment))
+                        .join("/");
+                      const streamUrl = `stream://localhost/${encodedPath}`;
+                      console.log("Using stream protocol");
+                      console.log("Original path:", currentVideo.path);
+                      console.log("Stream URL:", streamUrl);
+                      return streamUrl;
+                    } else {
+                      // Use convertFileSrc
+                      const assetUrl = convertFileSrc(currentVideo.path);
+                      console.log("Using convertFileSrc");
+                      console.log("Original path:", currentVideo.path);
+                      console.log("Asset URL:", assetUrl);
+                      return assetUrl;
+                    }
+                  })()}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    backgroundColor: "transparent",
+                    objectFit: "contain",
+                    zIndex: 10,
+                  }}
+                  controls={false}
+                  autoPlay={false}
+                  playsInline
+                  onLoadStart={() => {
+                    console.log("Video load started");
+                  }}
+                  onLoadedData={() => {
+                    console.log("Video data loaded");
+                  }}
+                  onLoadedMetadata={(e) => {
+                    const video = e.currentTarget;
+                    setDuration(video.duration);
+                    console.log(
+                      "Video metadata loaded - dimensions:",
+                      video.videoWidth,
+                      "x",
+                      video.videoHeight,
+                    );
+                    console.log("Video duration:", video.duration);
+                    console.log("Video ready state:", video.readyState);
+                  }}
+                  onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    setCurrentTime(video.currentTime);
+                  }}
+                  onError={(e) => {
+                    const video = e.currentTarget as HTMLVideoElement;
+                    console.error("Video playback error:", e);
+                    console.error("Video element src:", video.src);
+                    console.error("Video network state:", video.networkState);
+                    console.error("Video error:", video.error);
+                  }}
+                  onCanPlay={() => {
+                    console.log("Video can play");
+                    setVideoReady(true);
+                  }}
+                  onCanPlayThrough={() => {
+                    console.log("Video can play through");
+                  }}
+                  onStalled={() => {
+                    console.log("Video stalled");
+                  }}
+                  onWaiting={() => {
+                    console.log("Video waiting");
+                  }}
+                  onEmptied={() => {
+                    console.log("Video emptied");
+                  }}
                 />
               ) : (
                 <img
@@ -737,15 +774,18 @@ export default function VideoPlayer() {
             {/* Current Subtitle Overlay */}
             <SubtitleErrorBoundary>
               {currentSubtitle && (
-                <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="absolute bottom-20 left-1/2 transform -translate-x-1/2 max-w-3xl px-6 z-20"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-center relative">
                     <div className="text-white text-lg leading-relaxed">
                       {currentSubtitle.text.split(" ").map((word, index) => {
                         const cleanWord = cleanWordForSelection(word);
                         const isSelected = selectedWords.some(
-                          w => w.text === cleanWord && w.index === index
+                          (w) => w.text === cleanWord && w.index === index,
                         );
-                        
+
                         return (
                           <span
                             key={`${index}-${word}`}
@@ -770,17 +810,19 @@ export default function VideoPlayer() {
                           if (selectionTimer) {
                             clearTimeout(selectionTimer);
                           }
-                          
+
                           // Set lookup position based on subtitle container
-                          const subtitleContainer = e.currentTarget.parentElement;
+                          const subtitleContainer =
+                            e.currentTarget.parentElement;
                           if (subtitleContainer) {
-                            const rect = subtitleContainer.getBoundingClientRect();
+                            const rect =
+                              subtitleContainer.getBoundingClientRect();
                             setLookupPosition({
                               x: rect.left + rect.width / 2,
                               y: rect.top - 10,
                             });
                           }
-                          
+
                           setIsLoadingLookup(true);
                           setShowLookupPopup(true);
                           const wordInfo = await fetchWordInfo(selectedWords);
@@ -977,7 +1019,7 @@ export default function VideoPlayer() {
             <h3 className="font-bold text-lg text-gray-900">
               {selectedWords
                 .sort((a, b) => a.index - b.index)
-                .map(w => w.text)
+                .map((w) => w.text)
                 .join(" ")}
             </h3>
             <button
