@@ -323,7 +323,6 @@ export default function VideoPlayer() {
     const text = wordTexts.join(" ");
     const prompt = `Analyze "${text}" precisely:
 
-### ${text}
 **中文**: [直译]
 
 ${wordTexts.length > 1 ? `**解析**:
