@@ -321,20 +321,19 @@ export default function VideoPlayer() {
       .sort((a, b) => a.index - b.index)
       .map(w => w.text);
     const text = wordTexts.join(" ");
-    const prompt = `Analyze "${text}" precisely:
-
-**中文**: [直译]
-
-${wordTexts.length > 1 ? `**解析**:
-- 词组原型: [提取基础形式，如 "rip one's heart out"]
-- 成分分析: [解释关键词含义和词性，如: rip (撕裂/动词), out (副词小品词/表示完全、彻底)]
-- 使用场景: [具体使用情境，不要泛泛而谈]` : '**词性**: [词性] | **核心含义**: [最重要的1-2个意思]'}
-
-**例句**  
-> [含有该词的句子]  
-> *[中文翻译]*
-
-只提供有价值的信息，删除所有重复、冗余的描述。`;
+    const prompt = wordTexts.length > 1 
+      ? `"${text}":
+中文: [直译]
+词组原型: [基础形式]
+成分: [词性分析]
+场景: [使用情境]
+例句: [原句]
+译文: [中文]`
+      : `"${text}":
+中文: [直译]
+词性: [类型] | 含义: [1-2个]
+例句: [原句]
+译文: [中文]`;
 
     try {
       const response = await fetch(
