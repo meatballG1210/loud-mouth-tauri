@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "loud-mouth",
+  "productName": "Loud Mouth",
   "version": "0.1.0",
   "identifier": "org.liyuan.loudmouth",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "loud-mouth",
+        "title": "Loud Mouth",
         "width": 800,
         "height": 600
       }
