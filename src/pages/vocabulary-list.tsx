@@ -16,8 +16,8 @@ import { useLanguage } from "@/lib/i18n";
 import { VocabularyErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 
 export default function VocabularyList() {
-  const { vocabulary, stats, isLoading } = useVocabulary();
-  const { stats: videoStats, refreshVideos } = useVideos();
+  const { stats: videoStats, refreshVideos, videos } = useVideos();
+  const { vocabulary, stats, isLoading } = useVocabulary(videos);
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");

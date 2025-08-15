@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { VocabularyItem, VocabularyStats } from '@/types/video';
 import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabulary';
-import { useVideos } from './use-videos';
-import { getStageLabel } from '@/utils/review-scheduler';
 import { useAuth } from '@/components/SupabaseAuthProvider';
 
 // Extract Chinese translation from dictionary response
@@ -28,8 +26,7 @@ function extractChineseTranslation(dictionaryResponse: string | null | undefined
 }
 
 // Convert backend vocabulary item to frontend format
-function convertToFrontendVocabulary(item: any, videos: any[]): VocabularyItem {
-  const video = videos.find(v => v.id === item.video_id);
+function convertToFrontendVocabulary(item: any, videoTitle?: string): VocabularyItem {
   const reviewStage = item.review_stage || 0;
   
   return {
@@ -37,7 +34,7 @@ function convertToFrontendVocabulary(item: any, videos: any[]): VocabularyItem {
     word: item.word,
     translation: extractChineseTranslation(item.dictionary_response),
     videoId: item.video_id,
-    videoTitle: video?.title || 'Unknown Video',
+    videoTitle: videoTitle || 'Unknown Video',
     timestamp: item.timestamp / 1000, // Convert from milliseconds to seconds
     context: item.target_en,
     difficulty: reviewStage <= 2 ? 'easy' : reviewStage <= 4 ? 'medium' : 'hard',
@@ -52,7 +49,7 @@ function convertToFrontendVocabulary(item: any, videos: any[]): VocabularyItem {
   };
 }
 
-export function useVocabulary() {
+export function useVocabulary(videos?: any[]) {
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [stats, setStats] = useState<VocabularyStats>({
     totalWords: 0,
@@ -61,13 +58,57 @@ export function useVocabulary() {
     overdueWords: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const { videos } = useVideos();
   const { user } = useAuth();
+  const [videoTitleMap, setVideoTitleMap] = useState<Map<string, string>>(new Map());
+  
+  // Refs for debouncing and cancellation
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch vocabulary data on mount and when videos or user changes
+  // Update video title map when videos change
   useEffect(() => {
-    fetchVocabulary();
-  }, [videos, user?.id]);
+    if (videos && videos.length > 0) {
+      const map = new Map<string, string>();
+      videos.forEach(video => {
+        map.set(video.id, video.title);
+      });
+      setVideoTitleMap(map);
+    }
+  }, [videos]);
+
+  // Cleanup function to cancel pending requests
+  const cleanupPendingRequests = useCallback(() => {
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = null;
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
+  // Fetch vocabulary data on mount and when user changes
+  // Only fetch if we have videos loaded (or no videos parameter was passed)
+  useEffect(() => {
+    // If videos parameter is passed but empty/not loaded yet, don't fetch
+    if (videos !== undefined && (!videos || videos.length === 0)) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Debounce the fetch to avoid rapid successive calls
+    cleanupPendingRequests();
+    
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchVocabulary();
+    }, 200); // 200ms debounce delay
+    
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      cleanupPendingRequests();
+    };
+  }, [user?.id, videos]);
 
   const fetchVocabulary = async () => {
     if (!user?.id) {
@@ -82,13 +123,22 @@ export function useVocabulary() {
       return;
     }
     
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
     try {
       setIsLoading(true);
       const userId = user.id;
       
       const backendVocabulary = await vocabularyApi.getAll(userId);
       const convertedVocabulary = backendVocabulary.map(item => 
-        convertToFrontendVocabulary(item, videos)
+        convertToFrontendVocabulary(item, videoTitleMap.get(item.video_id))
       );
       
       setVocabulary(convertedVocabulary);
@@ -113,7 +163,12 @@ export function useVocabulary() {
         masteredWords,
         overdueWords
       });
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log or update state if the request was aborted
+      if (error?.name === 'AbortError' || error?.message?.includes('abort')) {
+        return;
+      }
+      
       console.error('Error fetching vocabulary:', error);
       // Set empty state on error
       setVocabulary([]);
@@ -124,7 +179,10 @@ export function useVocabulary() {
         overdueWords: 0
       });
     } finally {
-      setIsLoading(false);
+      // Only set loading to false if this request wasn't aborted
+      if (abortControllerRef.current === abortController) {
+        setIsLoading(false);
+      }
     }
   };
 

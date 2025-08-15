@@ -32,13 +32,13 @@ import ReactMarkdown from "react-markdown";
 export default function VocabularyDetail() {
   const [match, params] = useRoute("/vocabulary-list/:videoId");
   const [, setLocation] = useLocation();
+  const { videos } = useVideos();
   const {
     getVocabularyByVideoId,
     deleteVocabularyItem,
     toggleStar,
     isLoading,
-  } = useVocabulary();
-  const { videos } = useVideos();
+  } = useVocabulary(videos);
   const [sortBy, setSortBy] = useState<"word" | "timestamp">("timestamp");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [isPlaying, setIsPlaying] = useState(false);

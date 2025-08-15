@@ -229,8 +229,8 @@ export default function Progress() {
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
-  const { stats, isLoading, refreshVideos } = useVideos();
-  const { vocabulary } = useVocabulary();
+  const { stats, isLoading, refreshVideos, videos } = useVideos();
+  const { vocabulary } = useVocabulary(videos);
   const {
     stats: studyTimeStats,
     getWeeklyStudyData,

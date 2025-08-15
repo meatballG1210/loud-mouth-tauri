@@ -21,7 +21,7 @@ import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
-import { speechApi, audioToBase64, convertWebmToWav } from "@/api/speech";
+import { speechApi, audioToBase64, convertWebmToWav, analyzeAudioLevel } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
 import { areStringsSimilar } from "@/utils/string-similarity";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
@@ -45,8 +45,8 @@ export default function VocabularyReview() {
   // Filter out "session" as a videoId since it's a route keyword
   const rawVideoId = paramsSession?.videoId || paramsSetup?.videoId;
   const reviewVideoId = (rawVideoId && rawVideoId !== "session") ? rawVideoId : undefined;
-  const { stats: videoStats, refreshVideos } = useVideos();
-  const { stats, updateReviewWithResult } = useVocabulary();
+  const { stats: videoStats, refreshVideos, videos: allVideos } = useVideos();
+  const { stats, updateReviewWithResult } = useVocabulary(allVideos);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState("reviews");
@@ -708,11 +708,36 @@ export default function VocabularyReview() {
         },
       });
 
-      // Create MediaRecorder with higher quality
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-        audioBitsPerSecond: 128000,
-      });
+      // Create MediaRecorder with compatible settings
+      let mediaRecorder: MediaRecorder;
+      
+      // Try different mime types for better compatibility
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4',
+      ];
+      
+      let selectedMimeType = '';
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          break;
+        }
+      }
+      
+      if (selectedMimeType) {
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: selectedMimeType,
+          audioBitsPerSecond: 128000,
+        });
+        console.log('Using audio format:', selectedMimeType);
+      } else {
+        // Fallback to default if no supported type found
+        mediaRecorder = new MediaRecorder(stream);
+        console.log('Using default audio format');
+      }
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -728,11 +753,42 @@ export default function VocabularyReview() {
         try {
           // Create blob from chunks
           const audioBlob = new Blob(audioChunksRef.current, {
-            type: "audio/webm",
+            type: selectedMimeType || "audio/webm",
           });
 
+          console.log('Audio blob created:', {
+            size: audioBlob.size,
+            type: audioBlob.type,
+            chunks: audioChunksRef.current.length
+          });
+
+          // Check if we have actual audio data
+          if (audioBlob.size === 0 || audioChunksRef.current.length === 0) {
+            throw new Error('No audio data recorded');
+          }
+
+          // Analyze audio level to check if it contains speech
+          const audioAnalysis = await analyzeAudioLevel(audioBlob);
+          
+          if (!audioAnalysis.hasAudio) {
+            console.warn('Audio appears to be silent or too quiet:', audioAnalysis);
+            throw new Error('No speech detected. Please speak louder and try again.');
+          }
+
           // Convert to WAV format
-          const wavBlob = await convertWebmToWav(audioBlob);
+          let wavBlob: Blob;
+          try {
+            wavBlob = await convertWebmToWav(audioBlob);
+            console.log('WAV conversion successful:', {
+              size: wavBlob.size,
+              type: wavBlob.type
+            });
+          } catch (conversionError) {
+            console.error('WAV conversion failed:', conversionError);
+            // Try using the original blob as fallback
+            wavBlob = audioBlob;
+            console.log('Using original audio blob as fallback');
+          }
 
           // Convert to base64
           const base64Audio = await audioToBase64(wavBlob);
@@ -743,14 +799,53 @@ export default function VocabularyReview() {
             modelName,
           );
 
+          // Check for common Whisper hallucinations
+          const commonHallucinations = [
+            'thanks for watching',
+            'thank you for watching',
+            'please subscribe',
+            'like and subscribe',
+            'see you next time',
+            'bye bye',
+            'music',
+            '[music]',
+            '♪',
+          ];
+          
+          const resultLower = result.text.toLowerCase().trim();
+          const isHallucination = commonHallucinations.some(phrase => 
+            resultLower === phrase.toLowerCase() || 
+            resultLower.includes(phrase.toLowerCase())
+          );
+          
+          if (isHallucination) {
+            console.warn('Detected Whisper hallucination:', result.text);
+            throw new Error('Speech recognition failed. Please try speaking more clearly.');
+          }
+
           // Update the answer field
           setUserAnswer(result.text);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Transcription error:", error);
-          alert(
-            t("transcriptionFailed") ||
-              "Failed to transcribe audio. Please try again.",
-          );
+          const errorMessage = error?.message || error?.toString() || 'Unknown error';
+          
+          // Provide more specific error messages
+          if (errorMessage.includes('No audio data')) {
+            alert(t("noAudioRecorded") || "No audio was recorded. Please try again.");
+          } else if (errorMessage.includes('No speech detected') || errorMessage.includes('SILENT_AUDIO')) {
+            alert(t("noSpeechDetected") || "No speech detected. Please speak louder and ensure your microphone is working properly.");
+          } else if (errorMessage.includes('Speech recognition failed') || errorMessage.includes('HALLUCINATION')) {
+            alert(t("recognitionFailed") || "Speech recognition failed. Please try speaking more clearly and avoid background noise.");
+          } else if (errorMessage.includes('REPETITIVE_TEXT')) {
+            alert(t("repetitiveText") || "The speech recognition produced repetitive text. Please try again with clearer speech.");
+          } else if (errorMessage.includes('decoding') || errorMessage.includes('Decoding')) {
+            alert(t("audioFormatError") || "Audio format not supported. Please try a different browser or check your microphone settings.");
+          } else {
+            alert(
+              t("transcriptionFailed") ||
+                `Failed to transcribe audio: ${errorMessage}. Please try again.`,
+            );
+          }
         } finally {
           // Stop all tracks
           stream.getTracks().forEach((track) => track.stop());

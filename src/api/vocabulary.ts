@@ -1,5 +1,51 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_DELAY = 100; // ms
+
+// Helper function to sleep for a given duration
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to check if error is a database lock error
+const isDatabaseLockError = (error: any): boolean => {
+  const errorStr = error?.toString() || '';
+  const errorDetails = error?.details || error?.message || '';
+  return errorStr.includes('database is locked') || 
+         errorStr.includes('SQLITE_BUSY') ||
+         errorDetails.includes('database is locked') ||
+         errorDetails.includes('SQLITE_BUSY');
+};
+
+// Wrapper function to add retry logic with exponential backoff
+async function invokeWithRetry<T>(
+  command: string,
+  args: Record<string, any>,
+  retries: number = MAX_RETRIES
+): Promise<T> {
+  let lastError: any;
+  
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await invoke<T>(command, args);
+    } catch (error) {
+      lastError = error;
+      
+      // Only retry on database lock errors
+      if (!isDatabaseLockError(error) || i === retries) {
+        throw error;
+      }
+      
+      // Exponential backoff: 100ms, 200ms, 400ms
+      const delay = INITIAL_DELAY * Math.pow(2, i);
+      console.log(`Database locked, retrying in ${delay}ms... (attempt ${i + 1}/${retries + 1})`);
+      await sleep(delay);
+    }
+  }
+  
+  throw lastError;
+}
+
 export interface VocabularyItem {
   id?: string;
   user_id: string;
@@ -53,42 +99,42 @@ export interface AccuracyStats {
 
 export const vocabularyApi = {
   async create(vocabulary: CreateVocabularyRequest): Promise<VocabularyItem> {
-    return await invoke<VocabularyItem>("create_vocabulary", { request: vocabulary });
+    return await invokeWithRetry<VocabularyItem>("create_vocabulary", { request: vocabulary });
   },
 
   async getByVideo(videoId: string, userId: string): Promise<VocabularyItem[]> {
-    return await invoke<VocabularyItem[]>("get_vocabulary_by_video", { videoId, userId });
+    return await invokeWithRetry<VocabularyItem[]>("get_vocabulary_by_video", { videoId, userId });
   },
 
   async getAll(userId: string): Promise<VocabularyItem[]> {
-    return await invoke<VocabularyItem[]>("get_all_vocabulary", { userId });
+    return await invokeWithRetry<VocabularyItem[]>("get_all_vocabulary", { userId });
   },
 
   async updateReview(vocabularyId: string, reviewStage: number, nextReviewAt: string): Promise<void> {
-    return await invoke<void>("update_vocabulary_review", { vocabularyId, reviewStage, nextReviewAt });
+    return await invokeWithRetry<void>("update_vocabulary_review", { vocabularyId, reviewStage, nextReviewAt });
   },
 
   async delete(vocabularyId: string): Promise<void> {
-    return await invoke<void>("delete_vocabulary", { vocabularyId });
+    return await invokeWithRetry<void>("delete_vocabulary", { vocabularyId });
   },
 
   async getDueForReview(userId: string): Promise<VocabularyItem[]> {
-    return await invoke<VocabularyItem[]>("get_vocabulary_due_for_review", { userId });
+    return await invokeWithRetry<VocabularyItem[]>("get_vocabulary_due_for_review", { userId });
   },
 
   async getDueForReviewByVideo(userId: string, videoId: string): Promise<VocabularyItem[]> {
-    return await invoke<VocabularyItem[]>("get_vocabulary_due_for_review_by_video", { userId, videoId });
+    return await invokeWithRetry<VocabularyItem[]>("get_vocabulary_due_for_review_by_video", { userId, videoId });
   },
 
   async updateReviewWithResult(vocabularyId: string, isCorrect: boolean): Promise<VocabularyItem> {
-    return await invoke<VocabularyItem>("update_vocabulary_review_with_result", { vocabularyId, isCorrect });
+    return await invokeWithRetry<VocabularyItem>("update_vocabulary_review_with_result", { vocabularyId, isCorrect });
   },
 
   async getOverdue(userId: string): Promise<VocabularyItem[]> {
-    return await invoke<VocabularyItem[]>("get_overdue_vocabulary", { userId });
+    return await invokeWithRetry<VocabularyItem[]>("get_overdue_vocabulary", { userId });
   },
 
   async getAccuracyStats(userId: string): Promise<AccuracyStats> {
-    return await invoke<AccuracyStats>("get_vocabulary_accuracy_stats", { userId });
+    return await invokeWithRetry<AccuracyStats>("get_vocabulary_accuracy_stats", { userId });
   }
 };

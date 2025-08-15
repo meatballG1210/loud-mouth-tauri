@@ -98,6 +98,27 @@ pub async fn download_whisper_model(
     Ok(())
 }
 
+/// Check if audio contains actual speech (not just silence)
+fn check_audio_has_content(samples: &[f32]) -> bool {
+    if samples.is_empty() {
+        return false;
+    }
+    
+    // Calculate RMS (Root Mean Square) to detect silence
+    let sum: f32 = samples.iter().map(|&x| x * x).sum();
+    let rms = (sum / samples.len() as f32).sqrt();
+    
+    // Also check max amplitude
+    let max_amplitude = samples.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
+    
+    // Consider audio as having content if RMS > 0.001 or max > 0.01
+    let has_content = rms > 0.001 || max_amplitude > 0.01;
+    
+    eprintln!("Audio analysis: RMS={:.6}, Max={:.6}, Has content={}", rms, max_amplitude, has_content);
+    
+    has_content
+}
+
 /// Convert audio data to format required by Whisper (16kHz mono f32)
 fn convert_to_whisper_format(audio_data: &[u8]) -> Result<Vec<f32>, AppError> {
     let cursor = std::io::Cursor::new(audio_data);
@@ -180,6 +201,15 @@ pub async fn transcribe_audio(
     // Convert audio to Whisper format
     let audio_samples = convert_to_whisper_format(&audio_data)?;
     
+    // Check if audio has actual content (not just silence)
+    if !check_audio_has_content(&audio_samples) {
+        return Err(app_error!(
+            "SILENT_AUDIO",
+            "Audio appears to be silent or too quiet",
+            "Please speak louder and ensure your microphone is working"
+        ));
+    }
+    
     // Initialize Whisper context
     let ctx = WhisperContext::new_with_params(
         model_path.to_str().unwrap(),
@@ -189,7 +219,7 @@ pub async fn transcribe_audio(
     // Set up parameters for transcription
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     
-    // Configure parameters for better accuracy
+    // Configure parameters for better accuracy and to avoid hallucinations
     params.set_n_threads(4);
     params.set_translate(false);
     params.set_language(Some("en"));
@@ -199,6 +229,9 @@ pub async fn transcribe_audio(
     params.set_print_timestamps(false);
     params.set_suppress_blank(true);
     params.set_suppress_non_speech_tokens(true);
+    params.set_no_context(true); // Don't use previous context which can cause repetition
+    params.set_single_segment(false); // Allow multiple segments
+    params.set_temperature(0.0); // Use deterministic decoding to reduce hallucinations
     
     // Create a state for transcription
     let mut state = ctx.create_state()
@@ -222,6 +255,50 @@ pub async fn transcribe_audio(
     
     // Trim and clean up the text
     let text = text.trim().to_string();
+    
+    // Check for common Whisper hallucinations
+    let hallucination_phrases = vec![
+        "thanks for watching",
+        "thank you for watching",
+        "please subscribe",
+        "like and subscribe",
+        "see you next time",
+        "bye bye",
+        "music",
+        "[music]",
+        "♪",
+    ];
+    
+    let text_lower = text.to_lowercase();
+    let is_hallucination = hallucination_phrases.iter().any(|phrase| {
+        text_lower == *phrase || text_lower.contains(phrase)
+    });
+    
+    if is_hallucination {
+        eprintln!("Detected potential hallucination: {}", text);
+        return Err(app_error!(
+            "HALLUCINATION_DETECTED",
+            "Speech recognition produced unreliable result",
+            format!("Detected phrase '{}' which appears to be a hallucination. Please try again.", text)
+        ));
+    }
+    
+    // Also check if the text is suspiciously repetitive
+    if text.len() > 10 {
+        let words: Vec<&str> = text.split_whitespace().collect();
+        if words.len() > 3 {
+            let unique_words: std::collections::HashSet<&str> = words.iter().cloned().collect();
+            let repetition_ratio = unique_words.len() as f32 / words.len() as f32;
+            if repetition_ratio < 0.3 {
+                eprintln!("Detected repetitive text: {}", text);
+                return Err(app_error!(
+                    "REPETITIVE_TEXT",
+                    "Speech recognition produced repetitive result",
+                    "The transcription appears to be repetitive. Please try again."
+                ));
+            }
+        }
+    }
     
     Ok(TranscriptionResult {
         text,

@@ -53,13 +53,59 @@ export async function audioToBase64(blob: Blob): Promise<string> {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      // Remove the data:audio/webm;base64, prefix
+      // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
       const base64 = base64String.split(",")[1];
+      if (!base64) {
+        reject(new Error('Failed to extract base64 data from blob'));
+        return;
+      }
       resolve(base64);
     };
-    reader.onerror = reject;
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
+      reject(error);
+    };
     reader.readAsDataURL(blob);
   });
+}
+
+/**
+ * Analyze audio to check if it contains actual speech
+ */
+export async function analyzeAudioLevel(audioBlob: Blob): Promise<{ hasAudio: boolean; avgLevel: number; maxLevel: number }> {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    // Get the audio data from the first channel
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Calculate RMS (Root Mean Square) for volume level
+    let sum = 0;
+    let max = 0;
+    for (let i = 0; i < channelData.length; i++) {
+      const sample = Math.abs(channelData[i]);
+      sum += sample * sample;
+      if (sample > max) max = sample;
+    }
+    
+    const rms = Math.sqrt(sum / channelData.length);
+    const avgLevel = rms;
+    const maxLevel = max;
+    
+    // Consider audio as having content if RMS > 0.001 (about -60 dB)
+    // or if max level > 0.01 (about -40 dB)
+    const hasAudio = avgLevel > 0.001 || maxLevel > 0.01;
+    
+    console.log('Audio analysis:', { hasAudio, avgLevel, maxLevel, duration: audioBuffer.duration });
+    
+    return { hasAudio, avgLevel, maxLevel };
+  } catch (error) {
+    console.error('Error analyzing audio:', error);
+    // If we can't analyze, assume it has audio to avoid blocking
+    return { hasAudio: true, avgLevel: 0, maxLevel: 0 };
+  }
 }
 
 /**
@@ -67,31 +113,52 @@ export async function audioToBase64(blob: Blob): Promise<string> {
  * This is necessary because Whisper requires WAV format
  */
 export async function convertWebmToWav(webmBlob: Blob): Promise<Blob> {
-  const audioContext = new AudioContext();
-  const arrayBuffer = await webmBlob.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  
-  // Convert to mono and resample to 16kHz
-  const sampleRate = 16000;
-  const numberOfChannels = 1;
-  const length = Math.floor(audioBuffer.duration * sampleRate);
-  
-  const offlineContext = new OfflineAudioContext(
-    numberOfChannels,
-    length,
-    sampleRate
-  );
-  
-  const source = offlineContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(offlineContext.destination);
-  source.start();
-  
-  const renderedBuffer = await offlineContext.startRendering();
-  
-  // Convert AudioBuffer to WAV
-  const wavData = audioBufferToWav(renderedBuffer);
-  return new Blob([wavData], { type: "audio/wav" });
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const arrayBuffer = await webmBlob.arrayBuffer();
+    
+    let audioBuffer: AudioBuffer;
+    try {
+      // Try to decode the audio data
+      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    } catch (decodeError) {
+      console.error("Failed to decode audio data:", decodeError);
+      // If decoding fails, try creating a new blob with explicit type
+      const newBlob = new Blob([arrayBuffer], { type: 'audio/webm' });
+      const newArrayBuffer = await newBlob.arrayBuffer();
+      try {
+        audioBuffer = await audioContext.decodeAudioData(newArrayBuffer);
+      } catch (secondError) {
+        console.error("Second decode attempt failed:", secondError);
+        throw new Error(`Audio decoding failed: ${secondError}`);
+      }
+    }
+    
+    // Convert to mono and resample to 16kHz
+    const sampleRate = 16000;
+    const numberOfChannels = 1;
+    const length = Math.floor(audioBuffer.duration * sampleRate);
+    
+    const offlineContext = new OfflineAudioContext(
+      numberOfChannels,
+      length,
+      sampleRate
+    );
+    
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start();
+    
+    const renderedBuffer = await offlineContext.startRendering();
+    
+    // Convert AudioBuffer to WAV
+    const wavData = audioBufferToWav(renderedBuffer);
+    return new Blob([wavData], { type: "audio/wav" });
+  } catch (error) {
+    console.error("Error in convertWebmToWav:", error);
+    throw error;
+  }
 }
 
 /**
@@ -151,4 +218,45 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   }
 
   return arrayBuffer;
+}
+
+/**
+ * Simple fallback method to create a basic WAV file
+ * This creates a silent WAV file as a last resort fallback
+ */
+export function createSilentWav(durationSeconds: number = 1): Blob {
+  const sampleRate = 16000;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const numSamples = Math.floor(sampleRate * durationSeconds);
+  const dataSize = numSamples * numChannels * (bitsPerSample / 8);
+  const fileSize = 44 + dataSize;
+  
+  const buffer = new ArrayBuffer(fileSize);
+  const view = new DataView(buffer);
+  
+  // WAV file header
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, fileSize - 8, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true); // audio format (PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+  view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+  
+  // Fill with silence (zeros already in buffer)
+  
+  return new Blob([buffer], { type: 'audio/wav' });
 }

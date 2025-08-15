@@ -30,7 +30,9 @@ pub fn init_pool() -> Result<()> {
     let database_url = get_database_url();
     let manager = ConnectionManager::<SqliteConnection>::new(&database_url);
     let pool = r2d2::Pool::builder()
-        .max_size(5)
+        .max_size(10)  // Increased from 5 to 10 for better concurrency
+        .min_idle(Some(2))  // Keep at least 2 connections ready
+        .connection_timeout(std::time::Duration::from_secs(10))  // 10 second timeout to get connection
         .build(manager)
         .map_err(|e| AppError::new("POOL_ERROR", "Failed to create connection pool")
             .with_details(e.to_string()))?;
@@ -47,9 +49,22 @@ pub fn init_pool() -> Result<()> {
             .map_err(|e| AppError::new("PRAGMA_ERROR", "Failed to set journal mode")
                 .with_details(e.to_string()))?;
         
-        diesel::sql_query("PRAGMA busy_timeout = 5000")
+        // Increase busy timeout to 10 seconds for better handling of concurrent access
+        diesel::sql_query("PRAGMA busy_timeout = 10000")
             .execute(&mut *conn)
             .map_err(|e| AppError::new("PRAGMA_ERROR", "Failed to set busy timeout")
+                .with_details(e.to_string()))?;
+        
+        // Set synchronous to NORMAL for better performance while maintaining safety
+        diesel::sql_query("PRAGMA synchronous = NORMAL")
+            .execute(&mut *conn)
+            .map_err(|e| AppError::new("PRAGMA_ERROR", "Failed to set synchronous mode")
+                .with_details(e.to_string()))?;
+        
+        // Enable memory-mapped I/O for better read performance
+        diesel::sql_query("PRAGMA mmap_size = 268435456")
+            .execute(&mut *conn)
+            .map_err(|e| AppError::new("PRAGMA_ERROR", "Failed to set mmap size")
                 .with_details(e.to_string()))?;
         
         conn.run_pending_migrations(MIGRATIONS)
