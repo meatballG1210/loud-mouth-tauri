@@ -34,7 +34,7 @@ function convertToFrontendVocabulary(item: any, videoTitle?: string): Vocabulary
     word: item.word,
     translation: extractChineseTranslation(item.dictionary_response),
     videoId: item.video_id,
-    videoTitle: videoTitle || 'Unknown Video',
+    videoTitle: videoTitle || 'Unknown video',
     timestamp: item.timestamp / 1000, // Convert from milliseconds to seconds
     context: item.target_en,
     difficulty: reviewStage <= 2 ? 'easy' : reviewStage <= 4 ? 'medium' : 'hard',
@@ -73,6 +73,12 @@ export function useVocabulary(videos?: any[]) {
         map.set(video.id, video.title);
       });
       setVideoTitleMap(map);
+      
+      // Update existing vocabulary items with correct video titles
+      setVocabulary(prev => prev.map(item => ({
+        ...item,
+        videoTitle: map.get(item.videoId) || item.videoTitle
+      })));
     }
   }, [videos]);
 
@@ -108,7 +114,7 @@ export function useVocabulary(videos?: any[]) {
     return () => {
       cleanupPendingRequests();
     };
-  }, [user?.id, videos]);
+  }, [user?.id, videos, videoTitleMap]);
 
   const fetchVocabulary = async () => {
     if (!user?.id) {
