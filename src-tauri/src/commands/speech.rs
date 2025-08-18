@@ -4,6 +4,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
+use std::collections::HashMap;
 use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
 use hound;
 use tauri::Emitter;
@@ -119,6 +120,191 @@ fn check_audio_has_content(samples: &[f32]) -> bool {
     has_content
 }
 
+/// Check if text contains repetitive patterns
+fn is_repetitive(text: &str) -> bool {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    if words.len() < 4 {
+        return false;
+    }
+    
+    // Check for repeated words
+    let mut word_counts = HashMap::new();
+    for word in &words {
+        let word_lower = word.to_lowercase();
+        *word_counts.entry(word_lower).or_insert(0) += 1;
+    }
+    
+    // If any word appears more than 40% of the time, it's repetitive
+    for count in word_counts.values() {
+        if *count as f32 / words.len() as f32 > 0.4 {
+            return true;
+        }
+    }
+    
+    // Check for repeated bigrams (two-word patterns)
+    if words.len() >= 4 {
+        for i in 0..words.len().saturating_sub(3) {
+            let bigram = format!("{} {}", words[i].to_lowercase(), words[i+1].to_lowercase());
+            let next_bigram = format!("{} {}", words[i+2].to_lowercase(), words[i+3].to_lowercase());
+            if bigram == next_bigram {
+                return true;
+            }
+        }
+    }
+    
+    false
+}
+
+/// Check if text ends with a likely hallucinated phrase
+fn ends_with_hallucinated_phrase(text: &str) -> bool {
+    let text_lower = text.to_lowercase();
+    let ending_hallucinations = vec![
+        "thank you", "thanks", "thank you.", "thanks.",
+        "thank you!", "thanks!", "you're welcome",
+        "bye", "goodbye", "bye.", "goodbye.",
+        "see you", "see you later",
+    ];
+    
+    ending_hallucinations.iter().any(|phrase| {
+        text_lower.trim().ends_with(phrase)
+    })
+}
+
+/// Check if the text before a potential hallucination is a complete sentence
+fn has_complete_sentence_before_ending(text: &str) -> bool {
+    let text_lower = text.to_lowercase();
+    
+    // Common ending hallucinations to check
+    let endings = vec![
+        "thank you", "thanks", "you're welcome",
+        "bye", "goodbye", "see you",
+    ];
+    
+    // Find if text ends with any of these
+    for ending in &endings {
+        if text_lower.trim().ends_with(ending) {
+            // Get the text before this ending
+            let before_text = if let Some(idx) = text_lower.rfind(ending) {
+                &text[..idx]
+            } else {
+                continue;
+            };
+            
+            let trimmed = before_text.trim();
+            
+            // Check if there's meaningful content before the ending
+            if trimmed.is_empty() {
+                return false;
+            }
+            
+            // Check if it has at least 3 words (a simple heuristic for completeness)
+            let word_count = trimmed.split_whitespace().count();
+            if word_count < 3 {
+                return false;
+            }
+            
+            // Check if it ends with proper punctuation or is a complete thought
+            // If it ends with . or ! or ? then adding "thank you" is likely a hallucination
+            if trimmed.ends_with('.') || trimmed.ends_with('!') || trimmed.ends_with('?') {
+                return true;
+            }
+            
+            // If there's substantial content (>5 words), consider it complete
+            if word_count > 5 {
+                return true;
+            }
+        }
+    }
+    
+    false
+}
+
+/// Clean hallucinated endings from transcribed text
+fn clean_hallucinated_endings(text: &str) -> String {
+    let mut cleaned = text.to_string();
+    
+    // List of common hallucinated endings with their variations
+    let hallucinated_endings = vec![
+        // Most common Whisper hallucinations at the end
+        vec!["thank you.", "thank you!", "thank you"],
+        vec!["thanks.", "thanks!", "thanks"],
+        vec!["you're welcome.", "you're welcome!", "you're welcome"],
+        vec!["bye.", "bye!", "bye bye.", "bye bye!", "bye bye", "bye"],
+        vec!["goodbye.", "goodbye!", "goodbye"],
+        vec!["see you.", "see you!", "see you later.", "see you later!", "see you later"],
+    ];
+    
+    // Check each group of variations
+    for variations in &hallucinated_endings {
+        for ending in variations {
+            let text_lower = cleaned.to_lowercase();
+            
+            if text_lower.trim().ends_with(ending) {
+                // Check if there's meaningful content before this ending
+                if let Some(idx) = text_lower.rfind(ending) {
+                    let before = &cleaned[..idx].trim();
+                    
+                    // Only remove if:
+                    // 1. There's content before it
+                    // 2. The content before forms a complete thought
+                    // 3. The ending seems tacked on (e.g., after punctuation)
+                    if !before.is_empty() && before.split_whitespace().count() >= 3 {
+                        // Check if the sentence was already complete
+                        if before.ends_with('.') || before.ends_with('!') || before.ends_with('?') {
+                            // Remove the hallucinated ending
+                            cleaned = before.to_string();
+                            eprintln!("Removed likely hallucinated ending: '{}'", ending);
+                            break;
+                        }
+                        // Also remove if it's a substantial sentence without the ending
+                        else if before.split_whitespace().count() >= 5 {
+                            // Add proper punctuation if needed
+                            cleaned = if before.chars().last().map_or(false, |c| c.is_alphanumeric()) {
+                                format!("{}.", before)
+                            } else {
+                                before.to_string()
+                            };
+                            eprintln!("Removed likely hallucinated ending: '{}'", ending);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    cleaned
+}
+
+/// Calculate text entropy to detect gibberish or abnormal text
+fn calculate_text_entropy(text: &str) -> f32 {
+    if text.is_empty() {
+        return 0.0;
+    }
+    
+    let mut char_counts = HashMap::new();
+    for ch in text.chars() {
+        if ch.is_alphabetic() {  // Only count alphabetic characters
+            *char_counts.entry(ch.to_lowercase().to_string()).or_insert(0) += 1;
+        }
+    }
+    
+    let total_chars = char_counts.values().sum::<i32>() as f32;
+    if total_chars == 0.0 {
+        return 0.0;
+    }
+    
+    let mut entropy = 0.0;
+    for count in char_counts.values() {
+        let p = *count as f32 / total_chars;
+        if p > 0.0 {
+            entropy -= p * p.log2();
+        }
+    }
+    
+    entropy
+}
+
 /// Convert audio data to format required by Whisper (16kHz mono f32)
 fn convert_to_whisper_format(audio_data: &[u8]) -> Result<Vec<f32>, AppError> {
     let cursor = std::io::Cursor::new(audio_data);
@@ -216,8 +402,11 @@ pub async fn transcribe_audio(
         WhisperContextParameters::default()
     ).map_err(|e| app_error!("MODEL_LOAD_ERROR", "Failed to load Whisper model", e.to_string()))?;
     
-    // Set up parameters for transcription
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    // Set up parameters for transcription - use BeamSearch for better accuracy
+    let mut params = FullParams::new(SamplingStrategy::BeamSearch { 
+        beam_size: 5,
+        patience: 1.0 
+    });
     
     // Configure parameters for better accuracy and to avoid hallucinations
     params.set_n_threads(4);
@@ -233,6 +422,12 @@ pub async fn transcribe_audio(
     params.set_single_segment(false); // Allow multiple segments
     params.set_temperature(0.0); // Use deterministic decoding to reduce hallucinations
     
+    // Additional parameters to reduce hallucinations
+    params.set_entropy_thold(2.4); // Reject low-entropy (repetitive) segments
+    params.set_logprob_thold(-1.0); // Reject low-probability tokens
+    params.set_no_speech_thold(0.6); // Higher threshold for detecting non-speech
+    params.set_initial_prompt(""); // No initial prompt to avoid bias
+    
     // Create a state for transcription
     let mut state = ctx.create_state()
         .map_err(|e| app_error!("STATE_ERROR", "Failed to create whisper state", e.to_string()))?;
@@ -241,63 +436,178 @@ pub async fn transcribe_audio(
     state.full(params, &audio_samples)
         .map_err(|e| app_error!("TRANSCRIPTION_ERROR", "Failed to transcribe audio", e.to_string()))?;
     
-    // Get the transcribed text
+    // Get the transcribed text with segment-level validation
     let num_segments = state.full_n_segments()
         .map_err(|_| app_error!("TRANSCRIPTION_ERROR", "Failed to get number of segments"))?;
     
     let mut text = String::new();
+    let mut valid_segments = 0;
+    
     for i in 0..num_segments {
         let segment = state.full_get_segment_text(i)
             .map_err(|_| app_error!("TRANSCRIPTION_ERROR", "Failed to get segment text"))?;
+        
+        eprintln!("Segment {}: text='{}'", i, segment.trim());
+        
+        // Check for repetitive patterns within segment
+        if is_repetitive(&segment) {
+            eprintln!("  Skipping segment {} due to repetitive content", i);
+            continue;
+        }
+        
+        // Skip very short segments that might be artifacts
+        let trimmed = segment.trim();
+        if trimmed.len() < 3 || trimmed.split_whitespace().count() < 2 {
+            eprintln!("  Skipping segment {} due to being too short", i);
+            continue;
+        }
+        
+        // Skip segments that are just punctuation or single repeated words
+        if trimmed.chars().all(|c| !c.is_alphabetic()) {
+            eprintln!("  Skipping segment {} - no alphabetic characters", i);
+            continue;
+        }
+        
         text.push_str(&segment);
         text.push(' ');
+        valid_segments += 1;
+    }
+    
+    // Check if we got any valid segments
+    if valid_segments == 0 {
+        return Err(app_error!(
+            "NO_VALID_SEGMENTS",
+            "No valid speech segments detected",
+            "Please speak more clearly and ensure your microphone is working properly"
+        ));
     }
     
     // Trim and clean up the text
-    let text = text.trim().to_string();
+    let mut text = text.trim().to_string();
     
-    // Check for common Whisper hallucinations
-    let hallucination_phrases = vec![
-        "thanks for watching",
-        "thank you for watching",
-        "please subscribe",
-        "like and subscribe",
-        "see you next time",
-        "bye bye",
-        "music",
-        "[music]",
-        "♪",
+    // Clean potential hallucinated endings BEFORE other checks
+    text = clean_hallucinated_endings(&text);
+    eprintln!("Text after cleaning endings: '{}'", text);
+    
+    // Check if we have meaningful text after cleaning
+    if text.is_empty() {
+        return Err(app_error!(
+            "EMPTY_TRANSCRIPTION",
+            "No speech was transcribed",
+            "No recognizable speech was detected. Please speak clearly into the microphone."
+        ));
+    }
+    
+    if text.len() < 5 || text.split_whitespace().count() < 2 {
+        eprintln!("Text too short after cleaning: '{}'", text);
+        return Err(app_error!(
+            "INSUFFICIENT_SPEECH",
+            "Transcription too short",
+            "Please speak a complete sentence or phrase."
+        ));
+    }
+    
+    // Check for common Whisper hallucinations (simplified after cleaning)
+    let text_lower = text.to_lowercase();
+    
+    // Exact match hallucinations (these are ALWAYS hallucinations when they appear alone)
+    // Note: We've already cleaned ending "thank you" etc, so only check for full phrases
+    let exact_hallucinations = vec![
+        // Full video phrases that shouldn't appear in normal speech
+        "thanks for watching", "thank you for watching", 
+        "please subscribe", "like and subscribe",
+        "don't forget to subscribe", "hit the bell", "hit that bell",
+        "welcome back everybody", "hey guys", "what's up guys",
+        "like comment and subscribe", "smash that like button",
+        
+        // Music/Audio artifacts
+        "[music]", "[applause]", "[laughter]", "[inaudible]",
+        "[silence]", "[background music]", "[noise]",
+        "audio jungle", "audiojungle",
+        
+        // Pure repetitions (only when that's ALL the text)
+        "you you you", "you you you you",
+        "the the the", "the the the the",
+        "and and and", "and and and and",
+        
+        // Punctuation only
+        ".", "..", "...", "....",
     ];
     
-    let text_lower = text.to_lowercase();
-    let is_hallucination = hallucination_phrases.iter().any(|phrase| {
-        text_lower == *phrase || text_lower.contains(phrase)
+    // Check if the entire transcription is just a known hallucination
+    let is_exact_hallucination = exact_hallucinations.iter().any(|phrase| {
+        text_lower.trim() == *phrase
     });
     
+    // Check for purely repetitive text (all words are the same)
+    let is_pure_repetition = {
+        let words: Vec<&str> = text.split_whitespace().collect();
+        if words.len() >= 3 {
+            let first_word = words[0].to_lowercase();
+            words.iter().all(|w| w.to_lowercase() == first_word)
+        } else {
+            false
+        }
+    };
+    
+    let is_hallucination = is_exact_hallucination || is_pure_repetition;
+    
     if is_hallucination {
-        eprintln!("Detected potential hallucination: {}", text);
+        eprintln!("Detected hallucination: '{}'", text);
+        eprintln!("  Exact match: {}, Pure repetition: {}", 
+                  is_exact_hallucination, is_pure_repetition);
         return Err(app_error!(
             "HALLUCINATION_DETECTED",
             "Speech recognition produced unreliable result",
             format!("Detected phrase '{}' which appears to be a hallucination. Please try again.", text)
         ));
+    } else {
+        eprintln!("Text passed hallucination check: '{}'", text);
     }
     
-    // Also check if the text is suspiciously repetitive
-    if text.len() > 10 {
-        let words: Vec<&str> = text.split_whitespace().collect();
-        if words.len() > 3 {
-            let unique_words: std::collections::HashSet<&str> = words.iter().cloned().collect();
-            let repetition_ratio = unique_words.len() as f32 / words.len() as f32;
-            if repetition_ratio < 0.3 {
-                eprintln!("Detected repetitive text: {}", text);
-                return Err(app_error!(
-                    "REPETITIVE_TEXT",
-                    "Speech recognition produced repetitive result",
-                    "The transcription appears to be repetitive. Please try again."
-                ));
-            }
-        }
+    // Check text entropy to detect gibberish or abnormal text
+    let entropy = calculate_text_entropy(&text);
+    eprintln!("Text entropy: {:.2}", entropy);
+    
+    // Only check entropy for longer text, and be more lenient
+    // Normal English text has entropy around 3.0-4.5
+    if text.len() > 30 && (entropy < 1.0 || entropy > 5.5) {
+        eprintln!("Abnormal text entropy detected: {}", text);
+        return Err(app_error!(
+            "LOW_QUALITY_TRANSCRIPTION",
+            "Transcription quality is too low",
+            "Please try speaking more clearly with complete sentences"
+        ));
+    }
+    
+    // Calculate speech rate to detect anomalies
+    let audio_duration = audio_samples.len() as f32 / 16000.0; // 16kHz sample rate
+    let word_count = text.split_whitespace().count();
+    let words_per_second = word_count as f32 / audio_duration;
+    
+    eprintln!("Speech rate: {:.2} words/second (duration: {:.2}s, words: {})", 
+              words_per_second, audio_duration, word_count);
+    
+    // Normal speech is typically 2-3 words per second
+    // Allow wider range for different speaking speeds but flag only extreme cases
+    // Some people speak slowly (1 word/sec) or quickly (5 words/sec)
+    if audio_duration > 2.0 && (words_per_second < 0.3 || words_per_second > 8.0) {
+        eprintln!("Abnormal speech rate detected: {:.2} words/sec", words_per_second);
+        return Err(app_error!(
+            "ABNORMAL_SPEECH_RATE",
+            "Detected abnormal speech rate",
+            format!("Speech rate of {:.1} words/second seems unusual. Please speak at a normal pace.", words_per_second)
+        ));
+    }
+    
+    // Also check if the text is suspiciously repetitive using our helper function
+    if is_repetitive(&text) {
+        eprintln!("Detected repetitive text: {}", text);
+        return Err(app_error!(
+            "REPETITIVE_TEXT",
+            "Speech recognition produced repetitive result",
+            "The transcription appears to be repetitive. Please try again."
+        ));
     }
     
     Ok(TranscriptionResult {
