@@ -23,7 +23,7 @@ import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { speechApi, audioToBase64, convertWebmToWav, analyzeAudioLevel } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
-import { areStringsSimilar } from "@/utils/string-similarity";
+import { checkAnswerSimilarity } from "@/utils/string-similarity";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
@@ -400,13 +400,12 @@ export default function VocabularyReview() {
       return;
     }
 
-    // Use Levenshtein distance similarity with 0.85 threshold
-    // The function will normalize strings (remove spaces/punctuation) before comparison
-    const isAnswerCorrect = areStringsSimilar(
+    // Use enhanced similarity check with multiple strategies
+    // This handles filler words, contractions, dialog markers, and more
+    const isAnswerCorrect = checkAnswerSimilarity(
       userAnswer.trim(),
       currentReview.target_en,
-      0.85,
-      true, // normalize strings
+      0.85 // threshold
     );
 
     setIsCorrect(isAnswerCorrect);
