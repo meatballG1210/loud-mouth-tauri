@@ -338,17 +338,17 @@ export default function VideoPlayer() {
     const text = wordTexts.join(" ");
     const prompt =
       wordTexts.length > 1
-        ? `"${text}":
-中文: 直译
-场景: 使用情境
-例句: 原句
-译文: 中文`
-        : `"${text}":
-中文: 直译
-词性: 类型
-含义: 1-2个
-例句: 原句
-译文: 中文`;
+        ? `解释短语"${text}"在语境中的含义。请使用Markdown格式回复：
+
+**译文：** 语境含义翻译
+**用法：** 解释此短语/俚语常见使用场景
+**英文例句：** 提供1个简短例句
+**中文翻译：** 例句的中文翻译`
+        : `解释单词"${text}"。请使用Markdown格式回复：
+
+**翻译：** 常见含义1-2个
+**英文例句：** 提供1个简短例句
+**中文翻译：** 例句的中文翻译`;
 
     try {
       const response = await fetch(
