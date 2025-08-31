@@ -6,6 +6,9 @@ use crate::schema::{videos, subtitles};
 use crate::thumbnail;
 use std::process::Command;
 use std::path::PathBuf;
+use sha2::{Sha256, Digest};
+use std::io::Read;
+use std::fs::File;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubtitleInfo {
@@ -120,6 +123,36 @@ pub async fn upload_video(
     // Get current timestamp for upload_date
     let upload_date = chrono::Utc::now().to_rfc3339();
     
+    // Compute fast hash for duplicate detection
+    let fast_hash = match compute_fast_hash(&file_path) {
+        Ok(hash) => Some(hash),
+        Err(e) => {
+            eprintln!("Failed to compute hash: {}", e);
+            None
+        }
+    };
+    
+    // Check for duplicates if hash was computed
+    if let Some(ref hash) = fast_hash {
+        let mut connection = establish_connection()
+            .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to connect to database")
+                .with_details(e.to_string()))?;
+        
+        use crate::schema::videos::dsl::{videos, fast_hash as fast_hash_col};
+        
+        let duplicate: Option<StoredVideo> = videos
+            .filter(fast_hash_col.eq(hash))
+            .first(&mut *connection)
+            .optional()
+            .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to check for duplicates")
+                .with_details(e.to_string()))?;
+        
+        if let Some(existing_video) = duplicate {
+            return Err(AppError::new("DUPLICATE_VIDEO", "This video has already been uploaded")
+                .with_details(format!("A video with the same content already exists: '{}'", existing_video.title)));
+        }
+    }
+    
     // Generate thumbnail
     let thumbnail_path = match thumbnail::generate_thumbnail(
         &file_path,
@@ -215,7 +248,7 @@ pub async fn upload_video(
         thumbnail_path: thumbnail_path.clone(),
         has_english_subtitles: Some(has_english_subtitles),
         has_chinese_subtitles: Some(has_chinese_subtitles),
-        fast_hash: None,
+        fast_hash: fast_hash.clone(),
         full_hash: None,
         upload_date: Some(upload_date.clone()),
     };
@@ -254,7 +287,7 @@ pub async fn upload_video(
         thumbnail_path,
         has_english_subtitles: Some(has_english_subtitles),
         has_chinese_subtitles: Some(has_chinese_subtitles),
-        fast_hash: None,
+        fast_hash,
         full_hash: None,
         upload_date: Some(upload_date),
     };
@@ -504,5 +537,26 @@ pub async fn get_video_subtitles(video_id: String, language: String) -> Result<S
             .with_details(e.to_string()))?;
     
     Ok(content)
+}
+
+fn compute_fast_hash(file_path: &str) -> Result<String> {
+    const HASH_SIZE: usize = 10 * 1024 * 1024; // 10MB
+    
+    let mut file = File::open(file_path)
+        .map_err(|e| AppError::new("FILE_ACCESS_ERROR", "Failed to open file for hashing")
+            .with_details(e.to_string()))?;
+    
+    let mut buffer = vec![0u8; HASH_SIZE];
+    let bytes_read = file.read(&mut buffer)
+        .map_err(|e| AppError::new("FILE_ACCESS_ERROR", "Failed to read file for hashing")
+            .with_details(e.to_string()))?;
+    
+    buffer.truncate(bytes_read);
+    
+    let mut hasher = Sha256::new();
+    hasher.update(&buffer);
+    let hash_result = hasher.finalize();
+    
+    Ok(format!("{:x}", hash_result))
 }
 
