@@ -25,6 +25,7 @@ export interface VocabularyItem {
   translation: string;
   videoId: string;
   videoTitle: string;
+  videoUploadDate?: string;
   timestamp: number;
   context: string;
   difficulty: 'easy' | 'medium' | 'hard';

@@ -21,7 +21,7 @@ export default function VocabularyList() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"word" | "lastReviewed">("word");
+  const [sortBy, setSortBy] = useState<"word" | "lastReviewed" | "videoUploadDate">("word");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [activeSection, setActiveSection] = useState("vocabulary");
   const [expandedVideos, setExpandedVideos] = useState<Set<string>>(new Set());
@@ -50,6 +50,12 @@ export default function VocabularyList() {
           new Date(b.lastReviewed).getTime() -
           new Date(a.lastReviewed).getTime()
         );
+      case "videoUploadDate":
+        // Sort by video upload date (newest first)
+        // If date is missing, treat as oldest
+        const dateA = a.videoUploadDate ? new Date(a.videoUploadDate).getTime() : 0;
+        const dateB = b.videoUploadDate ? new Date(b.videoUploadDate).getTime() : 0;
+        return dateB - dateA;
       default:
         return 0;
     }
@@ -219,6 +225,9 @@ export default function VocabularyList() {
                   </option>
                   <option value="lastReviewed">
                     {t("sortBy")} {t("lastReviewedColumn")}
+                  </option>
+                  <option value="videoUploadDate">
+                    {t("sortBy")} {t("videoUploadDateColumn")}
                   </option>
                 </select>
               </div>

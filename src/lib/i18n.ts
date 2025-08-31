@@ -236,6 +236,21 @@ export const translations = {
     reviewAccuracyTrends: 'Review Accuracy Trends',
     memoryRetentionPerformance: 'Your memory retention performance over time',
 
+    // Vocabulary List
+    searchVocabulary: "Search vocabulary...",
+    sortBy: "Sort by",
+    filterBy: "Filter by",
+    dueForReview: "Due for review",
+    wordColumn: "Word",
+    lastReviewedColumn: "Last Reviewed",
+    videoUploadDateColumn: "Video Upload Date",
+    noVocabularyFound: "No vocabulary found",
+    addVocabularyFromVideos: "Add vocabulary from your videos to start building your collection",
+    expandVideo: "Expand video",
+    collapseVideo: "Collapse video",
+    showMore: "Show more",
+    showLess: "Show less",
+
     // Chart and tooltip translations
     chartTooltips: {
       totalWords: 'Total Words',
@@ -523,6 +538,7 @@ export const translations = {
     dueForReview: "待复习",
     wordColumn: "单词",
     lastReviewedColumn: "上次复习",
+    videoUploadDateColumn: "视频上传时间",
     noVocabularyFound: "未找到词汇",
     addVocabularyFromVideos: "从您的视频中添加词汇以开始构建您的集合",
     expandVideo: "展开视频",

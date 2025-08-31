@@ -26,7 +26,7 @@ function extractChineseTranslation(dictionaryResponse: string | null | undefined
 }
 
 // Convert backend vocabulary item to frontend format
-function convertToFrontendVocabulary(item: any, videoTitle?: string): VocabularyItem {
+function convertToFrontendVocabulary(item: any, videoTitle?: string, videoUploadDate?: string): VocabularyItem {
   const reviewStage = item.review_stage || 0;
   
   return {
@@ -35,6 +35,7 @@ function convertToFrontendVocabulary(item: any, videoTitle?: string): Vocabulary
     translation: extractChineseTranslation(item.dictionary_response),
     videoId: item.video_id,
     videoTitle: videoTitle || 'Unknown video',
+    videoUploadDate: videoUploadDate,
     timestamp: item.timestamp / 1000, // Convert from milliseconds to seconds
     context: item.target_en,
     difficulty: reviewStage <= 2 ? 'easy' : reviewStage <= 4 ? 'medium' : 'hard',
@@ -60,24 +61,29 @@ export function useVocabulary(videos?: any[]) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const [videoTitleMap, setVideoTitleMap] = useState<Map<string, string>>(new Map());
+  const [videoUploadDateMap, setVideoUploadDateMap] = useState<Map<string, string>>(new Map());
   
   // Refs for debouncing and cancellation
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Update video title map when videos change
+  // Update video title and upload date maps when videos change
   useEffect(() => {
     if (videos && videos.length > 0) {
-      const map = new Map<string, string>();
+      const titleMap = new Map<string, string>();
+      const uploadDateMap = new Map<string, string>();
       videos.forEach(video => {
-        map.set(video.id, video.title);
+        titleMap.set(video.id, video.title);
+        uploadDateMap.set(video.id, video.uploadDate);
       });
-      setVideoTitleMap(map);
+      setVideoTitleMap(titleMap);
+      setVideoUploadDateMap(uploadDateMap);
       
-      // Update existing vocabulary items with correct video titles
+      // Update existing vocabulary items with correct video titles and upload dates
       setVocabulary(prev => prev.map(item => ({
         ...item,
-        videoTitle: map.get(item.videoId) || item.videoTitle
+        videoTitle: titleMap.get(item.videoId) || item.videoTitle,
+        videoUploadDate: uploadDateMap.get(item.videoId) || item.videoUploadDate
       })));
     }
   }, [videos]);
@@ -114,7 +120,7 @@ export function useVocabulary(videos?: any[]) {
     return () => {
       cleanupPendingRequests();
     };
-  }, [user?.id, videos, videoTitleMap]);
+  }, [user?.id, videos, videoTitleMap, videoUploadDateMap]);
 
   const fetchVocabulary = async () => {
     if (!user?.id) {
@@ -144,7 +150,11 @@ export function useVocabulary(videos?: any[]) {
       
       const backendVocabulary = await vocabularyApi.getAll(userId);
       const convertedVocabulary = backendVocabulary.map(item => 
-        convertToFrontendVocabulary(item, videoTitleMap.get(item.video_id))
+        convertToFrontendVocabulary(
+          item, 
+          videoTitleMap.get(item.video_id),
+          videoUploadDateMap.get(item.video_id)
+        )
       );
       
       setVocabulary(convertedVocabulary);
