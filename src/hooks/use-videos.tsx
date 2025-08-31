@@ -53,7 +53,9 @@ function formatUploadDate(dateString: string | null): string {
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
-      year: 'numeric' 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
     });
   } catch {
     return 'Unknown date';
