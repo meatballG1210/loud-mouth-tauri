@@ -7,21 +7,95 @@ import { useAuth } from '@/components/SupabaseAuthProvider';
 function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
   if (!dictionaryResponse) return '无翻译';
   
-  // Look for the Chinese translation after "**中文**:"
-  const translationMatch = dictionaryResponse.match(/\*\*中文\*\*:\s*(.+?)(?:\n|$)/);
-  if (translationMatch && translationMatch[1]) {
-    return translationMatch[1].trim();
-  }
+  // Try different formats in priority order
   
-  // Fallback: look for any Chinese characters in the first few lines
-  const lines = dictionaryResponse.split('\n');
-  for (const line of lines.slice(0, 5)) {
-    const chineseMatch = line.match(/[\u4e00-\u9fa5]+/);
-    if (chineseMatch) {
-      return chineseMatch[0];
+  // 1. Format: **翻译：** or **译文：**
+  const translationMatch = dictionaryResponse.match(/\*\*(?:翻译|译文)[：:]\*\*\s*(.+?)(?:\n|$)/);
+  if (translationMatch && translationMatch[1]) {
+    const translation = translationMatch[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      // Return first part if there are multiple meanings
+      return translation.split(/[,，;；]/)[0].trim();
     }
   }
   
+  // 2. Format: **Chinese Translation** (on its own line, translation on next line)
+  const chineseTransHeader = dictionaryResponse.match(/\*\*Chinese Translation\*\*\s*\n+([^\n]+)/i);
+  if (chineseTransHeader && chineseTransHeader[1]) {
+    const translation = chineseTransHeader[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 3. Format: ### 🇨🇳 followed by translation
+  const emojiFormat = dictionaryResponse.match(/###\s*🇨🇳\s*(.+?)(?:\n|$)/);
+  if (emojiFormat && emojiFormat[1]) {
+    const translation = emojiFormat[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 4. Format: **中文**: or **中文**：
+  const zhongwenMatch = dictionaryResponse.match(/\*\*中文\*\*[：:]\s*(.+?)(?:\n|$)/);
+  if (zhongwenMatch && zhongwenMatch[1]) {
+    const translation = zhongwenMatch[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 5. Format: **直译**: (literal translation)
+  const literalMatch = dictionaryResponse.match(/\*\*直译\*\*[：:]\s*(.+?)(?:\n|$)/);
+  if (literalMatch && literalMatch[1]) {
+    const translation = literalMatch[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 6. Format: **中文翻译：** 
+  const chineseTranslationMatch = dictionaryResponse.match(/\*\*中文翻译[：:]\*\*\s*(.+?)(?:\n|$)/);
+  if (chineseTranslationMatch && chineseTranslationMatch[1]) {
+    const translation = chineseTranslationMatch[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 7. Format: ### followed by English and then Chinese on next line
+  const hashFormat = dictionaryResponse.match(/###[^🇨🇳\n]+\n\*\*([^*]+)\*\*/);
+  if (hashFormat && hashFormat[1]) {
+    const translation = hashFormat[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      return translation;
+    }
+  }
+  
+  // 8. Fallback: look for first standalone Chinese text (not in a labeled section)
+  const lines = dictionaryResponse.split('\n');
+  for (const line of lines.slice(0, 8)) {
+    // Skip empty lines and lines with markdown formatting or labels
+    if (!line.trim() || line.includes('**') || line.includes('##') || 
+        line.includes('Example') || line.includes('例句') || 
+        line.includes('Usage') || line.includes('用法') ||
+        line.includes('📝') || line.includes('解析')) {
+      continue;
+    }
+    
+    // Look for lines that are primarily Chinese text
+    const cleanLine = line.trim();
+    if (/^[\u4e00-\u9fa5]/.test(cleanLine) && /[\u4e00-\u9fa5]/.test(cleanLine)) {
+      // Return the Chinese part, removing any English if mixed
+      const chineseOnly = cleanLine.match(/[\u4e00-\u9fa5]+[^\n]*/);
+      if (chineseOnly) {
+        return chineseOnly[0].trim();
+      }
+    }
+  }
+  
+  console.warn('Could not extract Chinese translation from dictionary response:', dictionaryResponse.substring(0, 200));
   return '无翻译';
 }
 
