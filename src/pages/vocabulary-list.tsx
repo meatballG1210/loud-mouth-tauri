@@ -21,7 +21,7 @@ export default function VocabularyList() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"word" | "lastReviewed" | "videoUploadDate">("word");
+  const [sortBy, setSortBy] = useState<"word" | "lastReviewed" | "videoUploadDate">("videoUploadDate");
   const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
   const [activeSection, setActiveSection] = useState("vocabulary");
   const [expandedVideos, setExpandedVideos] = useState<Set<string>>(new Set());
