@@ -4,93 +4,120 @@ import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabu
 import { useAuth } from '@/components/SupabaseAuthProvider';
 
 // Extract Chinese translation from dictionary response
-function extractChineseTranslation(dictionaryResponse: string | null | undefined): string {
+function extractChineseTranslation(dictionaryResponse: string | null | undefined, targetZh?: string): string {
   if (!dictionaryResponse) return '无翻译';
   
   // Try different formats in priority order
   
-  // 1. Format: **翻译：** or **译文：**
-  const translationMatch = dictionaryResponse.match(/\*\*(?:翻译|译文)[：:]\*\*\s*(.+?)(?:\n|$)/);
+  // 1. HIGHEST PRIORITY - Format: **含义：** (for single words)
+  const meaningMatch = dictionaryResponse.match(/\*\*含义[：:]\*\*\s*(.+?)(?:\n|$)/);
+  if (meaningMatch && meaningMatch[1]) {
+    const translation = meaningMatch[1].trim();
+    if (/[\u4e00-\u9fa5]/.test(translation)) {
+      // Check it's not the sentence translation
+      if (!targetZh || !translation.includes(targetZh)) {
+        // Return first part if there are multiple meanings
+        return translation.split(/[,，;；]/)[0].trim();
+      }
+    }
+  }
+  
+  // 2. Format: **译文：** (for phrases)
+  const translationMatch = dictionaryResponse.match(/\*\*译文[：:]\*\*\s*(.+?)(?:\n|$)/);
   if (translationMatch && translationMatch[1]) {
     const translation = translationMatch[1].trim();
     if (/[\u4e00-\u9fa5]/.test(translation)) {
-      // Return first part if there are multiple meanings
-      return translation.split(/[,，;；]/)[0].trim();
+      // Check it's not the sentence translation
+      if (!targetZh || !translation.includes(targetZh)) {
+        return translation.split(/[,，;；]/)[0].trim();
+      }
     }
   }
   
-  // 2. Format: **Chinese Translation** (on its own line, translation on next line)
+  // 3. Format: **翻译：** (generic translation - lower priority as it might be example sentence)
+  const genericTranslationMatch = dictionaryResponse.match(/\*\*翻译[：:]\*\*\s*(.+?)(?:\n|$)/);
+  if (genericTranslationMatch && genericTranslationMatch[1]) {
+    const translation = genericTranslationMatch[1].trim();
+    // Skip if this appears to be an example sentence translation
+    if (!dictionaryResponse.includes('**中文翻译：**') || 
+        dictionaryResponse.indexOf('**翻译：**') < dictionaryResponse.indexOf('**英文例句：**')) {
+      if (/[\u4e00-\u9fa5]/.test(translation)) {
+        if (!targetZh || !translation.includes(targetZh)) {
+          return translation.split(/[,，;；]/)[0].trim();
+        }
+      }
+    }
+  }
+  
+  // 4. Format: **Chinese Translation** (on its own line, translation on next line)
   const chineseTransHeader = dictionaryResponse.match(/\*\*Chinese Translation\*\*\s*\n+([^\n]+)/i);
   if (chineseTransHeader && chineseTransHeader[1]) {
     const translation = chineseTransHeader[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
+    if (/[\u4e00-\u9fa5]/.test(translation) && (!targetZh || !translation.includes(targetZh))) {
       return translation;
     }
   }
   
-  // 3. Format: ### 🇨🇳 followed by translation
+  // 5. Format: ### 🇨🇳 followed by translation
   const emojiFormat = dictionaryResponse.match(/###\s*🇨🇳\s*(.+?)(?:\n|$)/);
   if (emojiFormat && emojiFormat[1]) {
     const translation = emojiFormat[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
+    if (/[\u4e00-\u9fa5]/.test(translation) && (!targetZh || !translation.includes(targetZh))) {
       return translation;
     }
   }
   
-  // 4. Format: **中文**: or **中文**：
+  // 6. Format: **中文**: or **中文**：
   const zhongwenMatch = dictionaryResponse.match(/\*\*中文\*\*[：:]\s*(.+?)(?:\n|$)/);
   if (zhongwenMatch && zhongwenMatch[1]) {
     const translation = zhongwenMatch[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
+    if (/[\u4e00-\u9fa5]/.test(translation) && (!targetZh || !translation.includes(targetZh))) {
       return translation;
     }
   }
   
-  // 5. Format: **直译**: (literal translation)
+  // 7. Format: **直译**: (literal translation)
   const literalMatch = dictionaryResponse.match(/\*\*直译\*\*[：:]\s*(.+?)(?:\n|$)/);
   if (literalMatch && literalMatch[1]) {
     const translation = literalMatch[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
+    if (/[\u4e00-\u9fa5]/.test(translation) && (!targetZh || !translation.includes(targetZh))) {
       return translation;
     }
   }
   
-  // 6. Format: **中文翻译：** 
-  const chineseTranslationMatch = dictionaryResponse.match(/\*\*中文翻译[：:]\*\*\s*(.+?)(?:\n|$)/);
-  if (chineseTranslationMatch && chineseTranslationMatch[1]) {
-    const translation = chineseTranslationMatch[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
-      return translation;
-    }
-  }
+  // Skip **中文翻译：** as this is typically for example sentences
   
-  // 7. Format: ### followed by English and then Chinese on next line
+  // 8. Format: ### followed by English and then Chinese on next line
   const hashFormat = dictionaryResponse.match(/###[^🇨🇳\n]+\n\*\*([^*]+)\*\*/);
   if (hashFormat && hashFormat[1]) {
     const translation = hashFormat[1].trim();
-    if (/[\u4e00-\u9fa5]/.test(translation)) {
+    if (/[\u4e00-\u9fa5]/.test(translation) && (!targetZh || !translation.includes(targetZh))) {
       return translation;
     }
   }
   
-  // 8. Fallback: look for first standalone Chinese text (not in a labeled section)
+  // 9. Fallback: look for first standalone Chinese text (not in a labeled section)
   const lines = dictionaryResponse.split('\n');
   for (const line of lines.slice(0, 8)) {
     // Skip empty lines and lines with markdown formatting or labels
     if (!line.trim() || line.includes('**') || line.includes('##') || 
         line.includes('Example') || line.includes('例句') || 
         line.includes('Usage') || line.includes('用法') ||
-        line.includes('📝') || line.includes('解析')) {
+        line.includes('📝') || line.includes('解析') ||
+        line.includes('英文例句')) {
       continue;
     }
     
     // Look for lines that are primarily Chinese text
     const cleanLine = line.trim();
     if (/^[\u4e00-\u9fa5]/.test(cleanLine) && /[\u4e00-\u9fa5]/.test(cleanLine)) {
-      // Return the Chinese part, removing any English if mixed
-      const chineseOnly = cleanLine.match(/[\u4e00-\u9fa5]+[^\n]*/);
-      if (chineseOnly) {
-        return chineseOnly[0].trim();
+      // Check it's not the sentence translation
+      if (!targetZh || !cleanLine.includes(targetZh)) {
+        // Return the Chinese part, removing any English if mixed
+        const chineseOnly = cleanLine.match(/[\u4e00-\u9fa5]+[^\n]*/);
+        if (chineseOnly) {
+          return chineseOnly[0].trim();
+        }
       }
     }
   }
@@ -106,7 +133,7 @@ function convertToFrontendVocabulary(item: any, videoTitle?: string, videoUpload
   return {
     id: item.id || '',
     word: item.word,
-    translation: extractChineseTranslation(item.dictionary_response),
+    translation: extractChineseTranslation(item.dictionary_response, item.target_zh),
     videoId: item.video_id,
     videoTitle: videoTitle || 'Unknown video',
     videoUploadDate: videoUploadDate,
