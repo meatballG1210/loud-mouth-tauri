@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Upload, File, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, File, CheckCircle, AlertCircle, AlertTriangle, FileX } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function UploadForm() {
   const [, setLocation] = useLocation();
@@ -16,6 +26,8 @@ export default function UploadForm() {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [activeSection, setActiveSection] = useState("upload");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [error, setError] = useState<{ title: string; message: string; isDuplicate: boolean } | null>(null);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -82,6 +94,23 @@ export default function UploadForm() {
     setViewMode(mode);
   };
 
+  const handleErrorDialogClose = () => {
+    setShowErrorDialog(false);
+    setError(null);
+  };
+
+  const handleViewLibrary = () => {
+    setShowErrorDialog(false);
+    setError(null);
+    setLocation("/");
+  };
+
+  const handleRetry = () => {
+    setShowErrorDialog(false);
+    setError(null);
+    setSelectedFile(null);
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) return;
 
@@ -125,10 +154,61 @@ export default function UploadForm() {
       setTimeout(() => {
         setLocation("/");
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading video:', error);
       setIsUploading(false);
-      alert(`Failed to upload video: ${error}`);
+      setUploadProgress(0);
+      
+      // Parse the error message
+      let errorTitle = "Upload Failed";
+      let errorMessage = "";
+      let isDuplicate = false;
+      
+      // Extract the actual error message from different possible formats
+      if (error) {
+        // Handle different error formats from Tauri
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error) {
+          errorMessage = typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+        } else {
+          // Try to extract any string representation
+          try {
+            errorMessage = JSON.stringify(error);
+          } catch {
+            errorMessage = "An unexpected error occurred while uploading the video.";
+          }
+        }
+        
+        // Now check for specific error types in the extracted message
+        if (errorMessage.includes('DUPLICATE_VIDEO')) {
+          errorTitle = "Duplicate Video Detected";
+          isDuplicate = true;
+          // Extract the existing video title from the error details
+          const match = errorMessage.match(/already exists: '([^']+)'/);
+          if (match && match[1]) {
+            errorMessage = `This video has already been uploaded with the title "${match[1]}". Please check your video library or upload a different video.`;
+          } else {
+            errorMessage = "This video has already been uploaded to your library. Please check your existing videos or upload a different file.";
+          }
+        } else if (errorMessage.includes('FILE_NOT_FOUND')) {
+          errorTitle = "File Not Found";
+          errorMessage = "The selected video file could not be found. Please make sure the file exists and try again.";
+        } else if (errorMessage.includes('INVALID_INPUT')) {
+          errorTitle = "Invalid Input";
+          errorMessage = "The video file or title is invalid. Please check your selection and try again.";
+        } else {
+          // Clean up the error message by removing error code prefix if present
+          errorMessage = errorMessage.replace(/^[A-Z_]+:\s*/, '');
+        }
+      } else {
+        errorMessage = "An unexpected error occurred while uploading the video.";
+      }
+      
+      setError({ title: errorTitle, message: errorMessage, isDuplicate });
+      setShowErrorDialog(true);
     }
   };
 
@@ -174,9 +254,11 @@ export default function UploadForm() {
                 className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 ${
                   isDragOver
                     ? "border-blue-400 bg-blue-50"
-                    : selectedFile
-                      ? "border-green-400 bg-green-50"
-                      : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
+                    : error && !showErrorDialog
+                      ? "border-red-400 bg-red-50"
+                      : selectedFile
+                        ? "border-green-400 bg-green-50"
+                        : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -291,6 +373,64 @@ export default function UploadForm() {
           </div>
         </div>
       </div>
+
+      {/* Error Dialog */}
+      <AlertDialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              {error?.isDuplicate ? (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                  <FileX className="h-6 w-6 text-amber-600" />
+                </div>
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+              )}
+              <AlertDialogTitle className="text-xl">
+                {error?.title || "Error"}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="mt-3 text-base leading-relaxed">
+              {error?.message || "An unexpected error occurred."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            {error?.isDuplicate ? (
+              <>
+                <AlertDialogCancel 
+                  onClick={handleRetry}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-900"
+                >
+                  Upload Different Video
+                </AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleViewLibrary}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  View Library
+                </AlertDialogAction>
+              </>
+            ) : (
+              <>
+                <AlertDialogCancel 
+                  onClick={handleErrorDialogClose}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-900"
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleRetry}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Try Again
+                </AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
