@@ -28,6 +28,7 @@ import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-bo
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
 import { ReviewCompletionDialog } from "@/components/vocabulary/review-completion-dialog";
+import { SpeechRecognitionErrorDialog, SpeechErrorType } from "@/components/vocabulary/speech-recognition-error-dialog";
 
 interface SubtitleLine {
   id: string;
@@ -60,6 +61,11 @@ export default function VocabularyReview() {
   
   // Completion dialog state
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  
+  // Speech error dialog state
+  const [showSpeechErrorDialog, setShowSpeechErrorDialog] = useState(false);
+  const [speechErrorType, setSpeechErrorType] = useState<SpeechErrorType>("general");
+  const [speechErrorMessage, setSpeechErrorMessage] = useState<string | undefined>();
 
   // Review state
   const [reviewStarted, setReviewStarted] = useState(isActiveSession);
@@ -642,7 +648,7 @@ export default function VocabularyReview() {
 
       if (!hasModel) {
         // Download model if not available
-        const shouldDownload = confirm(
+        const shouldDownload = window.confirm(
           t("voskModelNotFound") ||
             "Speech recognition model not found. Would you like to download it? (This is a one-time download of ~128MB for better accuracy)",
         );
@@ -681,10 +687,9 @@ export default function VocabularyReview() {
           await speechApi.downloadWhisperModel(modelName);
         } catch (error) {
           console.error("Failed to download model:", error);
-          alert(
-            t("modelDownloadFailed") ||
-              "Failed to download speech recognition model. Please try again later.",
-          );
+          setSpeechErrorType("general");
+          setSpeechErrorMessage(t("modelDownloadFailed") || "Failed to download speech recognition model. Please try again later.");
+          setShowSpeechErrorDialog(true);
           return;
         } finally {
           // Clean up listeners
@@ -828,23 +833,22 @@ export default function VocabularyReview() {
           console.error("Transcription error:", error);
           const errorMessage = error?.message || error?.toString() || 'Unknown error';
           
-          // Provide more specific error messages
+          // Show error dialog with specific error type
           if (errorMessage.includes('No audio data')) {
-            alert(t("noAudioRecorded") || "No audio was recorded. Please try again.");
+            setSpeechErrorType("no-audio");
           } else if (errorMessage.includes('No speech detected') || errorMessage.includes('SILENT_AUDIO')) {
-            alert(t("noSpeechDetected") || "No speech detected. Please speak louder and ensure your microphone is working properly.");
+            setSpeechErrorType("no-speech");
           } else if (errorMessage.includes('Speech recognition failed') || errorMessage.includes('HALLUCINATION')) {
-            alert(t("recognitionFailed") || "Speech recognition failed. Please try speaking more clearly and avoid background noise.");
+            setSpeechErrorType("recognition-failed");
           } else if (errorMessage.includes('REPETITIVE_TEXT')) {
-            alert(t("repetitiveText") || "The speech recognition produced repetitive text. Please try again with clearer speech.");
+            setSpeechErrorType("repetitive-text");
           } else if (errorMessage.includes('decoding') || errorMessage.includes('Decoding')) {
-            alert(t("audioFormatError") || "Audio format not supported. Please try a different browser or check your microphone settings.");
+            setSpeechErrorType("audio-format");
           } else {
-            alert(
-              t("transcriptionFailed") ||
-                `Failed to transcribe audio: ${errorMessage}. Please try again.`,
-            );
+            setSpeechErrorType("general");
+            setSpeechErrorMessage(errorMessage);
           }
+          setShowSpeechErrorDialog(true);
         } finally {
           // Stop all tracks
           stream.getTracks().forEach((track) => track.stop());
@@ -872,16 +876,12 @@ export default function VocabularyReview() {
       setCountdown(null);
 
       if (error instanceof DOMException && error.name === "NotAllowedError") {
-        alert(
-          t("microphonePermissionDenied") ||
-            "Microphone permission was denied. Please allow access to use voice input.",
-        );
+        setSpeechErrorType("permission-denied");
       } else {
-        alert(
-          t("voiceInputError") ||
-            "Failed to start voice input. Please check your microphone and try again.",
-        );
+        setSpeechErrorType("general");
+        setSpeechErrorMessage("Failed to start voice input. Please check your microphone and try again.");
       }
+      setShowSpeechErrorDialog(true);
     }
   };
 
@@ -1706,6 +1706,15 @@ export default function VocabularyReview() {
       <ReviewCompletionDialog
         open={showCompletionDialog}
         onOpenChange={setShowCompletionDialog}
+      />
+      
+      {/* Speech Recognition Error Dialog */}
+      <SpeechRecognitionErrorDialog
+        open={showSpeechErrorDialog}
+        onOpenChange={setShowSpeechErrorDialog}
+        errorType={speechErrorType}
+        errorMessage={speechErrorMessage}
+        onRetry={handleVoiceInput}
       />
     </div>
   );

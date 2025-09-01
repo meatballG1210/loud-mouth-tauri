@@ -296,6 +296,38 @@ export const translations = {
     voiceInput: 'Voice Input',
     listening: 'Listening...',
     skip: 'Skip',
+    
+    // Speech recognition errors
+    speechError: {
+      noAudio: {
+        title: 'No Audio Recorded',
+        description: 'No audio was captured. Please ensure your microphone is working and try again.',
+      },
+      noSpeech: {
+        title: 'No Speech Detected',
+        description: 'No speech was detected in the recording. Please speak louder and ensure your microphone is positioned correctly.',
+      },
+      recognitionFailed: {
+        title: 'Recognition Failed',
+        description: 'Speech recognition failed. Please try speaking more clearly and avoid background noise.',
+      },
+      repetitiveText: {
+        title: 'Invalid Recognition',
+        description: 'The speech recognition produced invalid results. Please try again with clearer speech.',
+      },
+      audioFormat: {
+        title: 'Audio Format Error',
+        description: 'The audio format is not supported. Please try a different browser or check your microphone settings.',
+      },
+      permissionDenied: {
+        title: 'Microphone Access Denied',
+        description: 'Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.',
+      },
+      general: {
+        title: 'Speech Input Error',
+        description: 'An error occurred while processing your speech. Please try again.',
+      },
+    },
     correctWellDone: 'Correct! Well done.',
     pleaseEnterAnswer: 'Please enter an answer to continue.',
     incorrectTryAgain: 'Incorrect. Please try again or click \'Show Answer\'.',
@@ -607,6 +639,38 @@ export const translations = {
     voiceInput: '语音输入',
     listening: '正在聆听...',
     skip: '跳过',
+    
+    // Speech recognition errors
+    speechError: {
+      noAudio: {
+        title: '未录制到音频',
+        description: '未捕获到音频。请确保您的麦克风正常工作，然后重试。',
+      },
+      noSpeech: {
+        title: '未检测到语音',
+        description: '录音中未检测到语音。请大声说话，并确保麦克风位置正确。',
+      },
+      recognitionFailed: {
+        title: '识别失败',
+        description: '语音识别失败。请尝试更清晰地说话，避免背景噪音。',
+      },
+      repetitiveText: {
+        title: '无效识别',
+        description: '语音识别产生了无效结果。请用更清晰的语音重试。',
+      },
+      audioFormat: {
+        title: '音频格式错误',
+        description: '不支持的音频格式。请尝试使用其他浏览器或检查您的麦克风设置。',
+      },
+      permissionDenied: {
+        title: '麦克风访问被拒绝',
+        description: '麦克风权限被拒绝。请在浏览器设置中允许麦克风访问以使用语音输入。',
+      },
+      general: {
+        title: '语音输入错误',
+        description: '处理您的语音时出现错误。请重试。',
+      },
+    },
     correctWellDone: '正确！做得很好。',
     pleaseEnterAnswer: '请输入答案以继续。',
     incorrectTryAgain: '错误。请重试或点击"显示答案"。',
