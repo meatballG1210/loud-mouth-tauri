@@ -47,7 +47,7 @@ export default function VocabularyReview() {
   const rawVideoId = paramsSession?.videoId || paramsSetup?.videoId;
   const reviewVideoId = (rawVideoId && rawVideoId !== "session") ? rawVideoId : undefined;
   const { stats: videoStats, refreshVideos, videos: allVideos } = useVideos();
-  const { stats, updateReviewWithResult } = useVocabulary(allVideos);
+  const { stats, updateReviewWithResult, refreshVocabulary } = useVocabulary(allVideos);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState("reviews");
@@ -484,6 +484,8 @@ export default function VocabularyReview() {
                       setShowAnswer(false);
                       setShowMarkAsKnown(false);
                       setShownAnswerItems(new Set());
+                      // Refresh vocabulary to update pending review counts
+                      refreshVocabulary();
                       // If we have a video ID, go back to vocabulary detail page
                       if (reviewVideoId) {
                         setLocation(`/vocabulary-list/${reviewVideoId}`);
@@ -519,6 +521,8 @@ export default function VocabularyReview() {
                   setShowAnswer(false);
                   setShowMarkAsKnown(false);
                   setShownAnswerItems(new Set());
+                  // Refresh vocabulary to update pending review counts
+                  refreshVocabulary();
                   // If we have a video ID, go back to vocabulary detail page
                   if (reviewVideoId) {
                     setLocation(`/vocabulary-list/${reviewVideoId}`);
@@ -590,6 +594,8 @@ export default function VocabularyReview() {
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
                     setHasSubmittedReview(false);
+                    // Refresh vocabulary to update pending review counts
+                    refreshVocabulary();
                     // If we have a video ID, go back to vocabulary detail page
                     if (reviewVideoId) {
                       setLocation(`/vocabulary-list/${reviewVideoId}`);
@@ -989,6 +995,8 @@ export default function VocabularyReview() {
                     setShowMarkAsKnown(false);
                     setShownAnswerItems(new Set());
                     setHasSubmittedReview(false);
+                    // Refresh vocabulary to update pending review counts
+                    refreshVocabulary();
                     // If we have a video ID, go back to vocabulary detail page
                     if (reviewVideoId) {
                       setLocation(`/vocabulary-list/${reviewVideoId}`);
@@ -1022,6 +1030,8 @@ export default function VocabularyReview() {
               setShowAnswer(false);
               setShowMarkAsKnown(false);
               setShownAnswerItems(new Set());
+              // Refresh vocabulary to update pending review counts
+              refreshVocabulary();
               // If we have a video ID, go back to vocabulary detail page
               if (reviewVideoId) {
                 setLocation(`/vocabulary-list/${reviewVideoId}`);
@@ -1076,6 +1086,8 @@ export default function VocabularyReview() {
       setShowMarkAsKnown(false);
       setShownAnswerItems(new Set());
       setHasSubmittedReview(false);
+      // Refresh vocabulary to update pending review counts
+      refreshVocabulary();
       // If we have a video ID, go back to vocabulary detail page
       if (reviewVideoId) {
         setLocation(`/vocabulary-list/${reviewVideoId}`);
