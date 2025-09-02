@@ -137,18 +137,36 @@ export async function convertWebmToWav(webmBlob: Blob): Promise<Blob> {
     // Convert to mono and resample to 16kHz
     const sampleRate = 16000;
     const numberOfChannels = 1;
-    const length = Math.floor(audioBuffer.duration * sampleRate);
+    
+    // Add 250ms of silence at the beginning to prevent word clipping
+    const silenceDuration = 0.25; // 250ms
+    const silenceSamples = Math.floor(silenceDuration * sampleRate);
+    const totalLength = Math.floor(audioBuffer.duration * sampleRate) + silenceSamples;
     
     const offlineContext = new OfflineAudioContext(
       numberOfChannels,
-      length,
+      totalLength,
       sampleRate
     );
     
+    // Create a buffer with silence at the beginning
+    const silenceBuffer = offlineContext.createBuffer(
+      numberOfChannels,
+      silenceSamples,
+      sampleRate
+    );
+    
+    // Play silence first
+    const silenceSource = offlineContext.createBufferSource();
+    silenceSource.buffer = silenceBuffer;
+    silenceSource.connect(offlineContext.destination);
+    silenceSource.start(0);
+    
+    // Then play the actual audio after the silence
     const source = offlineContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(offlineContext.destination);
-    source.start();
+    source.start(silenceDuration); // Start after silence duration
     
     const renderedBuffer = await offlineContext.startRendering();
     

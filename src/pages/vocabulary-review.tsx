@@ -625,16 +625,18 @@ export default function VocabularyReview() {
 
   const handleVoiceInput = async () => {
     try {
-      // Start countdown
-      setCountdown(1);
+      // Start recording immediately but show 3-second countdown
+      setCountdown(3);
+      
+      // Start recording right away to capture early speech
+      startRecording();
 
-      // Countdown timer
+      // Countdown timer (visual only - recording already started)
       const countdownInterval = setInterval(() => {
         setCountdown((prev) => {
           if (prev === null || prev <= 1) {
             clearInterval(countdownInterval);
-            // Start recording after countdown
-            startRecording();
+            // Recording is already in progress
             return null;
           }
           return prev - 1;
@@ -868,9 +870,14 @@ export default function VocabularyReview() {
         }
       };
 
-      // Start recording
+      // Start recording with a small buffer to capture initial audio
       setIsListening(true);
-      mediaRecorder.start();
+      
+      // Add a small delay to ensure MediaRecorder is fully ready
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Start recording with timeslice to capture data more frequently
+      mediaRecorder.start(100); // Capture data every 100ms
 
       // Stop recording after 10 seconds max
       setTimeout(() => {
