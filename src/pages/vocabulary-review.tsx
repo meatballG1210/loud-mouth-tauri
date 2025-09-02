@@ -805,6 +805,11 @@ export default function VocabularyReview() {
 
           // Check for common Whisper hallucinations
           const commonHallucinations = [
+            'thank you',
+            'thanks',
+            'thank you.',
+            'thanks.',
+            'you\'re welcome',
             'thanks for watching',
             'thank you for watching',
             'please subscribe',
@@ -824,7 +829,7 @@ export default function VocabularyReview() {
           
           if (isHallucination) {
             console.warn('Detected Whisper hallucination:', result.text);
-            throw new Error('Speech recognition failed. Please try speaking more clearly.');
+            throw new Error('HALLUCINATION: Speech recognition failed. Please try speaking more clearly.');
           }
 
           // Update the answer field
@@ -1510,6 +1515,15 @@ export default function VocabularyReview() {
             </div>
           </div>
         </div>
+        
+        {/* Speech Recognition Error Dialog */}
+        <SpeechRecognitionErrorDialog
+          open={showSpeechErrorDialog}
+          onOpenChange={setShowSpeechErrorDialog}
+          errorType={speechErrorType}
+          errorMessage={speechErrorMessage}
+          onRetry={handleVoiceInput}
+        />
       </ReviewErrorBoundary>
     );
   }
