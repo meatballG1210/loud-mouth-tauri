@@ -312,17 +312,16 @@ export default function VocabularyList() {
                               <h3 className="font-medium text-gray-900 truncate">
                                 {videoData.videoTitle}
                               </h3>
-                              <p className="text-sm text-gray-500">
-                                {videoData.words.length} vocabulary word
-                                {videoData.words.length !== 1 ? "s" : ""}
-                              </p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleViewWords(videoId)}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium"
+                            className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium flex items-center space-x-2"
                           >
-                            View All
+                            <span>View All</span>
+                            <span className="bg-red-500 px-1.5 py-0.5 rounded-full text-xs font-semibold">
+                              {videoData.words.length}
+                            </span>
                           </button>
                         </div>
                       </div>
