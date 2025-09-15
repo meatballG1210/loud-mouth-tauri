@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Image, Edit } from 'lucide-react';
+import { Image, Edit, Folder } from 'lucide-react';
 import { Video } from '@/types/video';
 import { VideoCard } from './video-card';
 import { EmptyState } from './empty-state';
 import { VideoEditModal } from './video-edit-modal';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,23 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEdi
   const handleEditClick = (video: Video) => {
     setVideoToEdit(video);
     setShowEditModal(true);
+  };
+
+  const handleShowInFolder = async (video: Video) => {
+    if (video.path) {
+      try {
+        console.log('Attempting to reveal path:', video.path);
+        await revealItemInDir(video.path);
+        console.log('Successfully revealed path');
+      } catch (error) {
+        console.error('Failed to reveal file in folder:', error);
+        console.error('Path was:', video.path);
+        alert(`Could not open file location: ${error}`);
+      }
+    } else {
+      console.error('Video path not available');
+      alert('Video file path is not available');
+    }
   };
   if (isLoading) {
     return (
@@ -151,6 +169,7 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEdi
                             handleEditClick(video);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all"
+                          title="Edit Info"
                         >
                           <Edit className="w-4 h-4 text-gray-500" />
                         </button>
@@ -158,9 +177,20 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEdi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          handleShowInFolder(video);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all"
+                        title="Show in Folder"
+                      >
+                        <Folder className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleDeleteClick(video);
                         }}
                         className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all"
+                        title="Delete"
                       >
                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

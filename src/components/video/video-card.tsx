@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MoreHorizontal, Play, Edit, Folder, Trash2, Image } from 'lucide-react';
 import { Video } from '@/types/video';
 import { VideoEditModal } from './video-edit-modal';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,8 +41,21 @@ export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
     setShowEditModal(true);
   };
 
-  const handleShowInFinder = () => {
-    console.log('Show in Finder:', video.id);
+  const handleShowInFinder = async () => {
+    if (video.path) {
+      try {
+        console.log('Attempting to reveal path:', video.path);
+        await revealItemInDir(video.path);
+        console.log('Successfully revealed path');
+      } catch (error) {
+        console.error('Failed to reveal file in finder:', error);
+        console.error('Path was:', video.path);
+        alert(`Could not open file location: ${error}`);
+      }
+    } else {
+      console.error('Video path not available');
+      alert('Video file path is not available');
+    }
   };
 
   const handleDelete = () => {
