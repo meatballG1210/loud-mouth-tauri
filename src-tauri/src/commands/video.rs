@@ -527,6 +527,20 @@ fn detect_subtitle_language(subtitle_info: &SubtitleInfo) -> Option<String> {
 }
 
 #[tauri::command]
+pub async fn update_video(video_id: String, new_title: String) -> Result<()> {
+    use crate::schema::videos::dsl::{videos, id, title};
+
+    let conn = &mut establish_connection()?;
+
+    diesel::update(videos.filter(id.eq(&video_id)))
+        .set(title.eq(&new_title))
+        .execute(conn)
+        .map_err(|e| -> AppError { e.into() })?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_video_subtitles(video_id: String, language: String) -> Result<String> {
     let subtitle_path = PathBuf::from("subtitles")
         .join(&video_id)

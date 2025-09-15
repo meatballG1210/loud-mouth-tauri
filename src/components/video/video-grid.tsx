@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Image } from 'lucide-react';
+import { Image, Edit } from 'lucide-react';
 import { Video } from '@/types/video';
 import { VideoCard } from './video-card';
 import { EmptyState } from './empty-state';
+import { VideoEditModal } from './video-edit-modal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,13 +20,16 @@ interface VideoGridProps {
   isLoading: boolean;
   onPlayVideo: (video: Video) => void;
   onDeleteVideo: (videoId: string) => void;
+  onEditVideo?: (videoId: string, newTitle: string) => Promise<void>;
   onUploadVideo: () => void;
   viewMode: 'grid' | 'list';
 }
 
-export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUploadVideo, viewMode }: VideoGridProps) {
+export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEditVideo, onUploadVideo, viewMode }: VideoGridProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [videoToEdit, setVideoToEdit] = useState<Video | null>(null);
   const [imageErrors, setImageErrors] = useState<string[]>([]);
 
   const handleDeleteClick = (video: Video) => {
@@ -44,6 +48,11 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUpl
 
   const handleImageError = (videoId: string) => {
     setImageErrors(prev => prev.includes(videoId) ? prev : [...prev, videoId]);
+  };
+
+  const handleEditClick = (video: Video) => {
+    setVideoToEdit(video);
+    setShowEditModal(true);
   };
   if (isLoading) {
     return (
@@ -133,18 +142,31 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUpl
                         )}
                       </div>
                     </div>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(video);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all ml-2"
-                    >
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+
+                    <div className="flex items-center space-x-1 ml-2">
+                      {onEditVideo && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(video);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all"
+                        >
+                          <Edit className="w-4 h-4 text-gray-500" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(video);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded transition-all"
+                      >
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -163,6 +185,7 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUpl
               video={video}
               onPlay={onPlayVideo}
               onDelete={onDeleteVideo}
+              onEdit={onEditVideo}
             />
           ))}
         </div>
@@ -193,6 +216,18 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onUpl
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {onEditVideo && (
+        <VideoEditModal
+          video={videoToEdit}
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setVideoToEdit(null);
+          }}
+          onSave={onEditVideo}
+        />
+      )}
     </>
   );
 }

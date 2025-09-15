@@ -73,6 +73,7 @@ pub fn run() {
             commands::resolve_thumbnail_path,
             commands::get_thumbnail_data,
             commands::get_video_subtitles,
+            commands::update_video,
             commands::create_vocabulary,
             commands::get_vocabulary_by_video,
             commands::get_all_vocabulary,

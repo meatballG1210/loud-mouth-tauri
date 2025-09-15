@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/pagination";
 
 export default function Home() {
-  const { videos, stats, isLoading, refreshVideos, deleteVideo } = useVideos();
+  const { videos, stats, isLoading, refreshVideos, deleteVideo, updateVideo } = useVideos();
   const [activeSection, setActiveSection] = useState("videos");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -332,6 +332,7 @@ export default function Home() {
                   isLoading={isLoading}
                   onPlayVideo={handlePlayVideo}
                   onDeleteVideo={deleteVideo}
+                  onEditVideo={updateVideo}
                   onUploadVideo={handleUploadVideo}
                   viewMode={viewMode}
                 />

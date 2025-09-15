@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MoreHorizontal, Play, Edit, Folder, Trash2, Image } from 'lucide-react';
 import { Video } from '@/types/video';
+import { VideoEditModal } from './video-edit-modal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +24,12 @@ interface VideoCardProps {
   video: Video;
   onPlay: (video: Video) => void;
   onDelete: (videoId: string) => void;
+  onEdit?: (videoId: string, newTitle: string) => Promise<void>;
 }
 
-export function VideoCard({ video, onPlay, onDelete }: VideoCardProps) {
+export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const handlePlay = () => {
@@ -34,7 +37,7 @@ export function VideoCard({ video, onPlay, onDelete }: VideoCardProps) {
   };
 
   const handleEdit = () => {
-    console.log('Edit video:', video.id);
+    setShowEditModal(true);
   };
 
   const handleShowInFinder = () => {
@@ -160,6 +163,15 @@ export function VideoCard({ video, onPlay, onDelete }: VideoCardProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {onEdit && (
+        <VideoEditModal
+          video={video}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={onEdit}
+        />
+      )}
     </>
   );
 }

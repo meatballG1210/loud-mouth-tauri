@@ -198,7 +198,7 @@ export function useVideos() {
     try {
       // Call the backend to delete the video
       await invoke('delete_video', { videoId });
-      
+
       // Update the local state
       setVideos(prev => prev.filter(video => video.id !== videoId));
       setStats(prev => ({ ...prev, totalVideos: prev.totalVideos - 1 }));
@@ -208,11 +208,27 @@ export function useVideos() {
     }
   };
 
+  const updateVideo = async (videoId: string, newTitle: string) => {
+    try {
+      // Call the backend to update the video
+      await invoke('update_video', { videoId, newTitle });
+
+      // Update the local state
+      setVideos(prev => prev.map(video =>
+        video.id === videoId ? { ...video, title: newTitle } : video
+      ));
+    } catch (error) {
+      console.error('Error updating video:', error);
+      throw error;
+    }
+  };
+
   return {
     videos,
     stats,
     isLoading,
     refreshVideos,
     deleteVideo,
+    updateVideo,
   };
 }
