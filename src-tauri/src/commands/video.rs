@@ -359,20 +359,25 @@ pub async fn delete_video(video_id: String) -> Result<()> {
     let mut connection = establish_connection()
         .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to connect to database")
             .with_details(e.to_string()))?;
-    
-    // First, get the video record to find the thumbnail path
-    let video_record: Option<StoredVideo> = videos
-        .filter(id.eq(&video_id))
-        .first(&mut *connection)
-        .optional()
-        .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to fetch video from database")
-            .with_details(e.to_string()))?;
-    
-    // Delete the video record from database
-    diesel::delete(videos.filter(id.eq(&video_id)))
-        .execute(&mut *connection)
-        .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to delete video from database")
-            .with_details(e.to_string()))?;
+
+    // Get the video record and delete it within a transaction to ensure atomicity
+    let video_record = connection.transaction::<_, AppError, _>(|conn| {
+        // First, get the video record to find the thumbnail path
+        let video: Option<StoredVideo> = videos
+            .filter(id.eq(&video_id))
+            .first(conn)
+            .optional()
+            .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to fetch video from database")
+                .with_details(e.to_string()))?;
+
+        // Delete the video record from database
+        diesel::delete(videos.filter(id.eq(&video_id)))
+            .execute(conn)
+            .map_err(|e| AppError::new("DATABASE_ERROR", "Failed to delete video from database")
+                .with_details(e.to_string()))?;
+
+        Ok(video)
+    })?;
     
     // Delete the thumbnail file if it exists
     if let Some(video) = video_record {
