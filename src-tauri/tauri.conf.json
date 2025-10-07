@@ -14,12 +14,15 @@
       {
         "title": "Loud Mouth",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+        "incognito": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https://picsum.photos https://*.picsum.photos blob: data:; media-src 'self' asset: blob: stream: mediastream:; connect-src 'self' asset: stream: http://localhost:* https://alphacephei.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
-    }
+      "csp": "default-src 'self'; img-src 'self' asset: https://picsum.photos https://*.picsum.photos blob: data:; media-src 'self' asset: blob: stream: mediastream:; connect-src 'self' asset: stream: http://localhost:* https://alphacephei.com https://huggingface.co; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
@@ -30,6 +33,14 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "exceptionDomain": null,
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null,
+      "minimumSystemVersion": "10.13"
+    }
   }
 }

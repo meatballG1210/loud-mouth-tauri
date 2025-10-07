@@ -10,13 +10,16 @@ import {
 import { AlertCircle, Mic, Volume2, WifiOff } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
-export type SpeechErrorType = 
+export type SpeechErrorType =
   | "no-audio"
   | "no-speech"
   | "recognition-failed"
   | "repetitive-text"
   | "audio-format"
   | "permission-denied"
+  | "microphone-not-found"
+  | "microphone-in-use"
+  | "microphone-error"
   | "general";
 
 interface SpeechRecognitionErrorDialogProps {
@@ -73,6 +76,24 @@ export function SpeechRecognitionErrorDialog({
           icon: <Mic className="w-8 h-8 text-red-600" />,
           title: t("speechError.permissionDenied.title"),
           description: t("speechError.permissionDenied.description"),
+        };
+      case "microphone-not-found":
+        return {
+          icon: <Mic className="w-8 h-8 text-red-600" />,
+          title: "Microphone Not Found",
+          description: "No microphone device was detected. Please connect a microphone and try again.",
+        };
+      case "microphone-in-use":
+        return {
+          icon: <Mic className="w-8 h-8 text-red-600" />,
+          title: "Microphone In Use",
+          description: "Your microphone is being used by another application. Please close other apps using the microphone and try again.",
+        };
+      case "microphone-error":
+        return {
+          icon: <AlertCircle className="w-8 h-8 text-red-600" />,
+          title: "Microphone Error",
+          description: errorMessage || "Failed to access your microphone. Please check your system settings and ensure the microphone is enabled.",
         };
       default:
         return {

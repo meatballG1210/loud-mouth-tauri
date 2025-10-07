@@ -650,6 +650,8 @@ export default function VocabularyReview() {
 
   const startRecording = async () => {
     try {
+      console.log('Starting recording - checking microphone access...');
+
       // Check if model is available
       const modelName = "ggml-small.bin";
       const hasModel = await speechApi.checkWhisperModel(modelName);
@@ -709,7 +711,17 @@ export default function VocabularyReview() {
         }
       }
 
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('MediaDevices API not available');
+        setSpeechErrorType("microphone-error");
+        setSpeechErrorMessage("Your browser doesn't support microphone access. Please use a modern browser like Chrome, Edge, or Safari.");
+        setShowSpeechErrorDialog(true);
+        return;
+      }
+
       // Request microphone permission with optimized settings
+      console.log('Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -719,6 +731,8 @@ export default function VocabularyReview() {
           channelCount: 1, // Mono audio for better recognition
         },
       });
+
+      console.log('Microphone access granted:', stream.getAudioTracks());
 
       // Create MediaRecorder with compatible settings
       let mediaRecorder: MediaRecorder;
@@ -888,16 +902,57 @@ export default function VocabularyReview() {
           mediaRecorderRef.current.stop();
         }
       }, 10000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Voice input error:", error);
+      console.error("Error details:", {
+        name: error?.name,
+        message: error?.message,
+        type: typeof error,
+        constructor: error?.constructor?.name
+      });
+
       setIsListening(false);
       setCountdown(null);
 
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        setSpeechErrorType("permission-denied");
+      // Detailed error handling based on error type
+      if (error instanceof DOMException) {
+        switch (error.name) {
+          case "NotAllowedError":
+            console.log('Microphone permission denied by user');
+            setSpeechErrorType("permission-denied");
+            break;
+          case "NotFoundError":
+            console.log('No microphone device found');
+            setSpeechErrorType("microphone-not-found");
+            break;
+          case "NotReadableError":
+            console.log('Microphone is in use by another application');
+            setSpeechErrorType("microphone-in-use");
+            break;
+          case "OverconstrainedError":
+            console.log('Microphone constraints could not be satisfied');
+            setSpeechErrorType("microphone-error");
+            setSpeechErrorMessage("Your microphone doesn't support the required audio settings. Please try a different microphone.");
+            break;
+          case "AbortError":
+            console.log('Microphone access was aborted');
+            setSpeechErrorType("microphone-error");
+            setSpeechErrorMessage("Microphone access was interrupted. Please try again.");
+            break;
+          case "SecurityError":
+            console.log('Microphone access blocked by security policy');
+            setSpeechErrorType("permission-denied");
+            setSpeechErrorMessage("Microphone access is blocked by your browser's security settings. Please check your browser permissions.");
+            break;
+          default:
+            console.log('Unknown DOMException:', error.name);
+            setSpeechErrorType("microphone-error");
+            setSpeechErrorMessage(`Microphone error: ${error.message}`);
+        }
       } else {
+        console.log('Non-DOMException error');
         setSpeechErrorType("general");
-        setSpeechErrorMessage("Failed to start voice input. Please check your microphone and try again.");
+        setSpeechErrorMessage(error?.message || "Failed to start voice input. Please check your microphone and try again.");
       }
       setShowSpeechErrorDialog(true);
     }
