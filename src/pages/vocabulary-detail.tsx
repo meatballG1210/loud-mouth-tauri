@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Play,
   Pause,
-  Star,
   Trash2,
   Clock,
   BookOpen,
@@ -36,11 +35,10 @@ export default function VocabularyDetail() {
   const {
     getVocabularyByVideoId,
     deleteVocabularyItem,
-    toggleStar,
     isLoading,
   } = useVocabulary(videos);
   const [sortBy, setSortBy] = useState<"word" | "timestamp">("timestamp");
-  const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
+  const [filterBy, setFilterBy] = useState<"all" | "due">("all");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -158,7 +156,6 @@ export default function VocabularyDetail() {
 
   const filteredWords = videoWords
     .filter((word) => {
-      if (filterBy === "starred") return word.isStarred;
       if (filterBy === "due") {
         const now = new Date();
         const today = new Date(
@@ -375,9 +372,6 @@ export default function VocabularyDetail() {
     }
   };
 
-  const handleToggleStar = async (wordId: string) => {
-    await toggleStar(wordId);
-  };
 
   const isWordDue = (nextReview: string) => {
     const now = new Date();
@@ -541,27 +535,9 @@ export default function VocabularyDetail() {
                     <div className="p-4 pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {word.word}
-                            </h3>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleStar(word.id);
-                              }}
-                              className={`p-1 rounded-full transition-colors ${
-                                word.isStarred
-                                  ? "text-yellow-500 hover:text-yellow-600"
-                                  : "text-gray-400 hover:text-yellow-500"
-                              }`}
-                              disabled={isLoading}
-                            >
-                              <Star
-                                className={`w-4 h-4 ${word.isStarred ? "fill-current" : ""}`}
-                              />
-                            </button>
-                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {word.word}
+                          </h3>
                           <p className="text-gray-700">{word.translation}</p>
                         </div>
                       </div>

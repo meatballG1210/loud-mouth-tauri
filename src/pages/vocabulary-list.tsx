@@ -19,7 +19,7 @@ export default function VocabularyList() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"word" | "lastReviewed" | "videoUploadDate">("videoUploadDate");
-  const [filterBy, setFilterBy] = useState<"all" | "starred" | "due">("all");
+  const [filterBy, setFilterBy] = useState<"all" | "due">("all");
   const [activeSection, setActiveSection] = useState("vocabulary");
 
   // Filter vocabulary first
@@ -30,7 +30,6 @@ export default function VocabularyList() {
 
     if (!matchesSearch) return false;
 
-    if (filterBy === "starred") return item.isStarred;
     if (filterBy === "due") return new Date(item.nextReview) <= new Date();
 
     return true;
@@ -189,7 +188,6 @@ export default function VocabularyList() {
                   }}
                 >
                   <option value="all">{t("allWords")}</option>
-                  <option value="starred">{t("starredWords")}</option>
                   <option value="due">{t("dueForReview")}</option>
                 </select>
 
@@ -238,7 +236,7 @@ export default function VocabularyList() {
                       )}
                       {filterBy !== "all" && (
                         <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                          {filterBy}
+                          due
                         </span>
                       )}
                     </>
