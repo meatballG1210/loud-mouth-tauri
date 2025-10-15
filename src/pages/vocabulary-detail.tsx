@@ -365,9 +365,8 @@ export default function VocabularyDetail() {
   };
 
   const handleDeleteWord = async (wordId: string) => {
-    if (
-      window.confirm("Are you sure you want to delete this vocabulary item?")
-    ) {
+    const confirmed = window.confirm("Are you sure you want to delete this vocabulary item?");
+    if (confirmed === true) {
       await deleteVocabularyItem(wordId);
     }
   };
@@ -645,13 +644,15 @@ export default function VocabularyDetail() {
                           </PopoverContent>
                         </Popover>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            handleDeleteWord(word.id);
+                            e.preventDefault();
+                            await handleDeleteWord(word.id);
                           }}
                           className="p-2 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-all rounded-lg font-medium"
                           title="Delete word"
                           disabled={isLoading}
+                          type="button"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
