@@ -751,13 +751,13 @@ export default function VideoPlayer() {
               </div>
 
               {/* Top Controls */}
-              <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+              <div className="absolute top-4 left-4 opacity-70 group-hover:opacity-100 transition-opacity z-20">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setLocation("/");
                   }}
-                  className="flex items-center space-x-2 p-2 bg-black bg-opacity-50 rounded-lg text-white hover:bg-opacity-70 transition-all"
+                  className="flex items-center space-x-2 p-2 bg-black bg-opacity-40 rounded-lg text-white hover:bg-opacity-60 transition-all backdrop-blur-sm"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span className="text-sm">Back to Library</span>
