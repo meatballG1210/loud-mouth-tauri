@@ -1453,13 +1453,13 @@ export default function VocabularyReview() {
                   {/* Input Section */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                      {t("listenAndType")}
+                      Type or Speak
                     </h4>
                     <div className="space-y-3">
                       <textarea
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder={t("typeEnglishSentence")}
+                        placeholder="Type or speak the English translation..."
                         className="w-full macos-input resize-none macos-body"
                         rows={3}
                       />
