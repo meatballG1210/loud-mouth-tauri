@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useRoute, useLocation } from "wouter";
 import {
   ArrowLeft,
@@ -59,7 +59,11 @@ export default function VocabularyDetail() {
     return null;
   }
 
-  const videoWords = getVocabularyByVideoId(params.videoId);
+  // Use useMemo to ensure videoWords updates when vocabulary changes
+  const videoWords = useMemo(() => {
+    return getVocabularyByVideoId(params.videoId);
+  }, [getVocabularyByVideoId, params.videoId]);
+
   const videoTitle = videoWords[0]?.videoTitle || "Unknown Video";
   const currentVideo = videos.find((v) => v.id === params.videoId);
 
@@ -366,8 +370,14 @@ export default function VocabularyDetail() {
 
   const handleDeleteWord = async (wordId: string) => {
     const confirmed = window.confirm("Are you sure you want to delete this vocabulary item?");
+    console.log("Delete confirmation result:", confirmed, "for word ID:", wordId);
     if (confirmed === true) {
-      await deleteVocabularyItem(wordId);
+      try {
+        await deleteVocabularyItem(wordId);
+        console.log("Word deleted successfully:", wordId);
+      } catch (error) {
+        console.error("Failed to delete word:", error);
+      }
     }
   };
 

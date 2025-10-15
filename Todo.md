@@ -21,3 +21,4 @@
 - [] icon size
 - [] i18n
 - [] test ship
+- [] payment issue

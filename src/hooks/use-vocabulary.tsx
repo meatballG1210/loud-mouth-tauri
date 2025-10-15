@@ -309,14 +309,21 @@ export function useVocabulary(videos?: any[]) {
 
   const deleteVocabularyItem = async (itemId: string) => {
     try {
+      console.log('Attempting to delete vocabulary item:', itemId);
       setIsLoading(true);
       await vocabularyApi.delete(itemId);
+      console.log('API delete successful for:', itemId);
       // Update local state
-      setVocabulary(prev => prev.filter(item => item.id !== itemId));
+      setVocabulary(prev => {
+        const filtered = prev.filter(item => item.id !== itemId);
+        console.log('Vocabulary items before:', prev.length, 'after:', filtered.length);
+        return filtered;
+      });
       // Update stats
       setStats(prev => ({ ...prev, totalWords: prev.totalWords - 1 }));
     } catch (error) {
       console.error('Error deleting vocabulary item:', error);
+      throw error; // Re-throw to let the caller handle it
     } finally {
       setIsLoading(false);
     }
