@@ -10,7 +10,7 @@
 
 ## Vocabulary detail
 - [x] Remove started feature
-- [] fix remove bug and confirm modal UI
+- [x] fix remove bug and confirm modal UI
 
 ## Vocabulary Review
 - [] check voice input permission

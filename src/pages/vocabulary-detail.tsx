@@ -26,6 +26,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ReactMarkdown from "react-markdown";
 
 export default function VocabularyDetail() {
@@ -33,6 +43,7 @@ export default function VocabularyDetail() {
   const [, setLocation] = useLocation();
   const { videos } = useVideos();
   const {
+    vocabulary,
     getVocabularyByVideoId,
     deleteVocabularyItem,
     isLoading,
@@ -52,6 +63,7 @@ export default function VocabularyDetail() {
   const [chineseSubtitles, setChineseSubtitles] = useState<SubtitleLine[]>([]);
   const [subtitlesLoading, setSubtitlesLoading] = useState(false);
   const [dueWordsCount, setDueWordsCount] = useState(0);
+  const [deleteWordId, setDeleteWordId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   if (!match || !params?.videoId) {
@@ -61,8 +73,8 @@ export default function VocabularyDetail() {
 
   // Use useMemo to ensure videoWords updates when vocabulary changes
   const videoWords = useMemo(() => {
-    return getVocabularyByVideoId(params.videoId);
-  }, [getVocabularyByVideoId, params.videoId]);
+    return vocabulary.filter(item => item.videoId === params.videoId);
+  }, [vocabulary, params.videoId]);
 
   const videoTitle = videoWords[0]?.videoTitle || "Unknown Video";
   const currentVideo = videos.find((v) => v.id === params.videoId);
@@ -368,17 +380,24 @@ export default function VocabularyDetail() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleDeleteWord = async (wordId: string) => {
-    const confirmed = window.confirm("Are you sure you want to delete this vocabulary item?");
-    console.log("Delete confirmation result:", confirmed, "for word ID:", wordId);
-    if (confirmed === true) {
+  const handleDeleteWord = (wordId: string) => {
+    setDeleteWordId(wordId);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteWordId) {
       try {
-        await deleteVocabularyItem(wordId);
-        console.log("Word deleted successfully:", wordId);
+        await deleteVocabularyItem(deleteWordId);
+        setDeleteWordId(null);
       } catch (error) {
         console.error("Failed to delete word:", error);
+        setDeleteWordId(null);
       }
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteWordId(null);
   };
 
 
@@ -654,10 +673,10 @@ export default function VocabularyDetail() {
                           </PopoverContent>
                         </Popover>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            await handleDeleteWord(word.id);
+                            handleDeleteWord(word.id);
                           }}
                           className="p-2 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-all rounded-lg font-medium"
                           title="Delete word"
@@ -689,6 +708,24 @@ export default function VocabularyDetail() {
           </VocabularyErrorBoundary>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteWordId} onOpenChange={(open) => !open && cancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vocabulary Word</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this vocabulary item? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
