@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import {
   Grid,
   List,
-  RefreshCw,
   Search,
   SortAsc,
   SortDesc,
@@ -202,16 +201,6 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <button
-                    onClick={refreshVideos}
-                    disabled={isLoading}
-                    className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-macos disabled:opacity-50"
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-                    />
-                    <span className="text-sm font-medium">{t("refresh")}</span>
-                  </button>
                 </div>
               )}
             </div>
