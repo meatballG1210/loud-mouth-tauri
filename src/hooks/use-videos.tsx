@@ -3,7 +3,6 @@ import { Video, VideoLibraryStats } from '@/types/video';
 import { invoke } from '@tauri-apps/api/core';
 import { vocabularyApi } from '@/api/vocabulary';
 import { videoProgressApi } from '@/api/video-progress';
-import { useAuth } from '@/components/SupabaseAuthProvider';
 
 interface VideoMetadata {
   id: string;
@@ -62,11 +61,13 @@ function formatUploadDate(dateString: string | null): string {
   }
 }
 
+// Default user ID for local-only app without authentication
+const DEFAULT_USER_ID = "default-user";
+
 export function useVideos() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [stats, setStats] = useState<VideoLibraryStats>({ totalVideos: 0, totalVocabulary: 0, dueReviews: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const fetchVideos = async () => {
     try {
@@ -143,16 +144,7 @@ export function useVideos() {
       
       // Fetch real vocabulary stats
       try {
-        if (!user?.id) {
-          setStats({
-            totalVideos: formattedVideos.length,
-            totalVocabulary: 0,
-            dueReviews: 0,
-          });
-          return;
-        }
-        
-        const vocabularyItems = await vocabularyApi.getAll(user.id);
+        const vocabularyItems = await vocabularyApi.getAll(DEFAULT_USER_ID);
         const now = new Date();
         const dueForReview = vocabularyItems.filter(item => 
           new Date(item.next_review_at) <= now
@@ -188,7 +180,7 @@ export function useVideos() {
 
   useEffect(() => {
     fetchVideos();
-  }, [user?.id]);
+  }, []);
 
   const refreshVideos = async () => {
     await fetchVideos();

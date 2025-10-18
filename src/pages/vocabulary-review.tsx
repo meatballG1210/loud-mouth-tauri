@@ -21,8 +21,10 @@ import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { checkWordMatch, splitSentenceForBlank } from "@/utils/fill-in-blank";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/SupabaseAuthProvider";
 import { ReviewCompletionDialog } from "@/components/vocabulary/review-completion-dialog";
+
+// Default user ID for local-only app without authentication
+const DEFAULT_USER_ID = "default-user";
 
 interface SubtitleLine {
   id: string;
@@ -52,7 +54,6 @@ export default function VocabularyReview() {
   const [activeSection, setActiveSection] = useState("reviews");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   // Check if we're in an active review session based on URL
   const isActiveSession =
@@ -116,18 +117,11 @@ export default function VocabularyReview() {
   // Load vocabulary items due for review
   useEffect(() => {
     const loadReviewItems = async () => {
-      if (!user?.id) {
-        setReviewItems([]);
-        setIsLoadingReviews(false);
-        return;
-      }
-
       try {
         setIsLoadingReviews(true);
-        const userId = user.id;
         const items = reviewVideoId
-          ? await vocabularyApi.getDueForReviewByVideo(userId, reviewVideoId)
-          : await vocabularyApi.getDueForReview(userId);
+          ? await vocabularyApi.getDueForReviewByVideo(DEFAULT_USER_ID, reviewVideoId)
+          : await vocabularyApi.getDueForReview(DEFAULT_USER_ID);
         if (items.length > 0) {
           console.log("Sample item:", {
             word: items[0].word,
@@ -149,12 +143,12 @@ export default function VocabularyReview() {
     if (reviewStarted || isActiveSession || reviewVideoId) {
       loadReviewItems();
     }
-  }, [reviewStarted, isActiveSession, reviewVideoId, user?.id]);
+  }, [reviewStarted, isActiveSession, reviewVideoId]);
 
   // Load review count for general review setup page
   useEffect(() => {
     const loadGeneralReviewCount = async () => {
-      if (!user?.id || reviewVideoId || isActiveSession) {
+      if (reviewVideoId || isActiveSession) {
         setIsLoadingGeneralCount(false);
         setIsLoadingVideoCounts(false);
         return;
@@ -163,8 +157,7 @@ export default function VocabularyReview() {
       try {
         setIsLoadingGeneralCount(true);
         setIsLoadingVideoCounts(true);
-        const userId = user.id;
-        const items = await vocabularyApi.getDueForReview(userId);
+        const items = await vocabularyApi.getDueForReview(DEFAULT_USER_ID);
         setGeneralReviewCount(items.length);
 
         // Group items by video for video-specific counts
@@ -208,7 +201,7 @@ export default function VocabularyReview() {
     if (!reviewVideoId && !isActiveSession) {
       loadGeneralReviewCount();
     }
-  }, [user?.id, reviewVideoId, isActiveSession, videos]);
+  }, [reviewVideoId, isActiveSession, videos]);
 
   const currentReview = reviewItems[currentReviewIndex];
   const progress =

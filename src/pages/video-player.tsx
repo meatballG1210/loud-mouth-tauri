@@ -21,7 +21,9 @@ import {
   VideoErrorBoundary,
   SubtitleErrorBoundary,
 } from "@/components/video/video-error-boundary";
-import { useAuth } from "@/components/SupabaseAuthProvider";
+
+// Default user ID for local-only app without authentication
+const DEFAULT_USER_ID = "default-user";
 
 import { SubtitleLine } from "@/utils/subtitle-parser";
 
@@ -35,7 +37,6 @@ export default function VideoPlayer() {
   const [, params] = useRoute("/video/:videoId");
   const [, setLocation] = useLocation();
   const { videos, isLoading } = useVideos();
-  const { user } = useAuth();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -529,7 +530,7 @@ export default function VideoPlayer() {
         .join(" ");
 
       await vocabularyApi.create({
-        user_id: user?.id || "", // Use authenticated user ID
+        user_id: DEFAULT_USER_ID,
         video_id: currentVideo.id,
         word: wordPhrase,
         timestamp: Math.floor(currentSub.start * 1000), // Convert subtitle start time to milliseconds

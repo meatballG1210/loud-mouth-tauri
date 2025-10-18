@@ -8,11 +8,9 @@ import {
   Video,
   ChevronLeft,
   ChevronRight,
-  LogOut,
 } from "lucide-react";
 import { VideoLibraryStats } from "@/types/video";
 import { useLanguage } from "@/lib/i18n";
-import { useAuth } from "@/components/SupabaseAuthProvider";
 
 interface SidebarProps {
   stats: VideoLibraryStats;
@@ -32,7 +30,6 @@ export function Sidebar({
   onUploadVideo,
 }: SidebarProps) {
   const { t } = useLanguage();
-  const { user, signOut } = useAuth();
 
   // Use localStorage to persist sidebar state
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -49,10 +46,6 @@ export function Sidebar({
     setIsCollapsed(!isCollapsed);
   };
 
-  const handleLogout = async () => {
-    await signOut();
-  };
-
   return (
     <div
       className={`${isCollapsed ? "w-16" : "w-64"} bg-gray-50 border-r border-gray-200 flex flex-col macos-sidebar-shadow transition-all duration-300 ease-in-out`}
@@ -61,16 +54,14 @@ export function Sidebar({
       <div className="relative border-b border-gray-200">
         <div className="p-4 flex items-center space-x-3">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm font-bold">
-              {user?.email ? user.email.charAt(0).toUpperCase() : "U"}
-            </span>
+            <span className="text-white text-sm font-bold">LM</span>
           </div>
-          {!isCollapsed && user && (
+          {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-semibold text-gray-900 truncate">
-                {user.user_metadata?.username || user.email}
+                Loud Mouth
               </h1>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <p className="text-xs text-gray-500 truncate">Language Learning</p>
             </div>
           )}
         </div>
@@ -205,7 +196,7 @@ export function Sidebar({
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-3 border-t border-gray-200 space-y-2">
+      <div className="p-3 border-t border-gray-200">
         <button
           onClick={onUploadVideo}
           className={`w-full flex items-center ${isCollapsed ? "justify-center" : "justify-center space-x-2"} px-3 py-2.5 rounded-lg transition-all duration-200 bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:shadow-md`}
@@ -214,17 +205,6 @@ export function Sidebar({
           <Upload className="w-4 h-4" />
           {!isCollapsed && (
             <span className="text-sm font-medium">{t("uploadVideo")}</span>
-          )}
-        </button>
-
-        <button
-          onClick={handleLogout}
-          className={`w-full flex items-center ${isCollapsed ? "justify-center" : "justify-center space-x-2"} px-3 py-2.5 rounded-lg transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 border border-transparent hover:border-gray-200`}
-          title={isCollapsed ? t("logout") : undefined}
-        >
-          <LogOut className="w-4 h-4" />
-          {!isCollapsed && (
-            <span className="text-sm font-medium">{t("logout")}</span>
           )}
         </button>
       </div>

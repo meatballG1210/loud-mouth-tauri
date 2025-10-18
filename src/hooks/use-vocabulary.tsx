@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { VocabularyItem, VocabularyStats } from '@/types/video';
 import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabulary';
-import { useAuth } from '@/components/SupabaseAuthProvider';
+
+// Default user ID for local-only app without authentication
+const DEFAULT_USER_ID = "default-user";
 
 // Extract Chinese translation from dictionary response
 function extractChineseTranslation(dictionaryResponse: string | null | undefined, targetZh?: string): string {
@@ -160,7 +162,6 @@ export function useVocabulary(videos?: any[]) {
     overdueWords: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
   const [videoTitleMap, setVideoTitleMap] = useState<Map<string, string>>(new Map());
   const [videoUploadDateMap, setVideoUploadDateMap] = useState<Map<string, string>>(new Map());
   
@@ -201,7 +202,7 @@ export function useVocabulary(videos?: any[]) {
     }
   }, []);
 
-  // Fetch vocabulary data on mount and when user changes
+  // Fetch vocabulary data on mount
   // Only fetch if we have videos loaded (or no videos parameter was passed)
   useEffect(() => {
     // If videos parameter is passed but empty/not loaded yet, don't fetch
@@ -209,47 +210,33 @@ export function useVocabulary(videos?: any[]) {
       setIsLoading(false);
       return;
     }
-    
+
     // Debounce the fetch to avoid rapid successive calls
     cleanupPendingRequests();
-    
+
     fetchTimeoutRef.current = setTimeout(() => {
       fetchVocabulary();
     }, 200); // 200ms debounce delay
-    
+
     // Cleanup on unmount or when dependencies change
     return () => {
       cleanupPendingRequests();
     };
-  }, [user?.id, videos, videoTitleMap, videoUploadDateMap]);
+  }, [videos, videoTitleMap, videoUploadDateMap]);
 
   const fetchVocabulary = async () => {
-    if (!user?.id) {
-      setVocabulary([]);
-      setStats({
-        totalWords: 0,
-        wordsToReview: 0,
-        masteredWords: 0,
-        overdueWords: 0
-      });
-      setIsLoading(false);
-      return;
-    }
-    
     // Cancel any existing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new abort controller for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    
+
     try {
       setIsLoading(true);
-      const userId = user.id;
-      
-      const backendVocabulary = await vocabularyApi.getAll(userId);
+      const backendVocabulary = await vocabularyApi.getAll(DEFAULT_USER_ID);
       const convertedVocabulary = backendVocabulary.map(item => 
         convertToFrontendVocabulary(
           item, 
@@ -357,10 +344,8 @@ export function useVocabulary(videos?: any[]) {
   };
 
   const getDueForReview = async (): Promise<ApiVocabularyItem[]> => {
-    if (!user?.id) return [];
-    
     try {
-      return await vocabularyApi.getDueForReview(user.id);
+      return await vocabularyApi.getDueForReview(DEFAULT_USER_ID);
     } catch (error) {
       console.error('Error getting due reviews:', error);
       return [];

@@ -41,7 +41,9 @@ import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useStudyTime } from "@/hooks/use-study-time";
 import { vocabularyApi } from "@/api/vocabulary";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+
+// Default user ID for local-only app without authentication
+const DEFAULT_USER_ID = "default-user";
 
 // Default weekly goal in hours
 const DEFAULT_WEEKLY_GOAL = 8;
@@ -245,9 +247,7 @@ export default function Progress() {
   const { data: accuracyStats, refetch: refetchAccuracyStats } = useQuery({
     queryKey: ['accuracy-stats'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const stats = await vocabularyApi.getAccuracyStats(user.id);
+      const stats = await vocabularyApi.getAccuracyStats(DEFAULT_USER_ID);
       return stats;
     },
     enabled: !!vocabulary.length, // Only fetch if we have vocabulary

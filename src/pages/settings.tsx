@@ -5,16 +5,9 @@ import {
   MessageSquare,
   ExternalLink,
   Check,
-  User,
-  Eye,
-  EyeOff,
-  Save,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Sidebar } from "@/components/layout/sidebar";
 import {
   Card,
@@ -32,18 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/SupabaseAuthProvider";
 import { useVideos } from "@/hooks/use-videos";
 
 const languages = [
@@ -51,59 +34,11 @@ const languages = [
   { code: "zh", name: "Chinese (Simplified)", nativeName: "简体中文" },
 ];
 
-// Profile form schema
-const profileSchema = z
-  .object({
-    username: z
-      .string()
-      .min(3, "Username must be at least 3 characters")
-      .max(20, "Username must be less than 20 characters"),
-    email: z.string().email("Please enter a valid email address"),
-    newPassword: z.string().optional(),
-    confirmPassword: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.newPassword && data.newPassword !== data.confirmPassword) {
-        return false;
-      }
-      if (data.newPassword && data.newPassword.length < 6) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: "Password validation failed",
-      path: ["newPassword"],
-    },
-  );
-
-type ProfileFormData = z.infer<typeof profileSchema>;
-
 // Translation object for UI elements
 const translations = {
   en: {
     settings: "Settings",
-    back: "Back",
     subtitle: "Customize your learning experience and preferences",
-
-    // Profile section
-    userProfile: "User Profile",
-    profileDescription: "Manage your account information and security settings",
-    username: "Username",
-    email: "Email Address",
-    emailNote: "Changing your email may require verification",
-    changePassword: "Change Password",
-    newPassword: "New Password",
-    confirmPassword: "Confirm New Password",
-    saveChanges: "Save Changes",
-    savingChanges: "Saving...",
-    profileUpdated: "Profile updated successfully!",
-    profileUpdateFailed: "Failed to update profile",
-    passwordRequired: "Enter current password to change password",
-    passwordsNoMatch: "New passwords do not match",
-    passwordTooShort: "Password must be at least 6 characters",
-
     languagePreferences: "Language Preferences",
     languageDescription:
       "Choose your preferred language for the user interface",
@@ -117,26 +52,7 @@ const translations = {
   },
   zh: {
     settings: "设置",
-    back: "返回",
     subtitle: "自定义您的学习体验和偏好",
-
-    // Profile section
-    userProfile: "用户资料",
-    profileDescription: "管理您的账户信息和安全设置",
-    username: "用户名",
-    email: "邮箱地址",
-    emailNote: "更改邮箱可能需要验证",
-    changePassword: "修改密码",
-    newPassword: "新密码",
-    confirmPassword: "确认新密码",
-    saveChanges: "保存更改",
-    savingChanges: "保存中...",
-    profileUpdated: "资料更新成功！",
-    profileUpdateFailed: "资料更新失败",
-    passwordRequired: "请输入当前密码以修改密码",
-    passwordsNoMatch: "新密码不匹配",
-    passwordTooShort: "密码至少需要6位字符",
-
     languagePreferences: "语言偏好",
     languageDescription: "选择您的用户界面首选语言",
     uiLanguage: "用户界面语言",
@@ -156,36 +72,7 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState("settings");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isLanguageChanged, setIsLanguageChanged] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isProfileUpdating, setIsProfileUpdating] = useState(false);
-  const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
-
-  const { user, updateProfile, updatePassword } = useAuth();
   const { toast } = useToast();
-
-  // Profile form
-  const profileForm = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      username: "",
-      email: user?.email || "",
-      newPassword: "",
-      confirmPassword: "",
-    },
-  });
-
-  // Update form when user data changes
-  useEffect(() => {
-    if (user) {
-      profileForm.reset({
-        username: user.user_metadata?.username || "",
-        email: user.email || "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    }
-  }, [user, profileForm]);
 
   // Load language preference from localStorage on component mount
   useEffect(() => {
@@ -265,89 +152,6 @@ export default function Settings() {
     }
   };
 
-
-  const onProfileSubmit = async (data: ProfileFormData) => {
-    setIsProfileUpdating(true);
-    try {
-      // Validate password change if provided
-      if (data.newPassword) {
-        if (data.newPassword !== data.confirmPassword) {
-          throw new Error(t.passwordsNoMatch);
-        }
-        if (data.newPassword.length < 6) {
-          throw new Error(t.passwordTooShort);
-        }
-      }
-
-      // Update profile (username and/or email)
-      const profileUpdates: any = {};
-      let hasProfileChanges = false;
-      
-      // Check if username changed
-      if (data.username !== (user?.user_metadata?.username || "")) {
-        profileUpdates.username = data.username;
-        hasProfileChanges = true;
-      }
-      
-      // Check if email changed
-      if (data.email !== user?.email) {
-        profileUpdates.email = data.email;
-        hasProfileChanges = true;
-      }
-      
-      // Update profile if there are changes
-      if (hasProfileChanges) {
-        const { error: profileError } = await updateProfile(profileUpdates);
-        if (profileError) {
-          throw profileError;
-        }
-      }
-      
-      // Update password if provided
-      if (data.newPassword) {
-        const { error: passwordError } = await updatePassword({
-          password: data.newPassword,
-        });
-        if (passwordError) {
-          throw passwordError;
-        }
-      }
-
-      setProfileUpdateSuccess(true);
-
-      toast({
-        title: t.profileUpdated,
-        description: "Your profile has been updated successfully.",
-      });
-
-      // Clear password fields after successful update
-      profileForm.setValue("newPassword", "");
-      profileForm.setValue("confirmPassword", "");
-
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setProfileUpdateSuccess(false);
-      }, 3000);
-    } catch (error: any) {
-      // Handle specific Supabase errors
-      let errorMessage = error.message || "An error occurred while updating your profile";
-      
-      if (error.message?.includes("email")) {
-        errorMessage = "Failed to update email. You may need to verify your new email address.";
-      } else if (error.message?.includes("password")) {
-        errorMessage = "Failed to update password. Please ensure you're logged in.";
-      }
-      
-      toast({
-        title: t.profileUpdateFailed,
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsProfileUpdating(false);
-    }
-  };
-
   const selectedLang = languages.find((lang) => lang.code === selectedLanguage);
   const t = translations[selectedLanguage as keyof typeof translations];
 
@@ -376,194 +180,6 @@ export default function Settings() {
 
           <div className="flex-1 overflow-auto">
             <div className="p-6 space-y-6">
-              {/* User Profile Section */}
-              <Card className="border-gray-200 bg-white">
-                <CardHeader>
-                  <CardTitle className="text-gray-900 font-bold text-base flex items-center space-x-2">
-                    <User className="w-5 h-5 text-blue-500" />
-                    <span>{t.userProfile}</span>
-                  </CardTitle>
-                  <CardDescription className="text-gray-500">
-                    {t.profileDescription}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...profileForm}>
-                    <form
-                      onSubmit={profileForm.handleSubmit(onProfileSubmit)}
-                      className="space-y-6"
-                    >
-
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={profileForm.control}
-                          name="username"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t.username}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter username"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={profileForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t.email}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="email"
-                                  placeholder="Enter email address"
-                                  {...field}
-                                  disabled={!user}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                              {field.value !== user?.email && field.value && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {t.emailNote}
-                                </p>
-                              )}
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <Separator className="my-6" />
-
-                      <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h4 className="text-sm font-semibold text-gray-900 flex items-center space-x-2">
-                          <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-                          <span>{t.changePassword}</span>
-                        </h4>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={profileForm.control}
-                            name="newPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>{t.newPassword}</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Input
-                                      type={
-                                        showNewPassword ? "text" : "password"
-                                      }
-                                      placeholder="Enter new password"
-                                      {...field}
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() =>
-                                        setShowNewPassword(!showNewPassword)
-                                      }
-                                    >
-                                      {showNewPassword ? (
-                                        <EyeOff className="h-4 w-4" />
-                                      ) : (
-                                        <Eye className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={profileForm.control}
-                            name="confirmPassword"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>{t.confirmPassword}</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Input
-                                      type={
-                                        showConfirmPassword
-                                          ? "text"
-                                          : "password"
-                                      }
-                                      placeholder="Confirm new password"
-                                      {...field}
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() =>
-                                        setShowConfirmPassword(
-                                          !showConfirmPassword,
-                                        )
-                                      }
-                                    >
-                                      {showConfirmPassword ? (
-                                        <EyeOff className="h-4 w-4" />
-                                      ) : (
-                                        <Eye className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4">
-                        <div className="flex-1">
-                          {profileUpdateSuccess && (
-                            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                              <Check className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-green-700">
-                                {t.profileUpdated}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <Button
-                          type="submit"
-                          disabled={isProfileUpdating}
-                          className="ml-4"
-                        >
-                          {isProfileUpdating ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>{t.savingChanges}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <Save className="w-4 h-4" />
-                              <span>{t.saveChanges}</span>
-                            </div>
-                          )}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-
-              <Separator />
-
               {/* Language Preferences Section */}
               <Card className="border-gray-200 bg-white">
                 <CardHeader>
