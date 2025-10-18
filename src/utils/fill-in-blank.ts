@@ -23,6 +23,45 @@ export function createFillInBlank(sentence: string, word: string): string {
 }
 
 /**
+ * Split a sentence into parts for inline fill-in-the-blank
+ * @param sentence The full sentence
+ * @param word The word to replace with a blank
+ * @returns Object with before, after parts and the word length
+ */
+export function splitSentenceForBlank(sentence: string, word: string): {
+  before: string;
+  after: string;
+  wordLength: number;
+} {
+  if (!sentence || !word) {
+    return { before: sentence, after: '', wordLength: 0 };
+  }
+
+  // Escape special regex characters in the word
+  const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Create a regex to find the word (case-insensitive, whole word)
+  const wordRegex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+
+  // Find the match
+  const match = sentence.match(wordRegex);
+
+  if (!match) {
+    return { before: sentence, after: '', wordLength: word.length };
+  }
+
+  const index = match.index!;
+  const before = sentence.substring(0, index);
+  const after = sentence.substring(index + match[0].length);
+
+  return {
+    before,
+    after,
+    wordLength: match[0].length,
+  };
+}
+
+/**
  * Check if the user's answer matches the correct word
  * Uses exact match with normalization (case-insensitive, trimmed, no punctuation)
  * @param userAnswer The user's answer

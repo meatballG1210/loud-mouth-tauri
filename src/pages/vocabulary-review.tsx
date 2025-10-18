@@ -23,7 +23,7 @@ import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { speechApi, audioToBase64, convertWebmToWav, analyzeAudioLevel } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
-import { createFillInBlank, checkWordMatch } from "@/utils/fill-in-blank";
+import { checkWordMatch, splitSentenceForBlank } from "@/utils/fill-in-blank";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
@@ -49,6 +49,7 @@ export default function VocabularyReview() {
   const { stats: videoStats, refreshVideos, videos: allVideos } = useVideos();
   const { stats, updateReviewWithResult, refreshVocabulary } = useVocabulary(allVideos);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState("reviews");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1361,7 +1362,7 @@ export default function VocabularyReview() {
             <div className="flex flex-1 overflow-hidden">
               {/* Left Side - Video Player */}
               <div className="w-2/3 bg-black flex flex-col">
-                {/* Video */}
+                {/* Video - Full height */}
                 <div className="flex-1 relative">
                   <video
                     ref={videoRef}
@@ -1396,40 +1397,71 @@ export default function VocabularyReview() {
                     </button>
                   </div>
                 </div>
-
-                {/* Subtitles */}
-                <div className="p-4 space-y-2 bg-gray-50 border-t border-gray-200">
-                  {subtitles
-                    .filter((s) => s.language === "english")
-                    .map((subtitle) => (
-                      <div
-                        key={subtitle.id}
-                        className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
-                          subtitle.position === "current"
-                            ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
-                            : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
-                        }`}
-                      >
-                        {subtitle.position === "current" ? (
-                          <div className="space-y-2">
-                            <div className="text-lg">
-                              {currentReview ? createFillInBlank(currentReview.target_en, currentReview.word) : subtitle.text}
-                            </div>
-                            <div className="text-sm text-blue-700 italic">
-                              {subtitles.find((s) => s.id === "3-zh")?.text}
-                            </div>
-                          </div>
-                        ) : (
-                          subtitle.text
-                        )}
-                      </div>
-                    ))}
-                </div>
               </div>
 
               {/* Right Side - Review Interface */}
-              <div className="w-1/3 bg-white flex flex-col border-l border-gray-200">
-                <div className="p-6 space-y-4 flex-1">
+              <div className="w-1/3 bg-white flex flex-col border-l border-gray-200 overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  {/* Subtitles Section */}
+                  <div className="space-y-2">
+                    {subtitles
+                      .filter((s) => s.language === "english")
+                      .map((subtitle) => (
+                        <div
+                          key={subtitle.id}
+                          className={`text-center p-3 rounded-lg macos-body transition-all duration-200 ${
+                            subtitle.position === "current"
+                              ? "bg-blue-50 text-blue-900 shadow-md border-2 border-blue-300 font-medium"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
+                          }`}
+                        >
+                          {subtitle.position === "current" ? (
+                            <div className="space-y-3">
+                              {/* Inline Fill-in-the-Blank */}
+                              <div className="text-lg leading-relaxed">
+                                {currentReview && (() => {
+                                  const { before, after, wordLength } = splitSentenceForBlank(
+                                    currentReview.target_en,
+                                    currentReview.word
+                                  );
+                                  return (
+                                    <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                                      <span>{before}</span>
+                                      <input
+                                        ref={inlineInputRef}
+                                        type="text"
+                                        value={userAnswer}
+                                        onChange={(e) => setUserAnswer(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && userAnswer.trim()) {
+                                            handleSubmitAnswer();
+                                          }
+                                        }}
+                                        placeholder="___"
+                                        className="inline-block px-2 py-1 border-b-2 border-blue-500 bg-transparent text-blue-900 font-bold focus:outline-none focus:border-blue-700 text-center"
+                                        style={{
+                                          minWidth: `${Math.max(wordLength * 12, 60)}px`,
+                                          width: `${Math.max(userAnswer.length * 12, wordLength * 12, 60)}px`,
+                                        }}
+                                        autoFocus
+                                      />
+                                      <span>{after}</span>
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                              {/* Chinese Translation */}
+                              <div className="text-sm text-blue-700 italic">
+                                {subtitles.find((s) => s.id === "3-zh")?.text}
+                              </div>
+                            </div>
+                          ) : (
+                            subtitle.text
+                          )}
+                        </div>
+                      ))}
+                  </div>
+
                   {/* Feedback */}
                   {isCorrect !== null && (
                     <div
@@ -1457,99 +1489,105 @@ export default function VocabularyReview() {
                     </div>
                   )}
 
-                  {/* Input Section */}
+                  {/* Action Buttons */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                      Fill in the Blank
+                      Actions
                     </h4>
-                    <div className="space-y-3">
-                      <textarea
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="Type or speak the missing word..."
-                        className="w-full macos-input resize-none macos-body"
-                        rows={3}
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Voice Input Button */}
+                      {!isListening && !isProcessingAudio && countdown === null ? (
+                        <button
+                          onClick={handleVoiceInput}
+                          disabled={isModelDownloading}
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
+                        >
+                          <Mic className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {isModelDownloading
+                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
+                              : t("voiceInput")}
+                          </span>
+                        </button>
+                      ) : countdown !== null ? (
+                        <button
+                          disabled
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed col-span-2"
+                        >
+                          <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
+                          <span className="text-sm font-medium">
+                            {countdown === 0
+                              ? t("speakNow") || "Speak now!"
+                              : `${t("getReady") || "Get ready"} ${countdown}...`}
+                          </span>
+                        </button>
+                      ) : isListening ? (
+                        <button
+                          onClick={stopVoiceRecording}
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse col-span-2"
+                        >
+                          <div className="w-4 h-4 bg-white rounded-full" />
+                          <span className="text-sm font-medium">
+                            {t("stopRecording") || "Stop Recording"}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed col-span-2"
+                        >
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          <span className="text-sm font-medium">
+                            {t("processing") || "Processing..."}
+                          </span>
+                        </button>
+                      )}
 
-                      <div className="flex space-x-2">
-                        {!isListening &&
-                        !isProcessingAudio &&
-                        countdown === null ? (
-                          <button
-                            onClick={handleVoiceInput}
-                            disabled={isModelDownloading}
-                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
-                          >
-                            <Mic className="w-4 h-4" />
-                            <span className="text-sm font-medium">
-                              {isModelDownloading
-                                ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
-                                : t("voiceInput")}
-                            </span>
-                          </button>
-                        ) : countdown !== null ? (
-                          <button
-                            disabled
-                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed"
-                          >
-                            <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
-                            <span className="text-sm font-medium">
-                              {countdown === 0
-                                ? t("speakNow") || "Speak now!"
-                                : `${t("getReady") || "Get ready"} ${countdown}...`}
-                            </span>
-                          </button>
-                        ) : isListening ? (
-                          <button
-                            onClick={stopVoiceRecording}
-                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse"
-                          >
-                            <div className="w-4 h-4 bg-white rounded-full" />
-                            <span className="text-sm font-medium">
-                              {t("stopRecording") || "Stop Recording"}
-                            </span>
-                          </button>
-                        ) : (
-                          <button
-                            disabled
-                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed"
-                          >
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                            <span className="text-sm font-medium">
-                              {t("processing") || "Processing..."}
-                            </span>
-                          </button>
-                        )}
+                      {/* Skip Button */}
+                      <button
+                        onClick={handleSkip}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          {t("skip")}
+                        </span>
+                      </button>
+
+                      {/* Show Answer Button */}
+                      <button
+                        onClick={handleShowAnswer}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600 col-span-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          {t("showAnswer")}
+                        </span>
+                      </button>
+
+                      {/* Submit Button */}
+                      <button
+                        onClick={handleSubmitAnswer}
+                        disabled={!userAnswer.trim()}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-2"
+                      >
+                        <span className="text-sm font-medium">
+                          {t("submitAnswer")}
+                        </span>
+                      </button>
+
+                      {/* Mark as Known Button (conditional) */}
+                      {showMarkAsKnown && isCorrect === false && (
                         <button
-                          onClick={handleSkip}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"
+                          onClick={handleMarkAsKnown}
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600 col-span-2"
                         >
-                          <RotateCcw className="w-4 h-4" />
+                          <Check className="w-4 h-4" />
                           <span className="text-sm font-medium">
-                            {t("skip")}
+                            {t("markAsKnown")}
                           </span>
                         </button>
-                        <button
-                          onClick={handleShowAnswer}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {t("showAnswer")}
-                          </span>
-                        </button>
-                        {showMarkAsKnown && isCorrect === false && (
-                          <button
-                            onClick={handleMarkAsKnown}
-                            className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600"
-                          >
-                            <Check className="w-4 h-4" />
-                            <span className="text-sm font-medium">
-                              {t("markAsKnown")}
-                            </span>
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
 
@@ -1586,17 +1624,6 @@ export default function VocabularyReview() {
                       </div>
                     </div>
                   )}
-
-                  {/* Submit Button */}
-                  <button
-                    onClick={handleSubmitAnswer}
-                    disabled={!userAnswer.trim()}
-                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  >
-                    <span className="text-sm font-medium">
-                      {t("submitAnswer")}
-                    </span>
-                  </button>
                 </div>
               </div>
             </div>
