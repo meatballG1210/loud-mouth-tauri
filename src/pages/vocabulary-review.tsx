@@ -388,14 +388,18 @@ export default function VocabularyReview() {
     setIsCorrect(isAnswerCorrect);
 
     if (isAnswerCorrect) {
-      // CORRECT ANSWER - Update DB and play video once
+      // CORRECT ANSWER - Update DB, show answer, show Next Question button, play video once
       if (!hasSubmittedReview && currentReview.id) {
         await updateReviewWithResult(currentReview.id, true);
         setHasSubmittedReview(true);
         queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
       }
 
-      // Play video once and move to next
+      // Show answer and Next Question button
+      setShowAnswer(true);
+      setShowNextQuestion(true);
+
+      // Play video once (not loop)
       if (videoRef.current && currentReview) {
         const video = videoRef.current;
         const startTime = currentReview.timestamp / 1000;
@@ -412,35 +416,7 @@ export default function VocabularyReview() {
                 video.pause();
                 video.removeEventListener("timeupdate", handleTimeUpdate);
                 setShouldAutoPause(true);
-
-                // Move to next question after a short delay
-                setTimeout(() => {
-                  if (currentReviewIndex < reviewItems.length - 1) {
-                    setCurrentReviewIndex((prev) => prev + 1);
-                    setUserAnswer("");
-                    setIsCorrect(null);
-                    setShowAnswer(false);
-                    setShowNextQuestion(false);
-                    setHasSubmittedReview(false);
-                  } else {
-                    // Review completed
-                    setShowCompletionDialog(true);
-                    setReviewStarted(false);
-                    setCurrentReviewIndex(0);
-                    setUserAnswer("");
-                    setIsCorrect(null);
-                    setShowAnswer(false);
-                    setShowNextQuestion(false);
-                    setShownAnswerItems(new Set());
-                    setHasSubmittedReview(false);
-                    refreshVocabulary();
-                    if (reviewVideoId) {
-                      setLocation(`/vocabulary-list/${reviewVideoId}`);
-                    } else {
-                      setLocation("/vocabulary-review");
-                    }
-                  }
-                }, 500);
+                // Don't auto-move to next - user must click "Next Question"
               }
             };
 
@@ -487,37 +463,62 @@ export default function VocabularyReview() {
   const handleForgot = () => {
     setShowAnswer(true);
     setShowNextQuestion(true);
-    setIsCorrect(false);
+    // Don't set isCorrect - we don't want to show "Incorrect" feedback for Forgot
+  };
 
-    // Start looping the video on the current sentence
+  const playCurrentSentence = async () => {
     if (videoRef.current && currentReview) {
       const video = videoRef.current;
       const startTime = currentReview.timestamp / 1000;
       const endTime = (currentReview.timestamp + 2000) / 1000;
 
-      setIsLooping(true);
+      // Stop any existing loop
+      if ((video as any).__loopHandler) {
+        video.removeEventListener("timeupdate", (video as any).__loopHandler);
+        delete (video as any).__loopHandler;
+      }
+      setIsLooping(false);
 
+      // Disable auto-pause to prevent interference
+      setShouldAutoPause(false);
+
+      // Pause video first to ensure clean state
+      video.pause();
+
+      // Small delay to ensure UI state updates and avoid focus issues
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Seek to the start of the sentence
       video.currentTime = startTime;
-      video.loop = false; // We'll handle looping manually
 
+      // Setup handler to pause at end of sentence
       const handleTimeUpdate = () => {
         if (video.currentTime >= endTime) {
-          video.currentTime = startTime;
+          video.pause();
+          setIsPlaying(false);
+          video.removeEventListener("timeupdate", handleTimeUpdate);
+          // Re-enable auto-pause
+          setShouldAutoPause(true);
         }
       };
 
       video.addEventListener("timeupdate", handleTimeUpdate);
-      video.play().catch((error) => {
-        console.error("Error playing video for forgot:", error);
-      });
 
-      // Store the handler to remove it later
-      (video as any).__loopHandler = handleTimeUpdate;
+      // Start playing
+      try {
+        await video.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error("Error playing current sentence:", error);
+        video.removeEventListener("timeupdate", handleTimeUpdate);
+        // Re-enable auto-pause even on error
+        setShouldAutoPause(true);
+      }
     }
   };
 
   const handleNextQuestion = () => {
-    // Stop video looping
+    // Stop video looping (if any)
     if (videoRef.current) {
       const video = videoRef.current;
       if ((video as any).__loopHandler) {
@@ -528,8 +529,11 @@ export default function VocabularyReview() {
     }
     setIsLooping(false);
 
-    // Add current item to end of queue (to review again later)
-    if (currentReview) {
+    // Only add to queue if answer was incorrect or forgot (not correct)
+    // isCorrect === false means incorrect answer
+    // isCorrect === null means forgot (we didn't set isCorrect)
+    // isCorrect === true means correct answer - don't re-queue
+    if (currentReview && isCorrect !== true) {
       setReviewItems((prev) => [...prev, currentReview]);
       setShownAnswerItems((prev) => new Set(prev).add(currentReview.id!));
     }
@@ -854,7 +858,6 @@ export default function VocabularyReview() {
                                               handleSubmitAnswer();
                                             }
                                           }}
-                                          placeholder="___"
                                           className="inline-block px-2 py-1 border-b-2 border-blue-500 bg-transparent text-blue-900 font-bold focus:outline-none focus:border-blue-700 text-center"
                                           style={{
                                             minWidth: `${Math.max(wordLength * 12, 60)}px`,
@@ -961,6 +964,15 @@ export default function VocabularyReview() {
                           {currentReview?.word}
                         </p>
                       </div>
+                      <button
+                        onClick={playCurrentSentence}
+                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          Play Current Sentence
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
