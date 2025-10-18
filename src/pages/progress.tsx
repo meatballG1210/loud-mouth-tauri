@@ -96,9 +96,7 @@ function calculateAverageAccuracy(vocabulary: any[]): number {
   if (!vocabulary || vocabulary.length === 0) return 0;
 
   // Calculate accuracy using real data if available
-  const reviewedItems = vocabulary.filter(
-    (item) => item.review_count > 0
-  );
+  const reviewedItems = vocabulary.filter((item) => item.review_count > 0);
 
   if (reviewedItems.length === 0) return 0; // No reviews yet, show 0%
 
@@ -108,7 +106,7 @@ function calculateAverageAccuracy(vocabulary: any[]): number {
   reviewedItems.forEach((item) => {
     const reviews = item.review_count || 0;
     const correct = item.correct_count || 0;
-    
+
     totalAttempts += reviews;
     totalCorrect += correct;
   });
@@ -177,11 +175,11 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
   vocabulary.forEach((item) => {
     if (item.review_count > 0 && item.lastReviewed) {
       const date = new Date(item.lastReviewed).toISOString().split("T")[0];
-      
+
       if (!dailyWords.has(date)) {
         dailyWords.set(date, []);
       }
-      
+
       dailyWords.get(date)!.push(item);
     }
   });
@@ -196,16 +194,17 @@ function calculateAccuracyTrend(vocabulary: any[]): any[] {
       words.forEach((item) => {
         const reviews = item.review_count || 0;
         const correct = item.correct_count || 0;
-        
+
         totalCorrect += correct;
         totalAttempts += reviews;
       });
 
       return {
         date,
-        accuracy: totalAttempts > 0
-          ? Math.round((totalCorrect / totalAttempts) * 100)
-          : 100,
+        accuracy:
+          totalAttempts > 0
+            ? Math.round((totalCorrect / totalAttempts) * 100)
+            : 100,
       };
     });
 
@@ -245,7 +244,7 @@ export default function Progress() {
 
   // Fetch real accuracy stats from backend
   const { data: accuracyStats, refetch: refetchAccuracyStats } = useQuery({
-    queryKey: ['accuracy-stats'],
+    queryKey: ["accuracy-stats"],
     queryFn: async () => {
       const stats = await vocabularyApi.getAccuracyStats(DEFAULT_USER_ID);
       return stats;
@@ -300,7 +299,8 @@ export default function Progress() {
   // Calculate real-time statistics
   const currentStreak = calculateDayStreak(vocabulary);
   // Use backend accuracy stats if available, otherwise calculate from frontend data
-  const averageAccuracy = accuracyStats?.accuracy_percentage ?? calculateAverageAccuracy(vocabulary);
+  const averageAccuracy =
+    accuracyStats?.accuracy_percentage ?? calculateAverageAccuracy(vocabulary);
   const vocabularyGrowth = calculateVocabularyGrowth(vocabulary);
   const accuracyTrend = calculateAccuracyTrend(vocabulary);
 
@@ -399,7 +399,9 @@ export default function Progress() {
                     {isTracking && (
                       <div className="absolute top-2 right-2 flex items-center space-x-1">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-xs text-green-600">Tracking</span>
+                        <span className="text-xs text-green-600">
+                          {t("tracking")}
+                        </span>
                       </div>
                     )}
                   </div>
