@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation } from 'wouter';
+import { translations } from '@/lib/i18n';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -68,13 +69,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (this.state.hasError) {
+      // Get current language from localStorage
+      const savedLanguage = localStorage.getItem('ui-language') || 'en';
+      const lang = (savedLanguage === 'zh' ? 'zh' : 'en') as 'en' | 'zh';
+      const t = translations[lang];
+
       // Show a minimal fallback UI while redirecting
       return (
         <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--macos-grouped-bg-primary)' }}>
           <div className="text-center">
-            <div className="macos-title-3 mb-2">Redirecting to error page...</div>
+            <div className="macos-title-3 mb-2">{t.redirectingToErrorPage}</div>
             <div className="macos-footnote" style={{ color: 'var(--macos-label-secondary)' }}>
-              If you are not redirected automatically, please refresh the page.
+              {t.notRedirectedAutomatically}
             </div>
           </div>
         </div>

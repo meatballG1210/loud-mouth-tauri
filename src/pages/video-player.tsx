@@ -12,6 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { useVideos } from "@/hooks/use-videos";
+import { useLanguage } from "@/lib/i18n";
 import { Video } from "@/types/video";
 import { parseWebVTT } from "@/utils/subtitle-parser";
 import ReactMarkdown from "react-markdown";
@@ -37,6 +38,7 @@ export default function VideoPlayer() {
   const [, params] = useRoute("/video/:videoId");
   const [, setLocation] = useLocation();
   const { videos, isLoading } = useVideos();
+  const { t } = useLanguage();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -619,7 +621,7 @@ export default function VideoPlayer() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-500">Loading video...</p>
+            <p className="text-gray-500">{t('loadingVideo')}</p>
           </div>
         </div>
       </div>
@@ -761,7 +763,7 @@ export default function VideoPlayer() {
                   className="flex items-center space-x-2 p-2 bg-black bg-opacity-40 rounded-lg text-white hover:bg-opacity-60 transition-all backdrop-blur-sm"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm">Back to Library</span>
+                  <span className="text-sm">{t('backToLibrary')}</span>
                 </button>
               </div>
             </div>
@@ -827,7 +829,7 @@ export default function VideoPlayer() {
                           setIsLoadingLookup(false);
                         }}
                         className="absolute -right-12 top-1/2 transform -translate-y-1/2 p-2 bg-transparent hover:bg-white hover:bg-opacity-10 rounded-full transition-all duration-200"
-                        title="Confirm selection"
+                        title={t('confirmSelection')}
                       >
                         <Check className="w-4 h-4 text-white opacity-70 hover:opacity-100" />
                       </button>
@@ -867,7 +869,7 @@ export default function VideoPlayer() {
                 <button
                   onClick={handleSkipBackward}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Skip back 4s"
+                  title={t('skipBack4s')}
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
@@ -886,7 +888,7 @@ export default function VideoPlayer() {
                 <button
                   onClick={handleSkipForward}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Skip forward 4s"
+                  title={t('skipForward4s')}
                 >
                   <RotateCw className="w-5 h-5" />
                 </button>
@@ -925,7 +927,7 @@ export default function VideoPlayer() {
               <div className="flex items-center space-x-3">
                 {/* Playback Speed Controls */}
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">Speed:</span>
+                  <span className="text-xs text-gray-500">{t('speedLabel')}</span>
                   <select
                     value={playbackSpeed}
                     onChange={(e) =>
@@ -1035,8 +1037,7 @@ export default function VideoPlayer() {
             </div>
           ) : (
             <div className="text-sm text-gray-500 italic py-4">
-              Unable to fetch word information. Please check your OpenAI API
-              key.
+              {t('unableToFetchWordInfo')}
             </div>
           )}
 
@@ -1045,14 +1046,14 @@ export default function VideoPlayer() {
               onClick={closeLookupPopup}
               className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
             >
-              Close
+              {t('closePopup')}
             </button>
             <button
               onClick={handleAddVocabulary}
               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
               disabled={isLoadingLookup || !lookupData}
             >
-              Add to Vocabulary
+              {t('addToVocabularyButton')}
             </button>
           </div>
         </div>

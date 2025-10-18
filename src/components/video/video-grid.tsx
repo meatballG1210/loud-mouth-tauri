@@ -5,6 +5,7 @@ import { VideoCard } from './video-card';
 import { EmptyState } from './empty-state';
 import { VideoEditModal } from './video-edit-modal';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { useLanguage } from '@/lib/i18n';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ interface VideoGridProps {
 }
 
 export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEditVideo, onUploadVideo, viewMode }: VideoGridProps) {
+  const { t } = useLanguage();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -65,11 +67,11 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEdi
       } catch (error) {
         console.error('Failed to reveal file in folder:', error);
         console.error('Path was:', video.path);
-        alert(`Could not open file location: ${error}`);
+        alert(`${t('couldNotOpenFileLocation')}: ${error}`);
       }
     } else {
       console.error('Video path not available');
-      alert('Video file path is not available');
+      alert(t('videoFilePathNotAvailable'));
     }
   };
   if (isLoading) {
@@ -230,18 +232,18 @@ export function VideoGrid({ videos, isLoading, onPlayVideo, onDeleteVideo, onEdi
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Video</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteVideoTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{videoToDelete?.title}"? This action cannot be undone.
+              {t('deleteVideoConfirm').replace('{title}', videoToDelete?.title || '')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className="bg-red-500 hover:bg-red-600"
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

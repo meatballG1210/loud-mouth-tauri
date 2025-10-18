@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Upload, File, CheckCircle, AlertCircle, AlertTriangle, FileX } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
+import { useLanguage } from "@/lib/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -19,6 +20,7 @@ import {
 export default function UploadForm() {
   const [, setLocation] = useLocation();
   const { stats } = useVideos();
+  const { t } = useLanguage();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -42,10 +44,10 @@ export default function UploadForm() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     // In Tauri, we cannot access file paths from drag events due to security restrictions
     // Show a message to use the file picker instead
-    alert("Please use the 'Select Video' button to choose a file. Drag and drop is not supported for security reasons.");
+    alert(t('dragDropNotSupported'));
   };
 
   const handleFileSelect = async () => {
@@ -160,10 +162,10 @@ export default function UploadForm() {
       setUploadProgress(0);
       
       // Parse the error message
-      let errorTitle = "Upload Failed";
+      let errorTitle = t('uploadFailedTitle');
       let errorMessage = "";
       let isDuplicate = false;
-      
+
       // Extract the actual error message from different possible formats
       if (error) {
         // Handle different error formats from Tauri
@@ -178,33 +180,33 @@ export default function UploadForm() {
           try {
             errorMessage = JSON.stringify(error);
           } catch {
-            errorMessage = "An unexpected error occurred while uploading the video.";
+            errorMessage = t('unexpectedError');
           }
         }
-        
+
         // Now check for specific error types in the extracted message
         if (errorMessage.includes('DUPLICATE_VIDEO')) {
-          errorTitle = "Duplicate Video Detected";
+          errorTitle = t('duplicateVideoDetected');
           isDuplicate = true;
           // Extract the existing video title from the error details
           const match = errorMessage.match(/already exists: '([^']+)'/);
           if (match && match[1]) {
-            errorMessage = `This video has already been uploaded with the title "${match[1]}". Please check your video library or upload a different video.`;
+            errorMessage = t('duplicateVideoMessage').replace('{title}', match[1]);
           } else {
-            errorMessage = "This video has already been uploaded to your library. Please check your existing videos or upload a different file.";
+            errorMessage = t('duplicateVideoGeneric');
           }
         } else if (errorMessage.includes('FILE_NOT_FOUND')) {
-          errorTitle = "File Not Found";
-          errorMessage = "The selected video file could not be found. Please make sure the file exists and try again.";
+          errorTitle = t('fileNotFoundTitle');
+          errorMessage = t('fileNotFoundMessage');
         } else if (errorMessage.includes('INVALID_INPUT')) {
-          errorTitle = "Invalid Input";
-          errorMessage = "The video file or title is invalid. Please check your selection and try again.";
+          errorTitle = t('invalidInputTitle');
+          errorMessage = t('invalidInputMessage');
         } else {
           // Clean up the error message by removing error code prefix if present
           errorMessage = errorMessage.replace(/^[A-Z_]+:\s*/, '');
         }
       } else {
-        errorMessage = "An unexpected error occurred while uploading the video.";
+        errorMessage = t('unexpectedError');
       }
       
       setError({ title: errorTitle, message: errorMessage, isDuplicate });
@@ -213,9 +215,9 @@ export default function UploadForm() {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
+    if (bytes === 0) return `0 ${t('bytes')}`;
     const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const sizes = [t('bytes'), t('kb'), t('mb'), t('gb')];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
@@ -238,10 +240,9 @@ export default function UploadForm() {
           {/* Content Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Upload Video</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('uploadVideoTitle')}</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Upload your video file. The system will automatically extract
-                embedded English and Chinese subtitles if available.
+                {t('uploadVideoDescription')}
               </p>
             </div>
           </div>
@@ -271,14 +272,13 @@ export default function UploadForm() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-green-900 mb-1">
-                        Upload Complete!
+                        {t('uploadComplete')}
                       </h3>
                       <p className="text-green-700">
-                        Your video has been successfully uploaded and is being
-                        processed.
+                        {t('uploadCompleteMessage')}
                       </p>
                       <p className="text-sm text-green-600 mt-2">
-                        Redirecting to video library...
+                        {t('redirectingToLibrary')}
                       </p>
                     </div>
                   </div>
@@ -289,7 +289,7 @@ export default function UploadForm() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Uploading...
+                        {t('uploadingProgress')}
                       </h3>
                       <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                         <div
@@ -298,7 +298,7 @@ export default function UploadForm() {
                         ></div>
                       </div>
                       <p className="text-sm text-gray-600">
-                        {uploadProgress}% complete
+                        {uploadProgress}% {t('uploadProgressComplete')}
                       </p>
                     </div>
                   </div>
@@ -309,7 +309,7 @@ export default function UploadForm() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        File Selected
+                        {t('fileSelected')}
                       </h3>
                       <p className="text-gray-600 font-medium">
                         {selectedFile.name}
@@ -324,7 +324,7 @@ export default function UploadForm() {
                       onClick={handleUpload}
                       className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     >
-                      Upload Video
+                      {t('uploadVideoButton')}
                     </button>
                   </div>
                 ) : (
@@ -334,16 +334,16 @@ export default function UploadForm() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        Upload Video
+                        {t('uploadVideoTitle')}
                       </h3>
                       <p className="text-gray-600 mb-4">
-                        Drag and drop your video file here, or click to browse
+                        {t('dragDropVideoHere')}
                       </p>
                       <button
                         onClick={handleFileSelect}
                         className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                       >
-                        Select Video
+                        {t('selectVideo')}
                       </button>
                     </div>
                   </div>
@@ -356,15 +356,15 @@ export default function UploadForm() {
                   <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-yellow-900">
-                      File Requirements
+                      {t('fileRequirementsTitle')}
                     </h4>
                     <ul className="text-sm text-yellow-800 mt-1 space-y-1">
-                      <li>• Maximum file size: 4GB</li>
-                      <li>• Supported formats: MP4, AVI, MKV, MOV, WebM</li>
+                      <li>• {t('maxFileSize4GB')}</li>
+                      <li>• {t('supportedFormatsUpload')}</li>
                       <li>
-                        • Embedded English and Chinese subtitles will be automatically extracted if present
+                        • {t('subtitlesAutoExtracted')}
                       </li>
-                      <li>• Thumbnail will be automatically generated from the video</li>
+                      <li>• {t('thumbnailAutoGenerated')}</li>
                     </ul>
                   </div>
                 </div>
@@ -389,42 +389,42 @@ export default function UploadForm() {
                 </div>
               )}
               <AlertDialogTitle className="text-xl">
-                {error?.title || "Error"}
+                {error?.title || t('error')}
               </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="mt-3 text-base leading-relaxed">
-              {error?.message || "An unexpected error occurred."}
+              {error?.message || t('unexpectedError')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
             {error?.isDuplicate ? (
               <>
-                <AlertDialogCancel 
+                <AlertDialogCancel
                   onClick={handleRetry}
                   className="bg-gray-100 hover:bg-gray-200 text-gray-900"
                 >
-                  Upload Different Video
+                  {t('uploadDifferentVideo')}
                 </AlertDialogCancel>
-                <AlertDialogAction 
+                <AlertDialogAction
                   onClick={handleViewLibrary}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  View Library
+                  {t('viewLibrary')}
                 </AlertDialogAction>
               </>
             ) : (
               <>
-                <AlertDialogCancel 
+                <AlertDialogCancel
                   onClick={handleErrorDialogClose}
                   className="bg-gray-100 hover:bg-gray-200 text-gray-900"
                 >
-                  Cancel
+                  {t('cancel')}
                 </AlertDialogCancel>
-                <AlertDialogAction 
+                <AlertDialogAction
                   onClick={handleRetry}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Try Again
+                  {t('tryAgain')}
                 </AlertDialogAction>
               </>
             )}

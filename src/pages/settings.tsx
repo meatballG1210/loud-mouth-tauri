@@ -28,62 +28,21 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useVideos } from "@/hooks/use-videos";
+import { useLanguage } from "@/lib/i18n";
 
 const languages = [
   { code: "en", name: "English", nativeName: "English" },
   { code: "zh", name: "Chinese (Simplified)", nativeName: "简体中文" },
 ];
 
-// Translation object for UI elements
-const translations = {
-  en: {
-    settings: "Settings",
-    subtitle: "Customize your learning experience and preferences",
-    languagePreferences: "Language Preferences",
-    languageDescription:
-      "Choose your preferred language for the user interface",
-    uiLanguage: "User Interface Language",
-    languageSaved: "Language preference saved!",
-    supportFeedback: "Support & Feedback",
-    supportDescription: "Get help or share your thoughts about Loud Mouth",
-    developerContact: "Developer Contact",
-    githubProfile: "GitHub Profile",
-    emailContact: "Email Contact",
-  },
-  zh: {
-    settings: "设置",
-    subtitle: "自定义您的学习体验和偏好",
-    languagePreferences: "语言偏好",
-    languageDescription: "选择您的用户界面首选语言",
-    uiLanguage: "用户界面语言",
-    languageSaved: "语言偏好已保存！",
-    supportFeedback: "支持与反馈",
-    supportDescription: "获取帮助或分享您对 Loud Mouth 的想法",
-    developerContact: "开发者联系方式",
-    githubProfile: "GitHub 主页",
-    emailContact: "邮件联系",
-  },
-};
-
 export default function Settings() {
   const [, setLocation] = useLocation();
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const { language, setLanguage, t } = useLanguage();
   const { stats, isLoading, refreshVideos } = useVideos();
   const [activeSection, setActiveSection] = useState("settings");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isLanguageChanged, setIsLanguageChanged] = useState(false);
   const { toast } = useToast();
-
-  // Load language preference from localStorage on component mount
-  useEffect(() => {
-    const savedLanguage = localStorage.getItem("ui-language");
-    if (
-      savedLanguage &&
-      languages.some((lang) => lang.code === savedLanguage)
-    ) {
-      setSelectedLanguage(savedLanguage);
-    }
-  }, []);
 
   const handleNavigate = (section: string) => {
     console.log("Navigate to:", section);
@@ -114,8 +73,7 @@ export default function Settings() {
   };
 
   const handleLanguageChange = (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-    localStorage.setItem("ui-language", languageCode);
+    setLanguage(languageCode as "en" | "zh");
     setIsLanguageChanged(true);
 
     // Hide success message after 2 seconds
@@ -152,8 +110,7 @@ export default function Settings() {
     }
   };
 
-  const selectedLang = languages.find((lang) => lang.code === selectedLanguage);
-  const t = translations[selectedLanguage as keyof typeof translations];
+  const selectedLang = languages.find((lang) => lang.code === language);
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
@@ -173,8 +130,8 @@ export default function Settings() {
           {/* Content Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t.settings}</h1>
-              <p className="text-sm text-gray-500 mt-1">{t.subtitle}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('settings')}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t('settingsSubtitle')}</p>
             </div>
           </div>
 
@@ -185,10 +142,10 @@ export default function Settings() {
                 <CardHeader>
                   <CardTitle className="text-gray-900 font-bold text-base flex items-center space-x-2">
                     <Globe className="w-5 h-5 text-blue-500" />
-                    <span>{t.languagePreferences}</span>
+                    <span>{t('languagePreferences')}</span>
                   </CardTitle>
                   <CardDescription className="text-gray-500">
-                    {t.languageDescription}
+                    {t('languageDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -197,10 +154,10 @@ export default function Settings() {
                       htmlFor="language-select"
                       className="text-gray-700 font-medium"
                     >
-                      {t.uiLanguage}
+                      {t('uiLanguage')}
                     </Label>
                     <Select
-                      value={selectedLanguage}
+                      value={language}
                       onValueChange={handleLanguageChange}
                     >
                       <SelectTrigger className="w-full max-w-xs">
@@ -224,7 +181,7 @@ export default function Settings() {
                     <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <Check className="w-4 h-4 text-green-600" />
                       <span className="text-sm text-green-700">
-                        {t.languageSaved}
+                        {t('languageSaved')}
                       </span>
                     </div>
                   )}
@@ -238,16 +195,16 @@ export default function Settings() {
                 <CardHeader>
                   <CardTitle className="text-gray-900 font-bold text-base flex items-center space-x-2">
                     <MessageSquare className="w-5 h-5 text-green-500" />
-                    <span>{t.supportFeedback}</span>
+                    <span>{t('supportFeedback')}</span>
                   </CardTitle>
                   <CardDescription className="text-gray-500">
-                    {t.supportDescription}
+                    {t('supportDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <h4 className="text-gray-900 font-medium">
-                      {t.developerContact}
+                      {t('developerContact')}
                     </h4>
 
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -257,7 +214,7 @@ export default function Settings() {
                         className="flex items-center justify-center space-x-2"
                       >
                         <ExternalLink className="w-4 h-4" />
-                        <span>{t.githubProfile}</span>
+                        <span>{t('githubProfile')}</span>
                       </Button>
 
                       <Button
@@ -266,7 +223,7 @@ export default function Settings() {
                         className="flex items-center justify-center space-x-2"
                       >
                         <Mail className="w-4 h-4" />
-                        <span>{t.emailContact}</span>
+                        <span>{t('emailContact')}</span>
                       </Button>
                     </div>
                   </div>

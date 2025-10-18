@@ -3,6 +3,7 @@ import { MoreHorizontal, Play, Edit, Folder, Trash2, Image } from 'lucide-react'
 import { Video } from '@/types/video';
 import { VideoEditModal } from './video-edit-modal';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { useLanguage } from '@/lib/i18n';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,7 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
+  const { t } = useLanguage();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -50,11 +52,11 @@ export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
       } catch (error) {
         console.error('Failed to reveal file in finder:', error);
         console.error('Path was:', video.path);
-        alert(`Could not open file location: ${error}`);
+        alert(`${t('couldNotOpenFileLocation')}: ${error}`);
       }
     } else {
       console.error('Video path not available');
-      alert('Video file path is not available');
+      alert(t('videoFilePathNotAvailable'));
     }
   };
 
@@ -134,23 +136,23 @@ export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={handlePlay}>
                   <Play className="w-4 h-4 mr-3" />
-                  Play Video
+                  {t('playVideoAction')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleEdit}>
                   <Edit className="w-4 h-4 mr-3" />
-                  Edit Info
+                  {t('editInfoAction')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleShowInFinder}>
                   <Folder className="w-4 h-4 mr-3" />
-                  Show in Finder
+                  {t('showInFinder')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}
                   className="text-red-600 focus:text-red-600"
                 >
                   <Trash2 className="w-4 h-4 mr-3" />
-                  Delete Video
+                  {t('deleteVideoAction')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -161,18 +163,18 @@ export function VideoCard({ video, onPlay, onDelete, onEdit }: VideoCardProps) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Video</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteVideoTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{video.title}"? This action cannot be undone.
+              {t('deleteVideoConfirm').replace('{title}', video.title)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

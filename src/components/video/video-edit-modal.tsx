@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useLanguage } from '@/lib/i18n';
 
 interface VideoEditModalProps {
   video: Video | null;
@@ -25,6 +26,7 @@ export function VideoEditModal({
   onClose,
   onSave,
 }: VideoEditModalProps) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState(video?.title || '');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +44,7 @@ export function VideoEditModal({
       onClose();
     } catch (error) {
       console.error('Error saving video:', error);
-      alert('Failed to update video title');
+      alert(t('failedToUpdateTitle'));
     } finally {
       setIsLoading(false);
     }
@@ -52,31 +54,31 @@ export function VideoEditModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Edit Video Information</DialogTitle>
+          <DialogTitle>{t('editVideoInformation')}</DialogTitle>
           <DialogDescription>
-            Make changes to the video information here. Click save when you're done.
+            {t('editVideoDescription')}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="title" className="text-right">
-              Title
+              {t('titleLabel')}
             </Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="col-span-3"
-              placeholder="Enter video title"
+              placeholder={t('enterVideoTitle')}
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSave} disabled={isLoading || !title.trim()}>
-            {isLoading ? 'Saving...' : 'Save changes'}
+            {isLoading ? t('saving') : t('saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>
