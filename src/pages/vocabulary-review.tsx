@@ -23,7 +23,7 @@ import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { speechApi, audioToBase64, convertWebmToWav, analyzeAudioLevel } from "@/api/speech";
 import { listen } from "@tauri-apps/api/event";
-import { checkAnswerSimilarity } from "@/utils/string-similarity";
+import { createFillInBlank, checkWordMatch } from "@/utils/fill-in-blank";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
@@ -406,12 +406,11 @@ export default function VocabularyReview() {
       return;
     }
 
-    // Use enhanced similarity check with multiple strategies
-    // This handles filler words, contractions, dialog markers, and more
-    const isAnswerCorrect = checkAnswerSimilarity(
+    // Check if the user's answer matches the target word
+    // Uses exact match with normalization (case-insensitive, trimmed, no punctuation)
+    const isAnswerCorrect = checkWordMatch(
       userAnswer.trim(),
-      currentReview.target_en,
-      0.85 // threshold
+      currentReview.word
     );
 
     setIsCorrect(isAnswerCorrect);
@@ -1116,7 +1115,7 @@ export default function VocabularyReview() {
 
   const handleCopyAnswer = () => {
     if (currentReview) {
-      setUserAnswer(currentReview.target_en);
+      setUserAnswer(currentReview.word);
     }
   };
 
@@ -1411,10 +1410,18 @@ export default function VocabularyReview() {
                             : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 shadow-sm"
                         }`}
                       >
-                        {subtitle.position === "current"
-                          ? subtitles.find((s) => s.id === "3-zh")?.text ||
-                            subtitle.text
-                          : subtitle.text}
+                        {subtitle.position === "current" ? (
+                          <div className="space-y-2">
+                            <div className="text-lg">
+                              {currentReview ? createFillInBlank(currentReview.target_en, currentReview.word) : subtitle.text}
+                            </div>
+                            <div className="text-sm text-blue-700 italic">
+                              {subtitles.find((s) => s.id === "3-zh")?.text}
+                            </div>
+                          </div>
+                        ) : (
+                          subtitle.text
+                        )}
                       </div>
                     ))}
                 </div>
@@ -1442,9 +1449,9 @@ export default function VocabularyReview() {
                           {isCorrect ? t("correct") : t("incorrect")}
                         </span>
                       </div>
-                      {isCorrect && currentReview?.target_en && (
-                        <p className="mt-2 text-sm text-green-700 italic macos-body">
-                          "{currentReview.target_en}"
+                      {isCorrect && currentReview?.word && (
+                        <p className="mt-2 text-lg text-green-700 font-bold macos-body">
+                          {currentReview.word}
                         </p>
                       )}
                     </div>
@@ -1453,13 +1460,13 @@ export default function VocabularyReview() {
                   {/* Input Section */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                      Type or Speak
+                      Fill in the Blank
                     </h4>
                     <div className="space-y-3">
                       <textarea
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="Type or speak the English translation..."
+                        placeholder="Type or speak the missing word..."
                         className="w-full macos-input resize-none macos-body"
                         rows={3}
                       />
@@ -1550,10 +1557,16 @@ export default function VocabularyReview() {
                   {showAnswer && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                        {t("correctAnswerFull")}
+                        Correct Word
                       </h4>
-                      <div className="bg-white rounded-md p-3 border border-gray-200 min-h-[60px]">
-                        <p className="text-gray-800 italic macos-body leading-relaxed break-words">
+                      <div className="bg-white rounded-md p-4 border-2 border-blue-300 min-h-[60px]">
+                        <p className="text-2xl font-bold text-blue-900 text-center macos-body">
+                          {currentReview?.word}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-md p-3 border border-gray-200">
+                        <p className="text-xs text-gray-600 mb-1 font-medium">Full sentence:</p>
+                        <p className="text-sm text-gray-800 italic macos-body leading-relaxed break-words">
                           "{currentReview?.target_en}"
                         </p>
                       </div>
@@ -1564,11 +1577,11 @@ export default function VocabularyReview() {
                         >
                           <Copy className="w-4 h-4" />
                           <span className="text-sm font-medium">
-                            {t("copyAnswerToInput")}
+                            Copy word to input
                           </span>
                         </button>
                         <div className="text-xs text-gray-500 macos-body">
-                          {t("practiceTyping")}
+                          Practice typing the word to help remember it
                         </div>
                       </div>
                     </div>
