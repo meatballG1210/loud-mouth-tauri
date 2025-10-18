@@ -938,7 +938,7 @@ export default function VocabularyReview() {
                   )}
 
                   {/* Action Buttons */}
-                  {!showAnswer && (
+                  {isCorrect !== true && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
                         Actions
