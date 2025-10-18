@@ -5,8 +5,6 @@ import {
   Play,
   Pause,
   Volume2,
-  Mic,
-  RotateCcw,
   Eye,
   Copy,
   Check,
@@ -21,14 +19,11 @@ import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
-import { speechApi, audioToBase64, convertWebmToWav, analyzeAudioLevel } from "@/api/speech";
-import { listen } from "@tauri-apps/api/event";
 import { checkWordMatch, splitSentenceForBlank } from "@/utils/fill-in-blank";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/SupabaseAuthProvider";
 import { ReviewCompletionDialog } from "@/components/vocabulary/review-completion-dialog";
-import { SpeechRecognitionErrorDialog, SpeechErrorType } from "@/components/vocabulary/speech-recognition-error-dialog";
 
 interface SubtitleLine {
   id: string;
@@ -62,11 +57,6 @@ export default function VocabularyReview() {
   
   // Completion dialog state
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
-  
-  // Speech error dialog state
-  const [showSpeechErrorDialog, setShowSpeechErrorDialog] = useState(false);
-  const [speechErrorType, setSpeechErrorType] = useState<SpeechErrorType>("general");
-  const [speechErrorMessage, setSpeechErrorMessage] = useState<string | undefined>();
 
   // Review state
   const [reviewStarted, setReviewStarted] = useState(isActiveSession);
@@ -74,22 +64,11 @@ export default function VocabularyReview() {
   const [userAnswer, setUserAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
   const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(
     new Set(),
   );
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
-
-  // Speech recognition state
-  const [modelDownloadProgress, setModelDownloadProgress] = useState<
-    number | null
-  >(null);
-  const [isModelDownloading, setIsModelDownloading] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   // Video state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -214,21 +193,6 @@ export default function VocabularyReview() {
     }
   }, [user?.id, reviewVideoId, isActiveSession, videos]);
 
-  // Cleanup effect - stop any recording when component unmounts
-  useEffect(() => {
-    return () => {
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state === "recording"
-      ) {
-        mediaRecorderRef.current.stop();
-      }
-      setIsListening(false);
-      setIsProcessingAudio(false);
-      setCountdown(null);
-    };
-  }, []);
-
   const currentReview = reviewItems[currentReviewIndex];
   const progress =
     reviewItems.length > 0
@@ -320,17 +284,6 @@ export default function VocabularyReview() {
   // Navigation functions
   const handleNavigate = (section: string) => {
     console.log("Navigate to:", section);
-
-    // Clean up any ongoing audio recording
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
-    ) {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-    setIsProcessingAudio(false);
-    setCountdown(null);
 
     if (section === "home") {
       setLocation("/");
@@ -619,389 +572,6 @@ export default function VocabularyReview() {
           videoRef: videoRef.current,
           currentReview,
         });
-      }
-    }
-  };
-
-  const handleVoiceInput = async () => {
-    try {
-      // Start recording immediately but show 3-second countdown
-      setCountdown(3);
-      
-      // Start recording right away to capture early speech
-      startRecording();
-
-      // Countdown timer (visual only - recording already started)
-      const countdownInterval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdownInterval);
-            // Recording is already in progress
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (error) {
-      console.error("Voice input error:", error);
-      setCountdown(null);
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      console.log('Starting recording - checking microphone access...');
-
-      // Check if model is available
-      const modelName = "ggml-small.bin";
-      const hasModel = await speechApi.checkWhisperModel(modelName);
-
-      if (!hasModel) {
-        // Download model if not available
-        const shouldDownload = window.confirm(
-          t("voskModelNotFound") ||
-            "Speech recognition model not found. Would you like to download it? (This is a one-time download of ~128MB for better accuracy)",
-        );
-
-        if (!shouldDownload) {
-          return;
-        }
-
-        setIsModelDownloading(true);
-
-        // Set up event listeners for download progress
-        const unlistenStart = await listen(
-          "whisper-model-download-start",
-          (event) => {
-            console.log("Model download started:", event.payload);
-          },
-        );
-
-        const unlistenProgress = await listen<number>(
-          "whisper-model-download-progress",
-          (event) => {
-            setModelDownloadProgress(event.payload);
-          },
-        );
-
-        const unlistenComplete = await listen(
-          "whisper-model-download-complete",
-          (event) => {
-            console.log("Model download completed:", event.payload);
-            setIsModelDownloading(false);
-            setModelDownloadProgress(null);
-          },
-        );
-
-        try {
-          await speechApi.downloadWhisperModel(modelName);
-        } catch (error) {
-          console.error("Failed to download model:", error);
-          setSpeechErrorType("general");
-          setSpeechErrorMessage(t("modelDownloadFailed") || "Failed to download speech recognition model. Please try again later.");
-          setShowSpeechErrorDialog(true);
-          return;
-        } finally {
-          // Clean up listeners
-          unlistenStart();
-          unlistenProgress();
-          unlistenComplete();
-          setIsModelDownloading(false);
-          setModelDownloadProgress(null);
-        }
-      }
-
-      // Check if mediaDevices API is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('MediaDevices API not available');
-        setSpeechErrorType("microphone-error");
-        setSpeechErrorMessage("Your browser doesn't support microphone access. Please use a modern browser like Chrome, Edge, or Safari.");
-        setShowSpeechErrorDialog(true);
-        return;
-      }
-
-      // Request microphone permission with optimized settings
-      console.log('Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000, // Match Vosk's expected sample rate
-          channelCount: 1, // Mono audio for better recognition
-        },
-      });
-
-      console.log('Microphone access granted:', stream.getAudioTracks());
-
-      // Create MediaRecorder with compatible settings
-      let mediaRecorder: MediaRecorder;
-      
-      // Try different mime types for better compatibility
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4',
-      ];
-      
-      let selectedMimeType = '';
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          selectedMimeType = mimeType;
-          break;
-        }
-      }
-      
-      if (selectedMimeType) {
-        mediaRecorder = new MediaRecorder(stream, {
-          mimeType: selectedMimeType,
-          audioBitsPerSecond: 128000,
-        });
-        console.log('Using audio format:', selectedMimeType);
-      } else {
-        // Fallback to default if no supported type found
-        mediaRecorder = new MediaRecorder(stream);
-        console.log('Using default audio format');
-      }
-
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        setIsProcessingAudio(true);
-        try {
-          // Create blob from chunks
-          const audioBlob = new Blob(audioChunksRef.current, {
-            type: selectedMimeType || "audio/webm",
-          });
-
-          console.log('Audio blob created:', {
-            size: audioBlob.size,
-            type: audioBlob.type,
-            chunks: audioChunksRef.current.length
-          });
-
-          // Check if we have actual audio data
-          if (audioBlob.size === 0 || audioChunksRef.current.length === 0) {
-            throw new Error('No audio data recorded');
-          }
-
-          // Analyze audio level to check if it contains speech
-          const audioAnalysis = await analyzeAudioLevel(audioBlob);
-          
-          if (!audioAnalysis.hasAudio) {
-            console.warn('Audio appears to be silent or too quiet:', audioAnalysis);
-            throw new Error('No speech detected. Please speak louder and try again.');
-          }
-
-          // Convert to WAV format
-          let wavBlob: Blob;
-          try {
-            wavBlob = await convertWebmToWav(audioBlob);
-            console.log('WAV conversion successful:', {
-              size: wavBlob.size,
-              type: wavBlob.type
-            });
-          } catch (conversionError) {
-            console.error('WAV conversion failed:', conversionError);
-            // Try using the original blob as fallback
-            wavBlob = audioBlob;
-            console.log('Using original audio blob as fallback');
-          }
-
-          // Convert to base64
-          const base64Audio = await audioToBase64(wavBlob);
-
-          // Send to Tauri for transcription
-          const result = await speechApi.transcribeAudio(
-            base64Audio,
-            modelName,
-          );
-
-          // Check for common Whisper hallucinations
-          const commonHallucinations = [
-            'thank you',
-            'thanks',
-            'thank you.',
-            'thanks.',
-            'you\'re welcome',
-            'thanks for watching',
-            'thank you for watching',
-            'please subscribe',
-            'like and subscribe',
-            'see you next time',
-            'bye bye',
-            'music',
-            '[music]',
-            '♪',
-          ];
-          
-          const resultLower = result.text.toLowerCase().trim();
-          const isHallucination = commonHallucinations.some(phrase => 
-            resultLower === phrase.toLowerCase() || 
-            resultLower.includes(phrase.toLowerCase())
-          );
-          
-          if (isHallucination) {
-            console.warn('Detected Whisper hallucination:', result.text);
-            throw new Error('HALLUCINATION: Speech recognition failed. Please try speaking more clearly.');
-          }
-
-          // Update the answer field
-          setUserAnswer(result.text);
-        } catch (error: any) {
-          console.error("Transcription error:", error);
-          const errorMessage = error?.message || error?.toString() || 'Unknown error';
-          
-          // Show error dialog with specific error type
-          if (errorMessage.includes('No audio data')) {
-            setSpeechErrorType("no-audio");
-          } else if (errorMessage.includes('No speech detected') || errorMessage.includes('SILENT_AUDIO')) {
-            setSpeechErrorType("no-speech");
-          } else if (errorMessage.includes('Speech recognition failed') || errorMessage.includes('HALLUCINATION')) {
-            setSpeechErrorType("recognition-failed");
-          } else if (errorMessage.includes('REPETITIVE_TEXT')) {
-            setSpeechErrorType("repetitive-text");
-          } else if (errorMessage.includes('decoding') || errorMessage.includes('Decoding')) {
-            setSpeechErrorType("audio-format");
-          } else {
-            setSpeechErrorType("general");
-            setSpeechErrorMessage(errorMessage);
-          }
-          setShowSpeechErrorDialog(true);
-        } finally {
-          // Stop all tracks
-          stream.getTracks().forEach((track) => track.stop());
-          setIsListening(false);
-          setIsProcessingAudio(false);
-        }
-      };
-
-      // Start recording with a small buffer to capture initial audio
-      setIsListening(true);
-      
-      // Add a small delay to ensure MediaRecorder is fully ready
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Start recording with timeslice to capture data more frequently
-      mediaRecorder.start(100); // Capture data every 100ms
-
-      // Stop recording after 10 seconds max
-      setTimeout(() => {
-        if (
-          mediaRecorderRef.current &&
-          mediaRecorderRef.current.state === "recording"
-        ) {
-          mediaRecorderRef.current.stop();
-        }
-      }, 10000);
-    } catch (error: any) {
-      console.error("Voice input error:", error);
-      console.error("Error details:", {
-        name: error?.name,
-        message: error?.message,
-        type: typeof error,
-        constructor: error?.constructor?.name
-      });
-
-      setIsListening(false);
-      setCountdown(null);
-
-      // Detailed error handling based on error type
-      if (error instanceof DOMException) {
-        switch (error.name) {
-          case "NotAllowedError":
-            console.log('Microphone permission denied by user');
-            setSpeechErrorType("permission-denied");
-            break;
-          case "NotFoundError":
-            console.log('No microphone device found');
-            setSpeechErrorType("microphone-not-found");
-            break;
-          case "NotReadableError":
-            console.log('Microphone is in use by another application');
-            setSpeechErrorType("microphone-in-use");
-            break;
-          case "OverconstrainedError":
-            console.log('Microphone constraints could not be satisfied');
-            setSpeechErrorType("microphone-error");
-            setSpeechErrorMessage("Your microphone doesn't support the required audio settings. Please try a different microphone.");
-            break;
-          case "AbortError":
-            console.log('Microphone access was aborted');
-            setSpeechErrorType("microphone-error");
-            setSpeechErrorMessage("Microphone access was interrupted. Please try again.");
-            break;
-          case "SecurityError":
-            console.log('Microphone access blocked by security policy');
-            setSpeechErrorType("permission-denied");
-            setSpeechErrorMessage("Microphone access is blocked by your browser's security settings. Please check your browser permissions.");
-            break;
-          default:
-            console.log('Unknown DOMException:', error.name);
-            setSpeechErrorType("microphone-error");
-            setSpeechErrorMessage(`Microphone error: ${error.message}`);
-        }
-      } else {
-        console.log('Non-DOMException error');
-        setSpeechErrorType("general");
-        setSpeechErrorMessage(error?.message || "Failed to start voice input. Please check your microphone and try again.");
-      }
-      setShowSpeechErrorDialog(true);
-    }
-  };
-
-  // Add a function to stop recording
-  const stopVoiceRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
-    ) {
-      setIsListening(false); // Immediately update UI
-      mediaRecorderRef.current.stop();
-    }
-    setCountdown(null); // Clear countdown if active
-  };
-
-  const handleSkip = () => {
-    // Clean up any ongoing audio recording
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
-    ) {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-    setIsProcessingAudio(false);
-    setCountdown(null);
-
-    if (currentReviewIndex < reviewItems.length - 1) {
-      setCurrentReviewIndex((prev) => prev + 1);
-      setUserAnswer("");
-      setIsCorrect(null);
-      setShowAnswer(false);
-      setShowMarkAsKnown(false);
-      setHasSubmittedReview(false);
-    } else {
-      setReviewStarted(false);
-      setCurrentReviewIndex(0);
-      setUserAnswer("");
-      setIsCorrect(null);
-      setShowAnswer(false);
-      setShowMarkAsKnown(false);
-      setShownAnswerItems(new Set());
-      // If we have a video ID, go back to vocabulary detail page
-      if (reviewVideoId) {
-        setLocation(`/vocabulary-list/${reviewVideoId}`);
-      } else {
-        setLocation("/vocabulary-review");
       }
     }
   };
@@ -1495,65 +1065,6 @@ export default function VocabularyReview() {
                       Actions
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {/* Voice Input Button */}
-                      {!isListening && !isProcessingAudio && countdown === null ? (
-                        <button
-                          onClick={handleVoiceInput}
-                          disabled={isModelDownloading}
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
-                        >
-                          <Mic className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {isModelDownloading
-                              ? `${t("downloading") || "Downloading"} ${modelDownloadProgress ? `${Math.round(modelDownloadProgress)}%` : "..."}`
-                              : t("voiceInput")}
-                          </span>
-                        </button>
-                      ) : countdown !== null ? (
-                        <button
-                          disabled
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-orange-500 text-white cursor-not-allowed col-span-2"
-                        >
-                          <div className="w-4 h-4 bg-white rounded-full animate-pulse" />
-                          <span className="text-sm font-medium">
-                            {countdown === 0
-                              ? t("speakNow") || "Speak now!"
-                              : `${t("getReady") || "Get ready"} ${countdown}...`}
-                          </span>
-                        </button>
-                      ) : isListening ? (
-                        <button
-                          onClick={stopVoiceRecording}
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-red-500 text-white hover:bg-red-600 animate-pulse col-span-2"
-                        >
-                          <div className="w-4 h-4 bg-white rounded-full" />
-                          <span className="text-sm font-medium">
-                            {t("stopRecording") || "Stop Recording"}
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-400 text-white cursor-not-allowed col-span-2"
-                        >
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                          <span className="text-sm font-medium">
-                            {t("processing") || "Processing..."}
-                          </span>
-                        </button>
-                      )}
-
-                      {/* Skip Button */}
-                      <button
-                        onClick={handleSkip}
-                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-gray-500 text-white hover:bg-gray-600"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {t("skip")}
-                        </span>
-                      </button>
-
                       {/* Show Answer Button */}
                       <button
                         onClick={handleShowAnswer}
@@ -1629,15 +1140,6 @@ export default function VocabularyReview() {
             </div>
           </div>
         </div>
-        
-        {/* Speech Recognition Error Dialog */}
-        <SpeechRecognitionErrorDialog
-          open={showSpeechErrorDialog}
-          onOpenChange={setShowSpeechErrorDialog}
-          errorType={speechErrorType}
-          errorMessage={speechErrorMessage}
-          onRetry={handleVoiceInput}
-        />
       </ReviewErrorBoundary>
     );
   }
@@ -1834,15 +1336,6 @@ export default function VocabularyReview() {
       <ReviewCompletionDialog
         open={showCompletionDialog}
         onOpenChange={setShowCompletionDialog}
-      />
-      
-      {/* Speech Recognition Error Dialog */}
-      <SpeechRecognitionErrorDialog
-        open={showSpeechErrorDialog}
-        onOpenChange={setShowSpeechErrorDialog}
-        errorType={speechErrorType}
-        errorMessage={speechErrorMessage}
-        onRetry={handleVoiceInput}
       />
     </div>
   );

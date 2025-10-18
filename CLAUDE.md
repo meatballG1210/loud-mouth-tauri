@@ -149,3 +149,4 @@ The application uses SQLite with Diesel ORM. Key tables include:
 
 - When the user requests code examples, setup or configuration steps, or library/API documentation, use context7.
 - do not do auto git commit when i didn't ask
+- do not auto do git commit
