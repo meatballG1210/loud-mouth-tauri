@@ -120,7 +120,10 @@ export default function VocabularyReview() {
       try {
         setIsLoadingReviews(true);
         const items = reviewVideoId
-          ? await vocabularyApi.getDueForReviewByVideo(DEFAULT_USER_ID, reviewVideoId)
+          ? await vocabularyApi.getDueForReviewByVideo(
+              DEFAULT_USER_ID,
+              reviewVideoId,
+            )
           : await vocabularyApi.getDueForReview(DEFAULT_USER_ID);
         if (items.length > 0) {
           console.log("Sample item:", {
@@ -449,24 +452,22 @@ export default function VocabularyReview() {
           });
       }
     } else {
-      // INCORRECT ANSWER - Show answer, show Next Question button, and loop video
+      // INCORRECT ANSWER - Show answer, show Next Question button, and play video once
       setShowAnswer(true);
       setShowNextQuestion(true);
 
-      // Start looping the video
+      // Play the video once (not loop)
       if (videoRef.current && currentReview) {
         const video = videoRef.current;
         const startTime = currentReview.timestamp / 1000;
         const endTime = (currentReview.timestamp + 2000) / 1000;
 
-        setIsLooping(true);
-
         video.currentTime = startTime;
-        video.loop = false;
 
         const handleTimeUpdate = () => {
           if (video.currentTime >= endTime) {
-            video.currentTime = startTime;
+            video.pause();
+            video.removeEventListener("timeupdate", handleTimeUpdate);
           }
         };
 
@@ -474,9 +475,6 @@ export default function VocabularyReview() {
         video.play().catch((error) => {
           console.error("Error playing video for incorrect answer:", error);
         });
-
-        // Store the handler to remove it later
-        (video as any).__loopHandler = handleTimeUpdate;
       }
     }
   };
@@ -492,13 +490,6 @@ export default function VocabularyReview() {
       const video = videoRef.current;
       const startTime = currentReview.timestamp / 1000;
       const endTime = (currentReview.timestamp + 2000) / 1000;
-
-      // Stop any existing loop
-      if ((video as any).__loopHandler) {
-        video.removeEventListener("timeupdate", (video as any).__loopHandler);
-        delete (video as any).__loopHandler;
-      }
-      setIsLooping(false);
 
       // Disable auto-pause to prevent interference
       setShouldAutoPause(false);
@@ -539,16 +530,10 @@ export default function VocabularyReview() {
   };
 
   const handleNextQuestion = () => {
-    // Stop video looping (if any)
+    // Stop video if playing
     if (videoRef.current) {
-      const video = videoRef.current;
-      if ((video as any).__loopHandler) {
-        video.removeEventListener("timeupdate", (video as any).__loopHandler);
-        delete (video as any).__loopHandler;
-      }
-      video.pause();
+      videoRef.current.pause();
     }
-    setIsLooping(false);
 
     // Only add to queue if answer was incorrect or forgot (not correct)
     // isCorrect === false means incorrect answer
