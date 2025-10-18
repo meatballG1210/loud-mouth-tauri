@@ -36,13 +36,17 @@ interface SubtitleLine {
 
 export default function VocabularyReview() {
   const [location, setLocation] = useLocation();
-  const [matchSession, paramsSession] = useRoute("/vocabulary-review/:videoId/session");
+  const [matchSession, paramsSession] = useRoute(
+    "/vocabulary-review/:videoId/session",
+  );
   const [matchSetup, paramsSetup] = useRoute("/vocabulary-review/:videoId");
   // Filter out "session" as a videoId since it's a route keyword
   const rawVideoId = paramsSession?.videoId || paramsSetup?.videoId;
-  const reviewVideoId = (rawVideoId && rawVideoId !== "session") ? rawVideoId : undefined;
+  const reviewVideoId =
+    rawVideoId && rawVideoId !== "session" ? rawVideoId : undefined;
   const { stats: videoStats, refreshVideos, videos: allVideos } = useVideos();
-  const { stats, updateReviewWithResult, refreshVocabulary } = useVocabulary(allVideos);
+  const { stats, updateReviewWithResult, refreshVocabulary } =
+    useVocabulary(allVideos);
   const videoRef = useRef<HTMLVideoElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
@@ -52,9 +56,11 @@ export default function VocabularyReview() {
   const { user } = useAuth();
 
   // Check if we're in an active review session based on URL
-  const isActiveSession = location === "/vocabulary-review/session" || matchSession;
-  const isGeneralReviewSession = location === "/vocabulary-review/session" && !reviewVideoId;
-  
+  const isActiveSession =
+    location === "/vocabulary-review/session" || matchSession;
+  const isGeneralReviewSession =
+    location === "/vocabulary-review/session" && !reviewVideoId;
+
   // Completion dialog state
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
@@ -81,21 +87,25 @@ export default function VocabularyReview() {
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [subtitles, setSubtitles] = useState<SubtitleLine[]>([]);
   const { videos } = useVideos();
-  
+
   // For general review setup page - count of available reviews
   const [generalReviewCount, setGeneralReviewCount] = useState(0);
   const [isLoadingGeneralCount, setIsLoadingGeneralCount] = useState(true);
-  
+
   // Video-specific review counts
-  const [videoReviewCounts, setVideoReviewCounts] = useState<Array<{
-    videoId: string;
-    videoTitle: string;
-    count: number;
-  }>>([]);
+  const [videoReviewCounts, setVideoReviewCounts] = useState<
+    Array<{
+      videoId: string;
+      videoTitle: string;
+      count: number;
+    }>
+  >([]);
   const [isLoadingVideoCounts, setIsLoadingVideoCounts] = useState(true);
   const [showVideoList, setShowVideoList] = useState(false);
-  const [navigationSource, setNavigationSource] = useState<"review-video-list" | "vocabulary-detail" | null>(null);
-  
+  const [navigationSource, setNavigationSource] = useState<
+    "review-video-list" | "vocabulary-detail" | null
+  >(null);
+
   // Check URL query params to see if we came from vocabulary detail
   useEffect(() => {
     if (location.includes("?from=detail")) {
@@ -115,17 +125,17 @@ export default function VocabularyReview() {
       try {
         setIsLoadingReviews(true);
         const userId = user.id;
-        const items = reviewVideoId 
+        const items = reviewVideoId
           ? await vocabularyApi.getDueForReviewByVideo(userId, reviewVideoId)
           : await vocabularyApi.getDueForReview(userId);
         if (items.length > 0) {
-          console.log('Sample item:', {
+          console.log("Sample item:", {
             word: items[0].word,
             next_review_at: items[0].next_review_at,
-            video_id: items[0].video_id
+            video_id: items[0].video_id,
           });
         }
-        
+
         setReviewItems(items);
       } catch (error) {
         console.error("Error loading review items:", error);
@@ -149,33 +159,40 @@ export default function VocabularyReview() {
         setIsLoadingVideoCounts(false);
         return;
       }
-      
+
       try {
         setIsLoadingGeneralCount(true);
         setIsLoadingVideoCounts(true);
         const userId = user.id;
         const items = await vocabularyApi.getDueForReview(userId);
         setGeneralReviewCount(items.length);
-        
+
         // Group items by video for video-specific counts
-        const videoGroups = items.reduce((acc, item) => {
-          const videoId = item.video_id;
-          if (!acc[videoId]) {
-            const video = videos.find(v => v.id === videoId);
-            acc[videoId] = {
-              videoId,
-              videoTitle: video?.title || 'Unknown Video',
-              count: 0
-            };
-          }
-          acc[videoId].count++;
-          return acc;
-        }, {} as Record<string, { videoId: string; videoTitle: string; count: number }>);
-        
+        const videoGroups = items.reduce(
+          (acc, item) => {
+            const videoId = item.video_id;
+            if (!acc[videoId]) {
+              const video = videos.find((v) => v.id === videoId);
+              acc[videoId] = {
+                videoId,
+                videoTitle: video?.title || "Unknown Video",
+                count: 0,
+              };
+            }
+            acc[videoId].count++;
+            return acc;
+          },
+          {} as Record<
+            string,
+            { videoId: string; videoTitle: string; count: number }
+          >,
+        );
+
         // Convert to array and sort by count (descending)
-        const videoCountsArray = Object.values(videoGroups)
-          .sort((a, b) => b.count - a.count);
-        
+        const videoCountsArray = Object.values(videoGroups).sort(
+          (a, b) => b.count - a.count,
+        );
+
         setVideoReviewCounts(videoCountsArray);
       } catch (error) {
         console.error("Error loading general review count:", error);
@@ -186,7 +203,7 @@ export default function VocabularyReview() {
         setIsLoadingVideoCounts(false);
       }
     };
-    
+
     // Only load for general review page (not video-specific or active session)
     if (!reviewVideoId && !isActiveSession) {
       loadGeneralReviewCount();
@@ -296,7 +313,7 @@ export default function VocabularyReview() {
       setShowAnswer(false);
       setShowMarkAsKnown(false);
       setShownAnswerItems(new Set());
-      
+
       if (section === "back" && reviewVideoId) {
         // Check where we came from
         if (navigationSource === "review-video-list") {
@@ -348,7 +365,7 @@ export default function VocabularyReview() {
     setShowMarkAsKnown(false);
     setShownAnswerItems(new Set());
     setHasSubmittedReview(false);
-    const reviewPath = reviewVideoId 
+    const reviewPath = reviewVideoId
       ? `/vocabulary-review/${reviewVideoId}/session`
       : "/vocabulary-review/session";
     setLocation(reviewPath);
@@ -364,7 +381,7 @@ export default function VocabularyReview() {
     // Uses exact match with normalization (case-insensitive, trimmed, no punctuation)
     const isAnswerCorrect = checkWordMatch(
       userAnswer.trim(),
-      currentReview.word
+      currentReview.word,
     );
 
     setIsCorrect(isAnswerCorrect);
@@ -733,7 +750,7 @@ export default function VocabularyReview() {
   const togglePlayPause = () => {
     if (videoRef.current && currentReview) {
       const video = videoRef.current;
-      
+
       if (isPlaying) {
         video.pause();
       } else {
@@ -741,16 +758,16 @@ export default function VocabularyReview() {
         const startTime = currentReview.before_2_timestamp
           ? currentReview.before_2_timestamp / 1000
           : (currentReview.timestamp - 4000) / 1000;
-        
+
         // If video is not at the correct position, seek to it first
         const currentTime = video.currentTime;
         const timeDiff = Math.abs(currentTime - startTime);
-        
+
         // If we're more than 0.5 seconds away from the start time, seek to it
         if (timeDiff > 0.5) {
           video.currentTime = startTime;
         }
-        
+
         video.play();
       }
     }
@@ -792,7 +809,11 @@ export default function VocabularyReview() {
 
   // Auto-play video when review item changes
   useEffect(() => {
-    if (currentReview && videoRef.current && (reviewStarted || isActiveSession)) {
+    if (
+      currentReview &&
+      videoRef.current &&
+      (reviewStarted || isActiveSession)
+    ) {
       const video = videoRef.current;
       const videoPath = videos.find(
         (v) => v.id === currentReview.video_id,
@@ -868,8 +889,8 @@ export default function VocabularyReview() {
                 {t("noReviewsDue")}
               </h2>
               <p className="text-gray-600 mb-6">
-                {reviewVideoId && videos.find(v => v.id === reviewVideoId) 
-                  ? `No words due for review from "${videos.find(v => v.id === reviewVideoId)?.title}"`
+                {reviewVideoId && videos.find((v) => v.id === reviewVideoId)
+                  ? `No words due for review from "${videos.find((v) => v.id === reviewVideoId)?.title}"`
                   : t("allCaughtUp")}
               </p>
               <button
@@ -989,36 +1010,44 @@ export default function VocabularyReview() {
                             <div className="space-y-3">
                               {/* Inline Fill-in-the-Blank */}
                               <div className="text-lg leading-relaxed">
-                                {currentReview && (() => {
-                                  const { before, after, wordLength } = splitSentenceForBlank(
-                                    currentReview.target_en,
-                                    currentReview.word
-                                  );
-                                  return (
-                                    <span className="inline-flex flex-wrap items-center justify-center gap-1">
-                                      <span>{before}</span>
-                                      <input
-                                        ref={inlineInputRef}
-                                        type="text"
-                                        value={userAnswer}
-                                        onChange={(e) => setUserAnswer(e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' && userAnswer.trim()) {
-                                            handleSubmitAnswer();
+                                {currentReview &&
+                                  (() => {
+                                    const { before, after, wordLength } =
+                                      splitSentenceForBlank(
+                                        currentReview.target_en,
+                                        currentReview.word,
+                                      );
+                                    return (
+                                      <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                                        <span>{before}</span>
+                                        <input
+                                          ref={inlineInputRef}
+                                          spellCheck={false}
+                                          type="text"
+                                          value={userAnswer}
+                                          onChange={(e) =>
+                                            setUserAnswer(e.target.value)
                                           }
-                                        }}
-                                        placeholder="___"
-                                        className="inline-block px-2 py-1 border-b-2 border-blue-500 bg-transparent text-blue-900 font-bold focus:outline-none focus:border-blue-700 text-center"
-                                        style={{
-                                          minWidth: `${Math.max(wordLength * 12, 60)}px`,
-                                          width: `${Math.max(userAnswer.length * 12, wordLength * 12, 60)}px`,
-                                        }}
-                                        autoFocus
-                                      />
-                                      <span>{after}</span>
-                                    </span>
-                                  );
-                                })()}
+                                          onKeyDown={(e) => {
+                                            if (
+                                              e.key === "Enter" &&
+                                              userAnswer.trim()
+                                            ) {
+                                              handleSubmitAnswer();
+                                            }
+                                          }}
+                                          placeholder="___"
+                                          className="inline-block px-2 py-1 border-b-2 border-blue-500 bg-transparent text-blue-900 font-bold focus:outline-none focus:border-blue-700 text-center"
+                                          style={{
+                                            minWidth: `${Math.max(wordLength * 12, 60)}px`,
+                                            width: `${Math.max(userAnswer.length * 12, wordLength * 12, 60)}px`,
+                                          }}
+                                          autoFocus
+                                        />
+                                        <span>{after}</span>
+                                      </span>
+                                    );
+                                  })()}
                               </div>
                               {/* Chinese Translation */}
                               <div className="text-sm text-blue-700 italic">
@@ -1114,7 +1143,9 @@ export default function VocabularyReview() {
                         </p>
                       </div>
                       <div className="bg-gray-50 rounded-md p-3 border border-gray-200">
-                        <p className="text-xs text-gray-600 mb-1 font-medium">Full sentence:</p>
+                        <p className="text-xs text-gray-600 mb-1 font-medium">
+                          Full sentence:
+                        </p>
                         <p className="text-sm text-gray-800 italic macos-body leading-relaxed break-words">
                           "{currentReview?.target_en}"
                         </p>
@@ -1151,7 +1182,7 @@ export default function VocabularyReview() {
     React.useEffect(() => {
       setLocation(`/vocabulary-review/${reviewVideoId}/session`);
     }, [reviewVideoId]);
-    
+
     // Show loading while redirecting
     return (
       <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
@@ -1170,7 +1201,7 @@ export default function VocabularyReview() {
       </div>
     );
   }
-  
+
   // General review page with sidebar
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden select-none">
@@ -1215,8 +1246,8 @@ export default function VocabularyReview() {
                       {isLoadingGeneralCount
                         ? "Loading review items..."
                         : generalReviewCount > 0
-                        ? `You have ${generalReviewCount} words to review`
-                        : "No words are currently due for review"}
+                          ? `You have ${generalReviewCount} words to review`
+                          : "No words are currently due for review"}
                     </p>
 
                     {/* Statistics */}
@@ -1230,19 +1261,25 @@ export default function VocabularyReview() {
                             <div className="text-2xl font-bold text-blue-600">
                               {generalReviewCount}
                             </div>
-                            <div className="text-gray-500">{t("wordsToReview")}</div>
+                            <div className="text-gray-500">
+                              {t("wordsToReview")}
+                            </div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-green-600">
                               {stats.masteredWords}
                             </div>
-                            <div className="text-gray-500">{t("masteredWords")}</div>
+                            <div className="text-gray-500">
+                              {t("masteredWords")}
+                            </div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-orange-600">
                               {stats.overdueWords}
                             </div>
-                            <div className="text-gray-500">{t("overdueWords")}</div>
+                            <div className="text-gray-500">
+                              {t("overdueWords")}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1270,9 +1307,12 @@ export default function VocabularyReview() {
                         >
                           <Video className="w-5 h-5" />
                           <span>Review by Videos</span>
-                          {videoReviewCounts.length > 0 && (
-                            showVideoList ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />
-                          )}
+                          {videoReviewCounts.length > 0 &&
+                            (showVideoList ? (
+                              <ChevronUp className="w-4 h-4 ml-1" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 ml-1" />
+                            ))}
                         </button>
                       </div>
 
@@ -1293,9 +1333,13 @@ export default function VocabularyReview() {
                                     <button
                                       onClick={() => {
                                         // Track that we came from the review video list
-                                        setNavigationSource("review-video-list");
+                                        setNavigationSource(
+                                          "review-video-list",
+                                        );
                                         // Go directly to review session for this video
-                                        setLocation(`/vocabulary-review/${videoData.videoId}/session`);
+                                        setLocation(
+                                          `/vocabulary-review/${videoData.videoId}/session`,
+                                        );
                                       }}
                                       className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
                                     >
@@ -1331,7 +1375,7 @@ export default function VocabularyReview() {
           </ReviewErrorBoundary>
         </div>
       </div>
-      
+
       {/* Review Completion Dialog */}
       <ReviewCompletionDialog
         open={showCompletionDialog}
