@@ -388,18 +388,17 @@ export default function VocabularyReview() {
     setIsCorrect(isAnswerCorrect);
 
     if (isAnswerCorrect) {
-      // CORRECT ANSWER - Update DB, show answer, show Next Question button, play video once
+      // CORRECT ANSWER - Update DB, show answer, play video once, then auto-advance
       if (!hasSubmittedReview && currentReview.id) {
         await updateReviewWithResult(currentReview.id, true);
         setHasSubmittedReview(true);
         queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
       }
 
-      // Show answer and Next Question button
+      // Show answer briefly
       setShowAnswer(true);
-      setShowNextQuestion(true);
 
-      // Play video once (not loop)
+      // Play video once (not loop) and then auto-advance
       if (videoRef.current && currentReview) {
         const video = videoRef.current;
         const startTime = currentReview.timestamp / 1000;
@@ -416,7 +415,36 @@ export default function VocabularyReview() {
                 video.pause();
                 video.removeEventListener("timeupdate", handleTimeUpdate);
                 setShouldAutoPause(true);
-                // Don't auto-move to next - user must click "Next Question"
+
+                // Auto-advance to next question after a short delay
+                setTimeout(() => {
+                  // Move to next question
+                  if (currentReviewIndex < reviewItems.length - 1) {
+                    setCurrentReviewIndex((prev) => prev + 1);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                    setShowNextQuestion(false);
+                    setHasSubmittedReview(false);
+                  } else {
+                    // Review completed
+                    setShowCompletionDialog(true);
+                    setReviewStarted(false);
+                    setCurrentReviewIndex(0);
+                    setUserAnswer("");
+                    setIsCorrect(null);
+                    setShowAnswer(false);
+                    setShowNextQuestion(false);
+                    setShownAnswerItems(new Set());
+                    setHasSubmittedReview(false);
+                    refreshVocabulary();
+                    if (reviewVideoId) {
+                      setLocation(`/vocabulary-list/${reviewVideoId}`);
+                    } else {
+                      setLocation("/vocabulary-review");
+                    }
+                  }
+                }, 500);
               }
             };
 
@@ -910,51 +938,53 @@ export default function VocabularyReview() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
-                      Actions
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Forgot Button - Only show if answer not yet shown */}
-                      {!showAnswer && (
-                        <button
-                          onClick={handleForgot}
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600 col-span-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm font-medium">Forgot</span>
-                        </button>
-                      )}
+                  {!showAnswer && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
+                        Actions
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Forgot Button - Only show if answer not yet shown */}
+                        {!showAnswer && (
+                          <button
+                            onClick={handleForgot}
+                            className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600 col-span-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span className="text-sm font-medium">Forgot</span>
+                          </button>
+                        )}
 
-                      {/* Submit Button - Only show if answer not yet shown */}
-                      {!showAnswer && (
-                        <button
-                          onClick={handleSubmitAnswer}
-                          disabled={!userAnswer.trim()}
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-1"
-                        >
-                          <span className="text-sm font-medium">
-                            {t("submitAnswer")}
-                          </span>
-                        </button>
-                      )}
+                        {/* Submit Button - Only show if answer not yet shown */}
+                        {!showAnswer && (
+                          <button
+                            onClick={handleSubmitAnswer}
+                            disabled={!userAnswer.trim()}
+                            className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-1"
+                          >
+                            <span className="text-sm font-medium">
+                              {t("submitAnswer")}
+                            </span>
+                          </button>
+                        )}
 
-                      {/* Next Question Button - Show after Forgot or Incorrect answer */}
-                      {showNextQuestion && (
-                        <button
-                          onClick={handleNextQuestion}
-                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600 col-span-2"
-                        >
-                          <span className="text-sm font-medium">
-                            Next Question
-                          </span>
-                        </button>
-                      )}
+                        {/* Next Question Button - Show after Forgot or Incorrect answer */}
+                        {showNextQuestion && (
+                          <button
+                            onClick={handleNextQuestion}
+                            className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600 col-span-2"
+                          >
+                            <span className="text-sm font-medium">
+                              Next Question
+                            </span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Show Answer */}
-                  {showAnswer && (
+                  {/* Only show "Play Current Sentence" for incorrect/forgot answers, not for correct answers */}
+                  {showAnswer && isCorrect !== true && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-gray-900 mb-2 macos-title">
                         Correct Word
@@ -964,6 +994,7 @@ export default function VocabularyReview() {
                           {currentReview?.word}
                         </p>
                       </div>
+
                       <button
                         onClick={playCurrentSentence}
                         className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
