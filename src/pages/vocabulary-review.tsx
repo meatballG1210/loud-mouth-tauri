@@ -6,7 +6,6 @@ import {
   Pause,
   Volume2,
   Eye,
-  Copy,
   Check,
   X,
   BookOpen,
@@ -70,11 +69,12 @@ export default function VocabularyReview() {
   const [userAnswer, setUserAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [showMarkAsKnown, setShowMarkAsKnown] = useState(false);
+  const [showNextQuestion, setShowNextQuestion] = useState(false);
   const [shownAnswerItems, setShownAnswerItems] = useState<Set<string>>(
     new Set(),
   );
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
 
   // Video state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -311,8 +311,9 @@ export default function VocabularyReview() {
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
-      setShowMarkAsKnown(false);
+      setShowNextQuestion(false);
       setShownAnswerItems(new Set());
+      setIsLooping(false);
 
       if (section === "back" && reviewVideoId) {
         // Check where we came from
@@ -362,9 +363,10 @@ export default function VocabularyReview() {
     setUserAnswer("");
     setIsCorrect(null);
     setShowAnswer(false);
-    setShowMarkAsKnown(false);
+    setShowNextQuestion(false);
     setShownAnswerItems(new Set());
     setHasSubmittedReview(false);
+    setIsLooping(false);
     const reviewPath = reviewVideoId
       ? `/vocabulary-review/${reviewVideoId}/session`
       : "/vocabulary-review/session";
@@ -378,7 +380,6 @@ export default function VocabularyReview() {
     }
 
     // Check if the user's answer matches the target word
-    // Uses exact match with normalization (case-insensitive, trimmed, no punctuation)
     const isAnswerCorrect = checkWordMatch(
       userAnswer.trim(),
       currentReview.word,
@@ -386,226 +387,15 @@ export default function VocabularyReview() {
 
     setIsCorrect(isAnswerCorrect);
 
-    // Show "Mark as Known" button only when answer is incorrect
-    if (!isAnswerCorrect) {
-      setShowMarkAsKnown(true);
-    }
-
-    // Track the review if this is the first submission and not after showing answer
-    if (!hasSubmittedReview && !showAnswer && currentReview.id) {
-      await updateReviewWithResult(currentReview.id, isAnswerCorrect);
-      setHasSubmittedReview(true);
-      // Invalidate accuracy stats to force refresh
-      queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
-    }
-
-    // If answer was shown, handle differently
-    if (showAnswer && currentReview.id) {
-      // Add to end of queue for re-review
-      setReviewItems((prev) => [...prev, currentReview]);
-      setShownAnswerItems((prev) => new Set(prev).add(currentReview.id!));
-
-      // Handle based on correctness
-      if (isAnswerCorrect) {
-        // CORRECT: Play video then move to next
-        console.log("Answer is correct after show answer, playing video");
-        if (videoRef.current && currentReview) {
-          const video = videoRef.current;
-          const startTime = currentReview.timestamp / 1000;
-          const endTime = (currentReview.timestamp + 2000) / 1000;
-
-          // Disable auto-pause temporarily
-          setShouldAutoPause(false);
-
-          video.currentTime = startTime;
-          video
-            .play()
-            .then(() => {
-              console.log(
-                "Video started playing successfully (after show answer)",
-              );
-              // Set up a one-time event listener to stop at the end time
-              const handleTimeUpdate = () => {
-                if (video.currentTime >= endTime) {
-                  console.log("Reached end time, pausing and moving to next");
-                  video.pause();
-                  video.removeEventListener("timeupdate", handleTimeUpdate);
-
-                  // Re-enable auto-pause
-                  setShouldAutoPause(true);
-
-                  // Move to next question after a short delay
-                  setTimeout(() => {
-                    if (currentReviewIndex < reviewItems.length - 1) {
-                      console.log("Moving to next review item");
-                      setCurrentReviewIndex((prev) => prev + 1);
-                      setUserAnswer("");
-                      setIsCorrect(null);
-                      setShowAnswer(false);
-                      setShowMarkAsKnown(false);
-                    } else {
-                      // Review completed
-                      console.log("Review session completed");
-                      setShowCompletionDialog(true);
-                      setReviewStarted(false);
-                      setCurrentReviewIndex(0);
-                      setUserAnswer("");
-                      setIsCorrect(null);
-                      setShowAnswer(false);
-                      setShowMarkAsKnown(false);
-                      setShownAnswerItems(new Set());
-                      // Refresh vocabulary to update pending review counts
-                      refreshVocabulary();
-                      // If we have a video ID, go back to vocabulary detail page
-                      if (reviewVideoId) {
-                        setLocation(`/vocabulary-list/${reviewVideoId}`);
-                      } else {
-                        setLocation("/vocabulary-review");
-                      }
-                    }
-                  }, 500);
-                }
-              };
-
-              video.addEventListener("timeupdate", handleTimeUpdate);
-            })
-            .catch((error) => {
-              console.error("Error playing video after show answer:", error);
-              // Re-enable auto-pause on error
-              setShouldAutoPause(true);
-
-              // Still move to next even if video fails
-              setTimeout(() => {
-                if (currentReviewIndex < reviewItems.length - 1) {
-                  setCurrentReviewIndex((prev) => prev + 1);
-                  setUserAnswer("");
-                  setIsCorrect(null);
-                  setShowAnswer(false);
-                  setShowMarkAsKnown(false);
-                } else {
-                  setShowCompletionDialog(true);
-                  setReviewStarted(false);
-                  setCurrentReviewIndex(0);
-                  setUserAnswer("");
-                  setIsCorrect(null);
-                  setShowAnswer(false);
-                  setShowMarkAsKnown(false);
-                  setShownAnswerItems(new Set());
-                  // Refresh vocabulary to update pending review counts
-                  refreshVocabulary();
-                  // If we have a video ID, go back to vocabulary detail page
-                  if (reviewVideoId) {
-                    setLocation(`/vocabulary-list/${reviewVideoId}`);
-                  } else {
-                    setLocation("/vocabulary-review");
-                  }
-                }
-              }, 500);
-            });
-        }
-      }
-      // INCORRECT: Stay on current word - don't move to next
-      // User can retry or click "Mark as Known"
-
-      return; // Exit early - no DB update in either case
-    }
-
-    // Normal flow: update database only if answer wasn't shown
-    // This is now handled earlier in the function with hasSubmittedReview check
-
-    // Play video and move to next only if correct and answer wasn't shown
     if (isAnswerCorrect) {
-      console.log("Answer is correct, attempting to play video");
-      // Play the current sentence automatically
-      if (videoRef.current && currentReview) {
-        const video = videoRef.current;
-        const startTime = currentReview.timestamp / 1000;
-        const endTime = (currentReview.timestamp + 2000) / 1000; // Play for 2 seconds
-
-        console.log("Playing video from", startTime, "to", endTime);
-
-        // Disable auto-pause temporarily
-        setShouldAutoPause(false);
-
-        video.currentTime = startTime;
-        video
-          .play()
-          .then(() => {
-            console.log("Video started playing successfully");
-            // Set up a one-time event listener to stop at the end time
-            const handleTimeUpdate = () => {
-              if (video.currentTime >= endTime) {
-                console.log("Reached end time, pausing and moving to next");
-                video.pause();
-                video.removeEventListener("timeupdate", handleTimeUpdate);
-
-                // Re-enable auto-pause
-                setShouldAutoPause(true);
-
-                // Move to next question after a short delay
-                setTimeout(() => {
-                  if (currentReviewIndex < reviewItems.length - 1) {
-                    console.log("Moving to next review item");
-                    setCurrentReviewIndex((prev) => prev + 1);
-                    setUserAnswer("");
-                    setIsCorrect(null);
-                    setShowAnswer(false);
-                    setShowMarkAsKnown(false);
-                    setHasSubmittedReview(false);
-                  } else {
-                    // Review completed
-                    console.log("Review session completed");
-                    setShowCompletionDialog(true);
-                    setReviewStarted(false);
-                    setCurrentReviewIndex(0);
-                    setUserAnswer("");
-                    setIsCorrect(null);
-                    setShowAnswer(false);
-                    setShowMarkAsKnown(false);
-                    setShownAnswerItems(new Set());
-                    setHasSubmittedReview(false);
-                    // Refresh vocabulary to update pending review counts
-                    refreshVocabulary();
-                    // If we have a video ID, go back to vocabulary detail page
-                    if (reviewVideoId) {
-                      setLocation(`/vocabulary-list/${reviewVideoId}`);
-                    } else {
-                      setLocation("/vocabulary-review");
-                    }
-                  }
-                }, 500);
-              }
-            };
-
-            video.addEventListener("timeupdate", handleTimeUpdate);
-          })
-          .catch((error) => {
-            console.error("Error playing video after correct answer:", error);
-            // Re-enable auto-pause on error
-            setShouldAutoPause(true);
-          });
-      } else {
-        console.log("Video ref or current review not available", {
-          videoRef: videoRef.current,
-          currentReview,
-        });
-      }
-    }
-  };
-
-  const handleMarkAsKnown = async () => {
-    if (!currentReview) return;
-
-    try {
-      // Update the vocabulary item as correct in the database
-      if (currentReview.id && !hasSubmittedReview) {
+      // CORRECT ANSWER - Update DB and play video once
+      if (!hasSubmittedReview && currentReview.id) {
         await updateReviewWithResult(currentReview.id, true);
         setHasSubmittedReview(true);
-        // Invalidate accuracy stats to force refresh
         queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
       }
 
-      // Play the current sentence automatically before moving to next
+      // Play video once and move to next
       if (videoRef.current && currentReview) {
         const video = videoRef.current;
         const startTime = currentReview.timestamp / 1000;
@@ -623,16 +413,15 @@ export default function VocabularyReview() {
                 video.removeEventListener("timeupdate", handleTimeUpdate);
                 setShouldAutoPause(true);
 
-                // Move to next question
+                // Move to next question after a short delay
                 setTimeout(() => {
                   if (currentReviewIndex < reviewItems.length - 1) {
                     setCurrentReviewIndex((prev) => prev + 1);
                     setUserAnswer("");
                     setIsCorrect(null);
                     setShowAnswer(false);
-                    setShowMarkAsKnown(false);
+                    setShowNextQuestion(false);
                     setHasSubmittedReview(false);
-                    setShowMarkAsKnown(false);
                   } else {
                     // Review completed
                     setShowCompletionDialog(true);
@@ -641,12 +430,10 @@ export default function VocabularyReview() {
                     setUserAnswer("");
                     setIsCorrect(null);
                     setShowAnswer(false);
-                    setShowMarkAsKnown(false);
+                    setShowNextQuestion(false);
                     setShownAnswerItems(new Set());
                     setHasSubmittedReview(false);
-                    // Refresh vocabulary to update pending review counts
                     refreshVocabulary();
-                    // If we have a video ID, go back to vocabulary detail page
                     if (reviewVideoId) {
                       setLocation(`/vocabulary-list/${reviewVideoId}`);
                     } else {
@@ -660,69 +447,100 @@ export default function VocabularyReview() {
             video.addEventListener("timeupdate", handleTimeUpdate);
           })
           .catch((error) => {
-            console.error("Error playing video after marking as known:", error);
+            console.error("Error playing video:", error);
             setShouldAutoPause(true);
-
-            // Still move to next even if video fails
-            if (currentReviewIndex < reviewItems.length - 1) {
-              setCurrentReviewIndex((prev) => prev + 1);
-              setUserAnswer("");
-              setIsCorrect(null);
-              setShowAnswer(false);
-              setShowMarkAsKnown(false);
-            } else {
-              setShowCompletionDialog(true);
-              setReviewStarted(false);
-              setCurrentReviewIndex(0);
-              setUserAnswer("");
-              setIsCorrect(null);
-              setShowAnswer(false);
-              setShowMarkAsKnown(false);
-              setShownAnswerItems(new Set());
-              // Refresh vocabulary to update pending review counts
-              refreshVocabulary();
-              // If we have a video ID, go back to vocabulary detail page
-              if (reviewVideoId) {
-                setLocation(`/vocabulary-list/${reviewVideoId}`);
-              } else {
-                setLocation("/vocabulary-review");
-              }
-            }
           });
       }
-    } catch (error) {
-      console.error("Error marking vocabulary as known:", error);
+    } else {
+      // INCORRECT ANSWER - Show answer, show Next Question button, and loop video
+      setShowAnswer(true);
+      setShowNextQuestion(true);
+
+      // Start looping the video
+      if (videoRef.current && currentReview) {
+        const video = videoRef.current;
+        const startTime = currentReview.timestamp / 1000;
+        const endTime = (currentReview.timestamp + 2000) / 1000;
+
+        setIsLooping(true);
+
+        video.currentTime = startTime;
+        video.loop = false;
+
+        const handleTimeUpdate = () => {
+          if (video.currentTime >= endTime) {
+            video.currentTime = startTime;
+          }
+        };
+
+        video.addEventListener("timeupdate", handleTimeUpdate);
+        video.play().catch((error) => {
+          console.error("Error playing video for incorrect answer:", error);
+        });
+
+        // Store the handler to remove it later
+        (video as any).__loopHandler = handleTimeUpdate;
+      }
     }
   };
 
-  const handleShowAnswer = () => {
+  const handleForgot = () => {
     setShowAnswer(true);
-    // Don't mark as incorrect immediately - let user still try
-    // Don't update database here - we'll handle it in submit
+    setShowNextQuestion(true);
+    setIsCorrect(false);
+
+    // Start looping the video on the current sentence
+    if (videoRef.current && currentReview) {
+      const video = videoRef.current;
+      const startTime = currentReview.timestamp / 1000;
+      const endTime = (currentReview.timestamp + 2000) / 1000;
+
+      setIsLooping(true);
+
+      video.currentTime = startTime;
+      video.loop = false; // We'll handle looping manually
+
+      const handleTimeUpdate = () => {
+        if (video.currentTime >= endTime) {
+          video.currentTime = startTime;
+        }
+      };
+
+      video.addEventListener("timeupdate", handleTimeUpdate);
+      video.play().catch((error) => {
+        console.error("Error playing video for forgot:", error);
+      });
+
+      // Store the handler to remove it later
+      (video as any).__loopHandler = handleTimeUpdate;
+    }
   };
 
-  const handleCopyAnswer = () => {
+  const handleNextQuestion = () => {
+    // Stop video looping
+    if (videoRef.current) {
+      const video = videoRef.current;
+      if ((video as any).__loopHandler) {
+        video.removeEventListener("timeupdate", (video as any).__loopHandler);
+        delete (video as any).__loopHandler;
+      }
+      video.pause();
+    }
+    setIsLooping(false);
+
+    // Add current item to end of queue (to review again later)
     if (currentReview) {
-      setUserAnswer(currentReview.word);
-    }
-  };
-
-  // Helper function to move to next question and handle failed reviews
-  const moveToNextQuestion = async () => {
-    // If answer was shown but not marked as known, record as failed review
-    if (showAnswer && !hasSubmittedReview && currentReview?.id) {
-      await updateReviewWithResult(currentReview.id, false);
-      setHasSubmittedReview(true);
-      // Invalidate accuracy stats to force refresh
-      queryClient.invalidateQueries({ queryKey: ["accuracy-stats"] });
+      setReviewItems((prev) => [...prev, currentReview]);
+      setShownAnswerItems((prev) => new Set(prev).add(currentReview.id!));
     }
 
+    // Move to next question
     if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
-      setShowMarkAsKnown(false);
+      setShowNextQuestion(false);
       setHasSubmittedReview(false);
     } else {
       // Review completed
@@ -732,7 +550,7 @@ export default function VocabularyReview() {
       setUserAnswer("");
       setIsCorrect(null);
       setShowAnswer(false);
-      setShowMarkAsKnown(false);
+      setShowNextQuestion(false);
       setShownAnswerItems(new Set());
       setHasSubmittedReview(false);
       // Refresh vocabulary to update pending review counts
@@ -1094,37 +912,38 @@ export default function VocabularyReview() {
                       Actions
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {/* Show Answer Button */}
-                      <button
-                        onClick={handleShowAnswer}
-                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600 col-span-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {t("showAnswer")}
-                        </span>
-                      </button>
-
-                      {/* Submit Button */}
-                      <button
-                        onClick={handleSubmitAnswer}
-                        disabled={!userAnswer.trim()}
-                        className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-2"
-                      >
-                        <span className="text-sm font-medium">
-                          {t("submitAnswer")}
-                        </span>
-                      </button>
-
-                      {/* Mark as Known Button (conditional) */}
-                      {showMarkAsKnown && isCorrect === false && (
+                      {/* Forgot Button - Only show if answer not yet shown */}
+                      {!showAnswer && (
                         <button
-                          onClick={handleMarkAsKnown}
+                          onClick={handleForgot}
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-yellow-500 text-white hover:bg-yellow-600 col-span-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span className="text-sm font-medium">Forgot</span>
+                        </button>
+                      )}
+
+                      {/* Submit Button - Only show if answer not yet shown */}
+                      {!showAnswer && (
+                        <button
+                          onClick={handleSubmitAnswer}
+                          disabled={!userAnswer.trim()}
+                          className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-1"
+                        >
+                          <span className="text-sm font-medium">
+                            {t("submitAnswer")}
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Next Question Button - Show after Forgot or Incorrect answer */}
+                      {showNextQuestion && (
+                        <button
+                          onClick={handleNextQuestion}
                           className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-green-500 text-white hover:bg-green-600 col-span-2"
                         >
-                          <Check className="w-4 h-4" />
                           <span className="text-sm font-medium">
-                            {t("markAsKnown")}
+                            Next Question
                           </span>
                         </button>
                       )}
@@ -1141,28 +960,6 @@ export default function VocabularyReview() {
                         <p className="text-2xl font-bold text-blue-900 text-center macos-body">
                           {currentReview?.word}
                         </p>
-                      </div>
-                      <div className="bg-gray-50 rounded-md p-3 border border-gray-200">
-                        <p className="text-xs text-gray-600 mb-1 font-medium">
-                          Full sentence:
-                        </p>
-                        <p className="text-sm text-gray-800 italic macos-body leading-relaxed break-words">
-                          "{currentReview?.target_en}"
-                        </p>
-                      </div>
-                      <div className="space-y-3">
-                        <button
-                          onClick={handleCopyAnswer}
-                          className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600"
-                        >
-                          <Copy className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            Copy word to input
-                          </span>
-                        </button>
-                        <div className="text-xs text-gray-500 macos-body">
-                          Practice typing the word to help remember it
-                        </div>
                       </div>
                     </div>
                   )}
