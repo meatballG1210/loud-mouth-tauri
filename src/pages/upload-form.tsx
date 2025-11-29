@@ -99,6 +99,10 @@ export default function UploadForm() {
   const handleErrorDialogClose = () => {
     setShowErrorDialog(false);
     setError(null);
+    setSelectedFile(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadComplete(false);
   };
 
   const handleViewLibrary = () => {
@@ -111,6 +115,9 @@ export default function UploadForm() {
     setShowErrorDialog(false);
     setError(null);
     setSelectedFile(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadComplete(false);
   };
 
   const handleUpload = async () => {
