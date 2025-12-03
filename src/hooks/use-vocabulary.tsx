@@ -6,7 +6,7 @@ import { vocabularyApi, VocabularyItem as ApiVocabularyItem } from '@/api/vocabu
 const DEFAULT_USER_ID = "default-user";
 
 // Extract Chinese translation from dictionary response
-function extractChineseTranslation(dictionaryResponse: string | null | undefined, targetZh?: string): string {
+export function extractChineseTranslation(dictionaryResponse: string | null | undefined, targetZh?: string): string {
   if (!dictionaryResponse) return '无翻译';
   
   // Try different formats in priority order

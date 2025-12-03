@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useVideos } from "@/hooks/use-videos";
-import { useVocabulary } from "@/hooks/use-vocabulary";
+import { useVocabulary, extractChineseTranslation } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
 import { checkWordMatch, splitSentenceForBlank } from "@/utils/fill-in-blank";
@@ -880,9 +880,11 @@ export default function VocabularyReview() {
                                     );
                                   })()}
                               </div>
-                              {/* Chinese Translation */}
+                              {/* Dictionary meaning of the word/phrase */}
                               <div className="text-sm text-blue-700 italic">
-                                {subtitles.find((s) => s.id === "3-zh")?.text}
+                                {currentReview?.dictionary_response
+                                  ? extractChineseTranslation(currentReview.dictionary_response, currentReview.target_zh)
+                                  : subtitles.find((s) => s.id === "3-zh")?.text}
                               </div>
                             </div>
                           ) : (
