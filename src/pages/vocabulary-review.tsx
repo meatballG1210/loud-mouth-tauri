@@ -851,6 +851,10 @@ export default function VocabularyReview() {
                                         <input
                                           ref={inlineInputRef}
                                           spellCheck={false}
+                                          autoComplete="off"
+                                          autoCorrect="off"
+                                          autoCapitalize="off"
+                                          data-form-type="other"
                                           type="text"
                                           value={userAnswer}
                                           onChange={(e) =>
