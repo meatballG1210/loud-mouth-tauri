@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   ArrowLeft,
@@ -18,7 +18,12 @@ import { useVideos } from "@/hooks/use-videos";
 import { useVocabulary, extractChineseTranslation } from "@/hooks/use-vocabulary";
 import { useLanguage } from "@/lib/i18n";
 import { vocabularyApi, VocabularyItem } from "@/api/vocabulary";
-import { checkWordMatch, splitSentenceForBlank } from "@/utils/fill-in-blank";
+import {
+  checkMultiWordMatch,
+  splitSentenceForMultiWordBlank,
+  splitPhraseIntoWords,
+  MultiWordBlankResult,
+} from "@/utils/fill-in-blank";
 import { ReviewErrorBoundary } from "@/components/vocabulary/vocabulary-error-boundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { ReviewCompletionDialog } from "@/components/vocabulary/review-completion-dialog";
@@ -67,7 +72,7 @@ export default function VocabularyReview() {
   // Review state
   const [reviewStarted, setReviewStarted] = useState(isActiveSession);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
-  const [userAnswer, setUserAnswer] = useState("");
+  const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showNextQuestion, setShowNextQuestion] = useState(false);
@@ -212,6 +217,31 @@ export default function VocabularyReview() {
       ? ((currentReviewIndex + 1) / reviewItems.length) * 100
       : 0;
 
+  // Compute blank structure for current review (supports multi-word phrases)
+  const blankResult = useMemo<MultiWordBlankResult | null>(() => {
+    if (!currentReview) return null;
+    return splitSentenceForMultiWordBlank(
+      currentReview.target_en,
+      currentReview.word
+    );
+  }, [currentReview?.target_en, currentReview?.word]);
+
+  // Initialize userAnswers when review changes
+  useEffect(() => {
+    if (blankResult && blankResult.totalWords > 0) {
+      setUserAnswers(new Array(blankResult.totalWords).fill(''));
+    }
+  }, [blankResult?.totalWords, currentReviewIndex]);
+
+  // Handler for updating individual answers
+  const handleAnswerChange = (index: number, value: string) => {
+    setUserAnswers(prev => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
   // Load subtitles for current review item
   useEffect(() => {
     if (currentReview && (reviewStarted || isActiveSession)) {
@@ -304,7 +334,7 @@ export default function VocabularyReview() {
       // Reset review state when going back to setup
       setReviewStarted(false);
       setCurrentReviewIndex(0);
-      setUserAnswer("");
+      setUserAnswers([]);
       setIsCorrect(null);
       setShowAnswer(false);
       setShowNextQuestion(false);
@@ -356,7 +386,7 @@ export default function VocabularyReview() {
   const startReview = () => {
     setReviewStarted(true);
     setCurrentReviewIndex(0);
-    setUserAnswer("");
+    setUserAnswers([]);
     setIsCorrect(null);
     setShowAnswer(false);
     setShowNextQuestion(false);
@@ -370,15 +400,22 @@ export default function VocabularyReview() {
   };
 
   const handleSubmitAnswer = async () => {
-    if (!userAnswer.trim() || !currentReview) {
+    if (!currentReview || !blankResult) {
       setIsCorrect(false);
       return;
     }
 
-    // Check if the user's answer matches the target word
-    const isAnswerCorrect = checkWordMatch(
-      userAnswer.trim(),
-      currentReview.word,
+    // Check if any blank is empty
+    if (userAnswers.some(a => !a.trim())) {
+      setIsCorrect(false);
+      return;
+    }
+
+    // Get the correct words and check the answers
+    const correctWords = splitPhraseIntoWords(currentReview.word);
+    const { isCorrect: isAnswerCorrect } = checkMultiWordMatch(
+      userAnswers.map(a => a.trim()),
+      correctWords
     );
 
     setIsCorrect(isAnswerCorrect);
@@ -417,7 +454,7 @@ export default function VocabularyReview() {
                   // Move to next question
                   if (currentReviewIndex < reviewItems.length - 1) {
                     setCurrentReviewIndex((prev) => prev + 1);
-                    setUserAnswer("");
+                    setUserAnswers([]);
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowNextQuestion(false);
@@ -427,7 +464,7 @@ export default function VocabularyReview() {
                     setShowCompletionDialog(true);
                     setReviewStarted(false);
                     setCurrentReviewIndex(0);
-                    setUserAnswer("");
+                    setUserAnswers([]);
                     setIsCorrect(null);
                     setShowAnswer(false);
                     setShowNextQuestion(false);
@@ -547,7 +584,7 @@ export default function VocabularyReview() {
     // Move to next question
     if (currentReviewIndex < reviewItems.length - 1) {
       setCurrentReviewIndex((prev) => prev + 1);
-      setUserAnswer("");
+      setUserAnswers([]);
       setIsCorrect(null);
       setShowAnswer(false);
       setShowNextQuestion(false);
@@ -557,7 +594,7 @@ export default function VocabularyReview() {
       setShowCompletionDialog(true);
       setReviewStarted(false);
       setCurrentReviewIndex(0);
-      setUserAnswer("");
+      setUserAnswers([]);
       setIsCorrect(null);
       setShowAnswer(false);
       setShowNextQuestion(false);
@@ -836,49 +873,60 @@ export default function VocabularyReview() {
                         >
                           {subtitle.position === "current" ? (
                             <div className="space-y-3">
-                              {/* Inline Fill-in-the-Blank */}
+                              {/* Inline Fill-in-the-Blank (supports multi-word phrases) */}
                               <div className="text-lg leading-relaxed">
-                                {currentReview &&
-                                  (() => {
-                                    const { before, after, wordLength } =
-                                      splitSentenceForBlank(
-                                        currentReview.target_en,
-                                        currentReview.word,
-                                      );
-                                    return (
-                                      <span className="inline-flex flex-wrap items-center justify-center gap-1">
-                                        <span>{before}</span>
+                                {currentReview && blankResult && (() => {
+                                  // Find the first empty blank to focus
+                                  const firstEmptyIndex = userAnswers.findIndex(a => !a || !a.trim());
+                                  const focusIndex = firstEmptyIndex === -1 ? 0 : firstEmptyIndex;
+
+                                  return (
+                                  <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                                    {blankResult.blanks.map((blank, index) => (
+                                      <React.Fragment key={index}>
+                                        <span>{blank.beforeSegment}</span>
                                         <input
-                                          ref={inlineInputRef}
+                                          ref={index === focusIndex ? inlineInputRef : undefined}
                                           spellCheck={false}
                                           autoComplete="off"
                                           autoCorrect="off"
                                           autoCapitalize="off"
                                           data-form-type="other"
                                           type="text"
-                                          value={userAnswer}
-                                          onChange={(e) =>
-                                            setUserAnswer(e.target.value)
-                                          }
+                                          value={userAnswers[index] || ''}
+                                          onChange={(e) => handleAnswerChange(index, e.target.value)}
                                           onKeyDown={(e) => {
-                                            if (
-                                              e.key === "Enter" &&
-                                              userAnswer.trim()
-                                            ) {
+                                            if (e.key === "Enter" && userAnswers.every(a => a.trim())) {
                                               handleSubmitAnswer();
+                                            } else if (e.key === " " && index < blankResult.totalWords - 1) {
+                                              // Space advances to next blank
+                                              e.preventDefault();
+                                              const nextInput = document.querySelector<HTMLInputElement>(
+                                                `[data-blank-index="${index + 1}"]`
+                                              );
+                                              nextInput?.focus();
                                             }
                                           }}
+                                          data-blank-index={index}
                                           className="inline-block px-2 py-1 border-b-2 border-blue-500 bg-transparent text-blue-900 font-bold focus:outline-none focus:border-blue-700 text-center"
                                           style={{
-                                            minWidth: `${Math.max(wordLength * 12, 60)}px`,
-                                            width: `${Math.max(userAnswer.length * 12, wordLength * 12, 60)}px`,
+                                            minWidth: '80px',
+                                            width: `${Math.max(
+                                              (userAnswers[index]?.length || 0) * 10 + 20,
+                                              Math.min(blank.word.length * 10, 120),
+                                              80
+                                            )}px`,
                                           }}
-                                          autoFocus
+                                          autoFocus={index === focusIndex}
                                         />
-                                        <span>{after}</span>
-                                      </span>
-                                    );
-                                  })()}
+                                        {/* Render suffix for partial matches (e.g., "s" after "pants" in "underpants") */}
+                                        {blank.afterSegment && <span>{blank.afterSegment}</span>}
+                                      </React.Fragment>
+                                    ))}
+                                    <span>{blankResult.afterSegment}</span>
+                                  </span>
+                                  );
+                                })()}
                               </div>
                               {/* Dictionary meaning of the word/phrase */}
                               <div className="text-sm text-blue-700 italic">
@@ -943,7 +991,7 @@ export default function VocabularyReview() {
                         {!showAnswer && (
                           <button
                             onClick={handleSubmitAnswer}
-                            disabled={!userAnswer.trim()}
+                            disabled={!userAnswers.length || userAnswers.some(a => !a.trim())}
                             className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-macos bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed col-span-1"
                           >
                             <span className="text-sm font-medium">
