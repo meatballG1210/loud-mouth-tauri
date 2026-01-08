@@ -71,6 +71,8 @@ export interface VocabularyItem {
   was_late?: boolean;
   ever_overdue?: boolean;
   correct_count?: number;
+  word_start_index?: number;
+  word_end_index?: number;
 }
 
 export interface CreateVocabularyRequest {
@@ -88,6 +90,7 @@ export interface CreateVocabularyRequest {
   dictionary_response?: string;
   next_review_at: string;
   is_phrase?: boolean;
+  word_start_index?: number;
 }
 
 export interface AccuracyStats {

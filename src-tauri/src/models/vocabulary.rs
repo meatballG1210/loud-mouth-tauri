@@ -30,6 +30,8 @@ pub struct Vocabulary {
     pub was_late: Option<bool>,
     pub ever_overdue: bool,
     pub correct_count: Option<i32>,
+    pub word_start_index: Option<i32>,
+    pub word_end_index: Option<i32>,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -58,6 +60,8 @@ pub struct NewVocabulary {
     pub was_late: bool,
     pub ever_overdue: bool,
     pub correct_count: i32,
+    pub word_start_index: Option<i32>,
+    pub word_end_index: Option<i32>,
 }
 
 #[derive(Deserialize)]
@@ -76,11 +80,14 @@ pub struct CreateVocabularyRequest {
     pub dictionary_response: Option<String>,
     pub next_review_at: String,
     pub is_phrase: Option<bool>,
+    pub word_start_index: Option<i32>,
 }
 
 impl CreateVocabularyRequest {
     pub fn into_new_vocabulary(self) -> NewVocabulary {
         let next_review_at = self.next_review_at.clone();
+        let word_len = self.word.len() as i32;
+        let word_end_index = self.word_start_index.map(|start| start + word_len);
         NewVocabulary {
             id: Uuid::new_v4().to_string(),
             user_id: self.user_id,
@@ -105,6 +112,8 @@ impl CreateVocabularyRequest {
             was_late: false,
             ever_overdue: false,
             correct_count: 0,
+            word_start_index: self.word_start_index,
+            word_end_index,
         }
     }
 }

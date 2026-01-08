@@ -220,11 +220,13 @@ function findPartialMatch(text: string, word: string): MatchResult | null {
  * Supports discontinuous phrases by finding each word independently
  * @param sentence The full sentence
  * @param phrase The word or phrase to replace with blanks
+ * @param startSearchIndex Optional character index to start searching from (for targeting specific occurrences)
  * @returns MultiWordBlankResult with blanks array and segments
  */
 export function splitSentenceForMultiWordBlank(
   sentence: string,
-  phrase: string
+  phrase: string,
+  startSearchIndex?: number
 ): MultiWordBlankResult {
   if (!sentence || !phrase) {
     return {
@@ -248,7 +250,8 @@ export function splitSentenceForMultiWordBlank(
 
   // Find each word independently in the sentence
   const blanks: WordBlank[] = [];
-  let currentSearchPos = 0;
+  // If startSearchIndex is provided, use it; otherwise start from 0
+  let currentSearchPos = startSearchIndex !== undefined ? Math.max(0, startSearchIndex) : 0;
   let prevBlankEndPos = 0;
 
   for (let i = 0; i < words.length; i++) {

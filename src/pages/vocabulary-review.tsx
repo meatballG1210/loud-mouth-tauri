@@ -232,9 +232,10 @@ export default function VocabularyReview() {
     if (!currentReview) return null;
     return splitSentenceForMultiWordBlank(
       currentReview.target_en,
-      currentReview.word
+      currentReview.word,
+      currentReview.word_start_index
     );
-  }, [currentReview?.target_en, currentReview?.word]);
+  }, [currentReview?.target_en, currentReview?.word, currentReview?.word_start_index]);
 
   // Initialize userAnswers when review changes
   useEffect(() => {

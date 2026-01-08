@@ -526,10 +526,21 @@ export default function VideoPlayer() {
       console.log("VVVVVVVVVVideo current time: ", currentTime);
 
       // Create vocabulary item
-      const wordPhrase = selectedWords
-        .sort((a, b) => a.index - b.index) // Keep word order
-        .map((w) => w.text)
-        .join(" ");
+      const sortedWords = selectedWords.sort((a, b) => a.index - b.index);
+      const wordPhrase = sortedWords.map((w) => w.text).join(" ");
+
+      // Calculate the character start index of the first selected word in the sentence
+      // Split sentence into words and find the character position of the first selected word
+      const sentenceWords = targetEn.split(" ");
+      let wordStartIndex: number | undefined;
+      if (sortedWords.length > 0) {
+        const firstWordIndex = sortedWords[0].index;
+        let charPos = 0;
+        for (let i = 0; i < firstWordIndex && i < sentenceWords.length; i++) {
+          charPos += sentenceWords[i].length + 1; // +1 for the space
+        }
+        wordStartIndex = charPos;
+      }
 
       await vocabularyApi.create({
         user_id: DEFAULT_USER_ID,
@@ -548,6 +559,7 @@ export default function VideoPlayer() {
         dictionary_response: lookupData,
         next_review_at: nextReviewAt,
         is_phrase: selectedWords.length > 1,
+        word_start_index: wordStartIndex,
       });
 
       console.log("Vocabulary saved successfully");

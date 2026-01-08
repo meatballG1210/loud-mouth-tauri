@@ -113,6 +113,8 @@ diesel::table! {
         was_late -> Nullable<Bool>,
         ever_overdue -> Bool,
         correct_count -> Nullable<Integer>,
+        word_start_index -> Nullable<Integer>,
+        word_end_index -> Nullable<Integer>,
     }
 }
 
