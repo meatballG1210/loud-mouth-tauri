@@ -217,6 +217,16 @@ export default function VocabularyReview() {
       ? ((currentReviewIndex + 1) / reviewItems.length) * 100
       : 0;
 
+  // DEBUG: Log state after each render
+  useEffect(() => {
+    console.log("[DEBUG RENDER] Current state:", {
+      reviewItemsLength: reviewItems.length,
+      reviewItemWords: reviewItems.map(item => item.word),
+      currentReviewIndex,
+      currentReviewWord: currentReview?.word,
+    });
+  }, [reviewItems, currentReviewIndex, currentReview]);
+
   // Compute blank structure for current review (supports multi-word phrases)
   const blankResult = useMemo<MultiWordBlankResult | null>(() => {
     if (!currentReview) return null;
@@ -232,6 +242,17 @@ export default function VocabularyReview() {
       setUserAnswers(new Array(blankResult.totalWords).fill(''));
     }
   }, [blankResult?.totalWords, currentReviewIndex]);
+
+  // Auto-focus input when moving to a new question
+  useEffect(() => {
+    // Small delay to ensure the DOM has updated after state changes
+    const timer = setTimeout(() => {
+      if (inlineInputRef.current && !showAnswer) {
+        inlineInputRef.current.focus();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentReviewIndex, showAnswer]);
 
   // Handler for updating individual answers
   const handleAnswerChange = (index: number, value: string) => {
@@ -517,6 +538,7 @@ export default function VocabularyReview() {
   };
 
   const handleForgot = () => {
+    console.log("[DEBUG handleForgot] Called - isCorrect will remain:", isCorrect);
     setShowAnswer(true);
     setShowNextQuestion(true);
     // Don't set isCorrect - we don't want to show "Incorrect" feedback for Forgot
@@ -572,17 +594,47 @@ export default function VocabularyReview() {
       videoRef.current.pause();
     }
 
-    // Only add to queue if answer was incorrect or forgot (not correct)
+    // Determine if we're adding this item back to the queue
     // isCorrect === false means incorrect answer
     // isCorrect === null means forgot (we didn't set isCorrect)
     // isCorrect === true means correct answer - don't re-queue
-    if (currentReview && isCorrect !== true) {
-      setReviewItems((prev) => [...prev, currentReview]);
+    const shouldRequeue = currentReview && isCorrect !== true;
+
+    console.log("[DEBUG handleNextQuestion] START", {
+      currentReviewIndex,
+      reviewItemsLength: reviewItems.length,
+      currentReviewWord: currentReview?.word,
+      isCorrect,
+      shouldRequeue,
+    });
+
+    if (shouldRequeue) {
+      setReviewItems((prev) => {
+        const newItems = [...prev, currentReview];
+        console.log("[DEBUG handleNextQuestion] Adding to queue:", {
+          prevLength: prev.length,
+          newLength: newItems.length,
+          addedWord: currentReview.word,
+        });
+        return newItems;
+      });
       setShownAnswerItems((prev) => new Set(prev).add(currentReview.id!));
     }
 
-    // Move to next question
-    if (currentReviewIndex < reviewItems.length - 1) {
+    // Check if there are more items: either in the original queue OR we just added one
+    // Note: setReviewItems is async, so reviewItems.length is stale - we must account for shouldRequeue
+    const hasMoreItems = currentReviewIndex < reviewItems.length - 1 || shouldRequeue;
+
+    console.log("[DEBUG handleNextQuestion] hasMoreItems check:", {
+      currentReviewIndex,
+      "reviewItems.length - 1": reviewItems.length - 1,
+      "currentReviewIndex < reviewItems.length - 1": currentReviewIndex < reviewItems.length - 1,
+      shouldRequeue,
+      hasMoreItems,
+    });
+
+    if (hasMoreItems) {
+      console.log("[DEBUG handleNextQuestion] Continuing to next, new index will be:", currentReviewIndex + 1);
       setCurrentReviewIndex((prev) => prev + 1);
       setUserAnswers([]);
       setIsCorrect(null);
@@ -590,6 +642,7 @@ export default function VocabularyReview() {
       setShowNextQuestion(false);
       setHasSubmittedReview(false);
     } else {
+      console.log("[DEBUG handleNextQuestion] Review COMPLETED - this should NOT happen if shouldRequeue was true!");
       // Review completed
       setShowCompletionDialog(true);
       setReviewStarted(false);

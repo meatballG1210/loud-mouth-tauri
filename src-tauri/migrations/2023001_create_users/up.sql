@@ -3,3 +3,6 @@ CREATE TABLE users (
   email VARCHAR NOT NULL UNIQUE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Insert default user for local development
+INSERT INTO users (id, email) VALUES (1, 'local@localhost');

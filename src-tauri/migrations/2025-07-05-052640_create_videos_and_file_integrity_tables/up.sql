@@ -39,16 +39,3 @@ CREATE TABLE file_integrity_checks (
 CREATE INDEX idx_file_integrity_checks_video_id ON file_integrity_checks(video_id);
 CREATE INDEX idx_file_integrity_checks_check_date ON file_integrity_checks(check_date);
 CREATE INDEX idx_file_integrity_checks_status ON file_integrity_checks(status);
-
--- Create subtitles table
-CREATE TABLE subtitles (
-    id TEXT PRIMARY KEY NOT NULL,
-    video_id TEXT NOT NULL,
-    language TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    extracted_date TEXT,
-    FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
-);
-
--- Create indexes for subtitles table
-CREATE INDEX idx_subtitles_video_id ON subtitles(video_id);
